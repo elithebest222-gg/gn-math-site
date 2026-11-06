@@ -797,7 +797,6 @@ footer {
 
     <div class="footer-links">
             <a href="#" onclick="loadDMCA(); return false;">DMCA</a>
-            <a href="#" onclick="showContact(); return false;">Contact</a>
             <a href="#" onclick="loadPrivacy(); return false;">Privacy Policy</a>
             <a href="javascript:saveData()">Export Data</a>
             <a href="#" onclick="document.getElementById('importData').click(); return false;">Import Data</a>
@@ -814,14 +813,14 @@ const sortOptions = document.getElementById('sortOptions');
 const filterOptions = document.getElementById('filterOptions');
 // https://www.jsdelivr.com/tools/purge
 const zonesurls = [
-    "https://cdn.jsdelivr.net/gh/freebuisness/assets@main/zones.json",
-    "https://cdn.jsdelivr.net/gh/freebuisness/assets@latest/zones.json",
-    "https://cdn.jsdelivr.net/gh/freebuisness/assets@master/zones.json",
-    "https://cdn.jsdelivr.net/gh/freebuisness/assets/zones.json"
+    "https://cdn.jsdelivr.net/gh/elithebest222-gg/assets@main/zones.json",
+    "https://cdn.jsdelivr.net/gh/elithebest222-gg/assets@latest/zones.json",
+    "https://cdn.jsdelivr.net/gh/elithebest222-gg/assets@master/zones.json",
+    "https://cdn.jsdelivr.net/gh/elithebest222-gg/assets/zones.json"
 ];
 let zonesURL = zonesurls[Math.floor(Math.random() * zonesurls.length)];
-const coverURL = "https://cdn.jsdelivr.net/gh/freebuisness/covers@main";
-const htmlURL = "https://cdn.jsdelivr.net/gh/freebuisness/html@main";
+const coverURL = "https://cdn.jsdelivr.net/gh/elithebest222-gg/covers@main";
+const htmlURL = "https://cdn.jsdelivr.net/gh/elithebest222-gg/html@main";
 let zones = [];
 let popularityData = {};
 const featuredContainer = document.getElementById('featuredZones');
@@ -837,14 +836,14 @@ async function listZones() {
       let shajson;
       let sha;
         try {
-          sharesponse = await fetch("https://api.github.com/repos/freebuisness/assets/commits?t="+Date.now());
+          sharesponse = await fetch("https://api.github.com/repos/elithebest222-gg/assets/commits?t="+Date.now());
         } catch (error) {}
         if (sharesponse && sharesponse.status === 200) {
           try {
             shajson = await sharesponse.json();
             sha = shajson[0]['sha'];
             if (sha) {
-                zonesURL = `https://cdn.jsdelivr.net/gh/freebuisness/assets@${sha}/zones.json`;
+                zonesURL = `https://cdn.jsdelivr.net/gh/elithebest222-gg/assets@${sha}/zones.json`;
             }
           } catch (error) {
             try {
@@ -852,7 +851,7 @@ async function listZones() {
                 if (secondarysharesponse && secondarysharesponse.status === 200) {
                     sha = (await secondarysharesponse.text()).trim();
                     if (sha) {
-                        zonesURL = `https://cdn.jsdelivr.net/gh/freebuisness/assets@${sha}/zones.json`;
+                        zonesURL = `https://cdn.jsdelivr.net/gh/elithebest222-gg/assets@${sha}/zones.json`;
                     }
                 }
             } catch(error) {}
@@ -861,7 +860,6 @@ async function listZones() {
         const response = await fetch(zonesURL+"?t="+Date.now());
         const json = await response.json();
         zones = json;
-        zones[0].featured = true; // always gonna be the discord
         await Promise.all([fetchPopularity("year"), fetchPopularity("month"), fetchPopularity("week"), fetchPopularity("day")]);
         sortZones();
         try {
@@ -992,6 +990,36 @@ function sortZones() {
         displayFeaturedZones(featured);
     }
     displayZones(zones);
+}
+
+function checkAnnouncements() {
+    // 1. Set your custom announcement text and an update ID here
+    const announcementId = "update_v1_4"; // CHANGE THIS ID whenever you change the message text!
+    const announcementText = "<h3> Welcome to the New Site!</h3><p>We have updated the code for you to use about:blank. More games are coming soon! Enjoy playing. -Elijah Whisler </p>";
+
+    // 2. Check if the user has already read this exact version
+    if (localStorage.getItem('lastReadAnnouncement') === announcementId) {
+        return; // User already closed this version, do not show it again
+    }
+
+    // 3. Match the site's popup setup structure to load dynamically
+    document.getElementById('popupTitle').textContent = "Announcement";
+    const popupBody = document.getElementById('popupBody');
+    popupBody.innerHTML = announcementText;
+    popupBody.contentEditable = false;
+
+    // 4. Temporarily hijack the close button action to log that the user read this update
+    const closeBtn = document.getElementById('popupClose');
+    const originalOnClick = closeBtn.onclick;
+    
+    closeBtn.onclick = function() {
+        localStorage.setItem('lastReadAnnouncement', announcementId);
+        closePopup();
+        closeBtn.onclick = originalOnClick; // Reset to standard closing behaviour
+    };
+
+    // 5. Open the modal natively matching your site CSS design rules
+    document.getElementById('popupOverlay').style.display = "flex";
 }
 
 function displayFeaturedZones(featuredZones) {
@@ -1655,6 +1683,7 @@ function closePopup() {
     document.getElementById('popupOverlay').style.display = "none";
 }
 listZones();
+checkAnnouncements();
 
 HTMLCanvasElement.prototype.toDataURL = function (...args) {
     return "";
