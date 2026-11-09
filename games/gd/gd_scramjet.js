@@ -15,8 +15,7 @@
     try {
       if (window.TruffledTransport) return window.TruffledTransport.getWisp();
     } catch (e) {}
-    var proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-    return proto + '//' + location.host + '/wisp/';
+    return 'wss://wisp.mercurywork.shop/';
   }
 
   function client() {
