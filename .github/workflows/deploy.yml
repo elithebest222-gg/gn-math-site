@@ -1,0 +1,59 @@
+name: Remote Deploy Geometry Dash WASM
+
+on:
+  push:
+    branches: ["main"]
+  # Allows you to manually trigger this deployment if needed
+  workflow_dispatch: 
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      # 1. Checkout your current repository (where this workflow lives)
+      - name: Checkout host repository
+        uses: actions/checkout@v4
+
+      # 2. Clone the game repository into a temporary folder
+      - name: Clone Geometry Dash WASM repository
+        uses: actions/checkout@v4
+        with:
+          repository: 'elithebest222-gg/geometry-dash-wasm'
+          path: 'temp-game-repo'
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      # 3. Create the games/geo-dash folder structure and copy the files over
+      - name: Structure subfolders for deployment
+        run: |
+          mkdir -p staging/games/geo-dash
+          
+          # Move everything from the cloned game repo into the staging subfolder
+          cp -r temp-game-repo/* staging/games/geo-dash/
+          
+          # Clean up the temporary folder so it doesn't get deployed
+          rm -rf temp-game-repo
+
+      # 4. Upload the built staging structure
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: './staging' 
+
+      # 5. Push it live to GitHub Pages
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
