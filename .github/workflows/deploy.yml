@@ -17,17 +17,17 @@ jobs:
 
       - name: Clone Geometry Dash source repository
         run: |
-          # Clones your personal archive fork with minimal history tracking
-          git clone --depth 1 https://github.com/elithebest222-gg/gd-webport-archive temp-repo
+          # Clones the elithebest222-gg/geometry-dash-wasm repository with minimal history
+          git clone --depth 1 https://github.com/elithebest222-gg/geometry-dash-wasm temp-repo
 
       - name: Move Assets to Target Location
         run: |
           # Setup destination root structure for Geometry Dash
           mkdir -p games/gd
           
-          # Copy over your standalone archive files
+          # Copy over everything except git files and documentation
           if [ -d "temp-repo" ]; then
-            rsync -av --exclude='.git' --exclude='README.md' --exclude='.gitattributes' temp-repo/ games/gd/
+            rsync -av --exclude='.git' --exclude='README.md' temp-repo/ games/gd/
           else
             echo "::error::Source repository folder temp-repo not found!"
             exit 1
@@ -57,9 +57,9 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           
-          # Stage and commit your standalone assets
+          # Stage and commit the new game assets
           git add games/gd/
-          git commit -m "Imported standalone Geometry Dash assets from personal archive fork" || echo "No changes to commit"
+          git commit -m "Imported Geometry Dash WASM assets directly via standard web sync" || echo "No changes to commit"
           
           git pull --rebase origin main
           git push origin main
