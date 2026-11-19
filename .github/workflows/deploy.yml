@@ -17,7 +17,7 @@ jobs:
 
       - name: Clone WebBloxDemo
         run: |
-          git clone --depth 1 https://github.com/coldbrewofficial/WebBloxDemo/ temp-repo
+          git clone --depth 1 https://github.com/elithebest222-gg/WebBloxDemo/ temp-repo
 
       - name: Copy Static Files to games/rblx
         run: |
