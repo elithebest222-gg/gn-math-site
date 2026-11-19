@@ -1,13 +1,13 @@
-name: Copy Geometry Dash Port
+name: Build and Deploy PPSSPP to tools/psp
+
 on:
   workflow_dispatch:
 
-# Grants the workflow permission to push changes back to your repository
 permissions:
   contents: write
 
 jobs:
-  copy-files:
+  build-ppsspp:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout your repository
@@ -15,36 +15,36 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Clone Geometry Dash source repository
+      - name: Clone PPSSPP Web (wasm branch & all submodules)
         run: |
-          # Clones the elithebest222-gg/geometry-dash-wasm repository with minimal history
-          git clone --depth 1 https://github.com/elithebest222-gg/geometry-dash-wasm temp-repo
+          git clone --branch wasm --recurse-submodules https://github.com temp-repo
+          cd temp-repo
+          git submodule update --init --recursive
 
-      - name: Move Assets to Target Location
-        run: |
-          # Setup destination root structure for Geometry Dash
-          mkdir -p games/gd
-          
-          # Copy over everything except git files and documentation
-          if [ -d "temp-repo" ]; then
-            rsync -av --exclude='.git' --exclude='README.md' temp-repo/ games/gd/
-          else
-            echo "::error::Source repository folder temp-repo not found!"
-            exit 1
-          fi
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: 'temp-repo/.nvmrc'
 
-      - name: Remove Base Line in Index (Case Insensitive)
+      - name: Setup Emscripten
+        uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: '6.0.12'
+
+      - name: Build GitHub Pages Static Bundle
+        working-directory: temp-repo
         run: |
-          INDEX_FILES=$(find games/gd -iname "index.html")
-          
-          if [ -n "$INDEX_FILES" ]; then
-            for file in $INDEX_FILES; do
-              echo "Processing base href removal for: $file"
-              sed -i '/<base href=/Id' "$file"
-            done
-            echo "Successfully completed base href sanitization."
+          npm install --global npm@12.2.0
+          npm --prefix wasm-page ci
+          make pages WASM_ENABLE_LTO=OFF
+
+      - name: Move Built Files to tools/psp
+        run: |
+          mkdir -p tools/psp
+          if [ -d "temp-repo/wasm-page/dist/ppsspp-web" ]; then
+            rsync -av --delete temp-repo/wasm-page/dist/ppsspp-web/ tools/psp/
           else
-            echo "::error::No index.html file found anywhere in games/gd!"
+            echo "::error::Build output folder wasm-page/dist/ppsspp-web not found!"
             exit 1
           fi
 
@@ -52,14 +52,13 @@ jobs:
         run: |
           rm -rf temp-repo
 
-      - name: Commit and push changes safely to main
+      - name: Commit and Push to Repository
         run: |
           git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          
-          # Stage and commit the new game assets
-          git add games/gd/
-          git commit -m "Imported Geometry Dash WASM assets directly via standard web sync" || echo "No changes to commit"
-          
-          git pull --rebase origin main
-          git push origin main
+          git config --global user.email "github-actions[bot]@://github.com"
+
+          git add tools/psp/
+          git commit -m "Built and imported PPSSPP Web for GitHub Pages into tools/psp" || echo "No changes to commit"
+
+          git pull --rebase origin ${{ github.ref_name }}
+          git push origin ${{ github.ref_name }}
