@@ -2,7 +2,8 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>GN-BLOX</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>WebBlox Player</title>
   <link rel="icon" href="favicon.png" />
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; font-family: Arial, sans-serif; }
@@ -10,9 +11,10 @@
     .bar { height: 34px; background: #0074bd; color: #fff; display: flex; align-items: center; justify-content: space-between; padding: 0 12px; font-weight: 700; font-size: 13px; }
     .bar a { color: #fff; text-decoration: none; background: rgba(0,0,0,0.25); padding: 3px 9px; border-radius: 2px; }
     #canvas { display: block; width: 100vw; height: calc(100vh - 34px); }
-    #loading { position: fixed; inset: 34px 0 0; background: #000; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 99; }
-    #loading img { width: 280px; margin-bottom: 24px; }
-    #loading-text { color: #fff; font-size: 18px; }
+    #loading { position: fixed; inset: 34px 0 0; background: #000; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 99; padding: 16px; text-align: center; }
+    #loading img { width: 220px; margin-bottom: 20px; }
+    #loading-text { color: #fff; font-size: 17px; margin-bottom: 8px; }
+    #sub-text { color: #aaa; font-size: 12px; max-width: 90%; word-break: break-word; }
   </style>
   <script>
     if ('serviceWorker' in navigator) {
@@ -22,59 +24,82 @@
 </head>
 <body>
   <div class="bar"><span id="gname">WebBlox</span><a href="index.html">Back to Home</a></div>
-  <div id="loading"><img src="WebBlox.png" alt="" /><span id="loading-text">Loading...</span></div>
+  <div id="loading"><img src="WebBlox.png" alt="" /><span id="loading-text">Loading...</span><span id="sub-text"></span></div>
   <canvas id="canvas" oncontextmenu="return false"></canvas>
   <script>
-    (function () {
+    (async function () {
       const p = new URLSearchParams(location.search);
       const mapFile = p.get('map');
       const isCustom = p.get('custom') === '1';
       document.getElementById('gname').textContent = p.get('title') || 'WebBlox';
-      const loadDiv = document.getElementById('loading'), loadTxt = document.getElementById('loading-text');
+      const loadDiv = document.getElementById('loading');
+      const loadTxt = document.getElementById('loading-text');
+      const subTxt = document.getElementById('sub-text');
       document.addEventListener('contextmenu', e => e.preventDefault());
 
+      // 1. Download the custom .rbxl file BEFORE loading rblx.js so there is zero race condition
+      let customBytes = null;
+      if (isCustom && sessionStorage.getItem('customPlaceData')) {
+        subTxt.textContent = 'Reading local place file...';
+        const buf = await (await fetch(sessionStorage.getItem('customPlaceData'))).arrayBuffer();
+        customBytes = new Uint8Array(buf);
+      } else if (mapFile) {
+        subTxt.textContent = 'Downloading ' + mapFile + '...';
+        const res = await fetch('places/' + encodeURIComponent(mapFile));
+        if (res.ok) {
+          customBytes = new Uint8Array(await res.arrayBuffer());
+          subTxt.textContent = 'Map ready (' + Math.round(customBytes.byteLength / 1024) + ' KB)';
+        } else {
+          subTxt.textContent = 'Could not find places/' + mapFile + ' (HTTP ' + res.status + ')';
+        }
+      }
+
+      // 2. Stitch the 12 rblx.data chunks
       let loaded = 0;
       const chunksP = Promise.all(Array.from({ length: 12 }, (_, i) =>
         fetch('rblx.data.' + i).then(r => r.arrayBuffer()).then(b => {
-          loaded++; loadTxt.textContent = 'Loading ' + Math.round(loaded / 12 * 100) + '%'; return b;
+          loaded++;
+          loadTxt.textContent = 'Loading ' + Math.round(loaded / 12 * 100) + '%';
+          return b;
         })
       )).then(chunks => {
         const out = new Uint8Array(chunks.reduce((s, c) => s + c.byteLength, 0));
-        let off = 0; chunks.forEach(c => { out.set(new Uint8Array(c), off); off += c.byteLength; });
+        let off = 0;
+        for (let i = 0; i < chunks.length; i++) {
+          out.set(new Uint8Array(chunks[i]), off);
+          off += chunks[i].byteLength;
+          chunks[i] = null;
+        }
         return URL.createObjectURL(new Blob([out], { type: 'application/octet-stream' }));
       });
-
-      const placeP = isCustom && sessionStorage.getItem('customPlaceData')
-        ? fetch(sessionStorage.getItem('customPlaceData')).then(r => r.arrayBuffer())
-        : (mapFile ? fetch('places/' + mapFile).then(r => r.ok ? r.arrayBuffer() : null).catch(() => null) : Promise.resolve(null));
 
       const origFetch = window.fetch.bind(window);
       window.fetch = (res, init) => /rblx\.data$/.test(typeof res === 'string' ? res : res?.url || '')
         ? chunksP.then(u => origFetch(u, init)) : origFetch(res, init);
 
+      // 3. Configure Emscripten Module and hook FS.createDataFile when rblx.data unpacks
       window.Module = {
         canvas: document.getElementById('canvas'),
-        print: () => {},
-        printErr: t => { if (/error|exception/i.test(t)) console.error(t); },
+        print: t => { subTxt.textContent = t; },
+        printErr: t => { if (/error|exception/i.test(t)) subTxt.textContent = t; },
+        setStatus: t => { if (t) subTxt.textContent = t; },
         preRun: [() => {
-          addRunDependency('map');
-          placeP.then(buf => {
-            if (buf) {
-              const bytes = new Uint8Array(buf);
-              const scan = d => FS.readdir(d).forEach(e => {
-                if (e === '.' || e === '..') return;
-                const full = (d === '/' ? '' : d) + '/' + e;
-                if (FS.isDir(FS.stat(full).mode)) scan(full);
-                else if (/\.rbxlx?$/i.test(e)) FS.writeFile(full, bytes);
-              });
-              scan('/');
+          if (!customBytes) return;
+          const origCreate = FS.createDataFile;
+          FS.createDataFile = function (parent, name, data, canRead, canWrite, canOwn) {
+            if (/\.rbxlx?$/i.test(name)) {
+              subTxt.textContent = 'Replaced ' + name + ' with ' + (mapFile || 'custom place');
+              return origCreate.call(this, parent, name, customBytes, canRead, canWrite, canOwn);
             }
-            removeRunDependency('map');
-          });
+            return origCreate.apply(this, arguments);
+          };
         }],
         onRuntimeInitialized: () => { loadDiv.style.display = 'none'; }
       };
-      const s = document.createElement('script'); s.src = 'rblx.js'; document.body.appendChild(s);
+
+      const s = document.createElement('script');
+      s.src = 'rblx.js';
+      document.body.appendChild(s);
     })();
   </script>
 </body>
