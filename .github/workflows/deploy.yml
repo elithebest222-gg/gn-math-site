@@ -1,4 +1,4 @@
-name: Build and Deploy PPSSPP to tools/psp
+name: Import WebBloxDemo to games/rblx
 
 on:
   workflow_dispatch:
@@ -7,7 +7,7 @@ permissions:
   contents: write
 
 jobs:
-  build-ppsspp:
+  import-webblox:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout your repository
@@ -15,38 +15,18 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Clone PPSSPP Web (wasm branch & all submodules)
+      - name: Clone WebBloxDemo
         run: |
-          git clone --branch wasm --recurse-submodules https://github.com/root-hunter/ppsspp-web temp-repo
-          cd temp-repo
-          git submodule update --init --recursive
+          git clone --depth 1 https://github.com/coldbrewofficial/WebBloxDemo/ temp-repo
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version-file: 'temp-repo/.nvmrc'
-
-      - name: Setup Emscripten
-        uses: mymindstorm/setup-emsdk@v14
-        with:
-          version: '6.0.12'
-
-      - name: Build GitHub Pages Static Bundle
-        working-directory: temp-repo
+      - name: Copy Static Files to games/rblx
         run: |
-          npm install --global npm@12.2.0
-          npm --prefix wasm-page ci
-          make pages WASM_ENABLE_LTO=OFF
-
-      - name: Move Built Files to tools/psp
-        run: |
-          mkdir -p tools/psp
-          if [ -d "temp-repo/wasm-page/dist/ppsspp-web" ]; then
-            rsync -av --delete temp-repo/wasm-page/dist/ppsspp-web/ tools/psp/
-          else
-            echo "::error::Build output folder wasm-page/dist/ppsspp-web not found!"
-            exit 1
-          fi
+          mkdir -p games/rblx
+          rsync -av --delete \
+            --exclude='.git' \
+            --exclude='archive' \
+            --exclude='readme.md' \
+            temp-repo/ games/rblx/
 
       - name: Clean Up Temporary Workspace
         run: |
@@ -55,10 +35,13 @@ jobs:
       - name: Commit and Push to Repository
         run: |
           git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@://github.com"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          git add tools/psp/
-          git commit -m "Built and imported PPSSPP Web for GitHub Pages into tools/psp" || echo "No changes to commit"
-
-          git pull --rebase origin ${{ github.ref_name }}
-          git push origin ${{ github.ref_name }}
+          git add games/rblx/
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Imported WebBloxDemo static build into games/rblx"
+            git pull --rebase origin "${{ github.ref_name }}"
+            git push origin "${{ github.ref_name }}"
+          fi
