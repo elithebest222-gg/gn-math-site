@@ -2,122 +2,106 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Home - GN-BLOX</title>
-  <link rel="icon" type="image/png" href="favicon.png" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>WebBlox Player</title>
+  <link rel="icon" href="favicon.png" />
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: Arial, sans-serif; }
-    body { background: #e3e3e3; color: #191919; font-size: 13px; }
-    a { text-decoration: none; color: inherit; }
-    .top { background: #0074bd; height: 40px; padding: 0 12px; display: flex; align-items: center; justify-content: space-between; position: fixed; inset: 0 0 auto; z-index: 100; }
-    .nav { display: flex; align-items: center; height: 100%; }
-    .btn-nav { background: none; border: none; color: #fff; cursor: pointer; height: 100%; padding: 0 11px; display: flex; align-items: center; font-size: 14px; }
-    .btn-nav:hover { background: rgba(0,0,0,0.15); }
-    .brand { display: flex; align-items: center; gap: 6px; color: #fff; font-weight: 700; font-size: 17px; padding-right: 8px; }
-    .brand img { height: 24px; }
-    .search { display: flex; background: #fff; border: 1px solid #005b96; border-radius: 2px; height: 26px; width: 200px; margin-left: 6px; }
-    .search input { border: none; outline: none; padding: 0 7px; font-size: 13px; width: 100%; }
-    .robux { color: #fff; font-weight: 700; font-size: 12px; display: flex; align-items: center; gap: 5px; }
-    .robux span:first-child { border: 1.5px solid #fff; border-radius: 2px; font-size: 9px; padding: 1px 3px; }
-    .sb { position: fixed; top: 40px; left: 0; bottom: 0; width: 155px; background: #fff; border-right: 1px solid #d4d4d4; padding: 6px 0; display: flex; flex-direction: column; }
-    .sb-user { padding: 6px 12px 8px; font-weight: 700; border-bottom: 1px solid #e3e3e3; margin-bottom: 4px; }
-    .sb a { display: flex; justify-content: space-between; padding: 6px 12px; }
-    .sb a:hover, .sb a.act { background: #f2f2f2; color: #0074bd; }
-    .pill { background: #00a2ff; color: #fff; font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 9px; }
-    .sb .cta { margin: 10px 10px 0; background: #00a2ff; color: #fff; justify-content: center; padding: 7px 0; border-radius: 3px; font-weight: 700; }
-    .main { margin-left: 155px; padding: 50px 16px 24px; max-width: 1080px; }
-    .head { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
-    .av { width: 76px; height: 76px; border-radius: 50%; background: #d0d0d0; border: 1px solid #bcbcbc; display: flex; align-items: center; justify-content: center; }
-    .av img { width: 74%; height: 74%; object-fit: contain; }
-    .head h1 { font-size: 23px; font-weight: 400; margin-bottom: 3px; }
-    .obc { border: 1px solid #00a2ff; color: #00a2ff; background: #fff; font-size: 10px; font-weight: 700; padding: 1px 5px; border-radius: 2px; }
-    .sec { margin-bottom: 14px; }
-    .sec-h { display: flex; justify-content: space-between; align-items: center; margin-bottom: 7px; }
-    .sec-h h2 { font-size: 17px; font-weight: 400; }
-    .btn-b { background: #00a2ff; color: #fff; border: none; border-radius: 3px; padding: 3px 10px; font-size: 12px; font-weight: 600; cursor: pointer; }
-    .friends { background: #fff; border: 1px solid #d4d4d4; border-radius: 3px; padding: 8px; display: flex; gap: 8px; overflow-x: auto; }
-    .f { width: 72px; flex-shrink: 0; text-align: center; font-size: 11px; color: #444; }
-    .f div:first-child { width: 50px; height: 50px; border-radius: 50%; margin: 0 auto 3px; border: 1px solid #d0d0d0; background: #ececec; position: relative; display: flex; align-items: center; justify-content: center; font-weight: 700; }
-    .on { position: absolute; bottom: 1px; right: 1px; width: 10px; height: 10px; border-radius: 50%; background: #02b757; border: 2px solid #fff; }
-    .grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 9px; }
-    @media (max-width: 1000px) { .grid { grid-template-columns: repeat(3, 1fr); } }
-    @media (max-width: 660px) { .sb { display: none; } .main { margin-left: 0; } .grid { grid-template-columns: repeat(2, 1fr); } }
-    .card { background: #fff; border: 1px solid #d4d4d4; border-radius: 3px; overflow: hidden; display: block; }
-    .card:hover { box-shadow: 0 2px 5px rgba(0,0,0,0.16); }
-    .thumb { width: 100%; aspect-ratio: 1; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 700; font-size: 13px; text-align: center; padding: 6px; text-shadow: 0 1px 2px rgba(0,0,0,0.7); }
-    .meta { padding: 5px 6px; }
-    .t { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 2px; }
-    .s { font-size: 11px; color: #757575; margin-bottom: 4px; }
-    .bar { height: 4px; background: #d4d4d4; border-radius: 2px; overflow: hidden; }
-    .fill { height: 100%; background: #02b757; }
+    * { margin: 0; padding: 0; box-sizing: border-box; font-family: Arial, sans-serif; }
+    html, body { width: 100%; height: 100%; background: #000; overflow: hidden; }
+    .bar { height: 34px; background: #0074bd; color: #fff; display: flex; align-items: center; justify-content: space-between; padding: 0 12px; font-weight: 700; font-size: 13px; }
+    .bar a { color: #fff; text-decoration: none; background: rgba(0,0,0,0.25); padding: 3px 9px; border-radius: 2px; }
+    #canvas { display: block; width: 100vw; height: calc(100vh - 34px); }
+    #loading { position: fixed; inset: 34px 0 0; background: #000; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 99; padding: 16px; text-align: center; }
+    #loading img { width: 220px; margin-bottom: 20px; }
+    #loading-text { color: #fff; font-size: 17px; margin-bottom: 8px; }
+    #sub-text { color: #aaa; font-size: 12px; max-width: 90%; word-break: break-word; }
   </style>
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('./coi-serviceworker.js').then(() => { if (!crossOriginIsolated) location.reload(); });
+    }
+  </script>
 </head>
 <body>
-  <header class="top">
-    <div class="nav">
-      <a href="index.html" class="brand"><img src="WebBlox.png" alt="" /><span>WebBlox</span></a>
-      <a href="#games" class="btn-nav">Games</a>
-      <a href="nds.html" class="btn-nav">Catalog</a>
-      <button class="btn-nav" onclick="document.getElementById('rbxl').click()">Develop</button>
-      <input type="file" id="rbxl" accept=".rbxl,.rbxlx" hidden onchange="up(event)" />
-      <div class="search"><input id="q" placeholder="Search" oninput="render()" /></div>
-    </div>
-    <div class="robux"><span>R$</span><span>8,451</span></div>
-  </header>
-
-  <aside class="sb">
-    <div class="sb-user">WebBloxPlayer</div>
-    <a href="index.html" class="act">Home</a>
-    <a href="#games">Profile</a>
-    <a href="#games">Messages<span class="pill">99+</span></a>
-    <a href="#friends">Friends<span class="pill">9</span></a>
-    <a href="#games">Character</a>
-    <a href="#games">Inventory</a>
-    <a href="#games">Trade</a>
-    <a href="#games">Groups</a>
-    <a href="#games">Forum</a>
-    <a href="nds.html" class="cta">Play NDS</a>
-  </aside>
-
-  <main class="main">
-    <div class="head"><div class="av"><img src="WebBlox.png" alt="" /></div><div><h1>Hello, WebBloxPlayer!</h1><span class="obc">OBC</span></div></div>
-    <section class="sec" id="friends">
-      <div class="sec-h"><h2>Friends (9)</h2><button class="btn-b" onclick="document.getElementById('rbxl').click()">Load .rbxl</button></div>
-      <div class="friends" id="flist"></div>
-    </section>
-    <section class="sec" id="games"><div class="sec-h"><h2>Recently Played</h2><a href="nds.html" class="btn-b">See All</a></div><div class="grid" id="recent"></div></section>
-    <section class="sec"><div class="sec-h"><h2>My Favorites</h2><a href="crossroads.html" class="btn-b">See All</a></div><div class="grid" id="favs"></div></section>
-  </main>
-
+  <div class="bar"><span id="gname">WebBlox</span><a href="index.html">Back to Home</a></div>
+  <div id="loading"><img src="WebBlox.png" alt="" /><span id="loading-text">Loading...</span><span id="sub-text"></span></div>
+  <canvas id="canvas" oncontextmenu="return false"></canvas>
   <script>
-    const FRIENDS = [["Builderman",1],["Shedletsky",1],["Telamon",0],["Erik.Cassel",0],["ROBLOX",0],["1x1x1x1",0],["Guest 1337",0],["Dued1",0],["Stickmasterluke",0]];
-    const RECENT = [
-      ["Natural Disaster Survival","4.1K Playing",95,"play.html?map=Natural%20Disaster%20Survival.rbxl&title=Natural%20Disaster%20Survival","#1565c0,#42a5f5"],
-      ["Crossroads","612 Playing",96,"crossroads.html","#2e7d32,#81c784"],
-      ["Doomspire Tower Battle","1.1K Playing",95,"doomspire.html","#c62828,#ef5350"],
-      ["Glass Houses","215 Playing",90,"glass_houses.html","#00838f,#4dd0e1"],
-      ["Chaos Canyon","480 Playing",92,"chaos_canyon.html","#d84315,#ff8a65"],
-      ["Haunted Mansion","390 Playing",89,"haunted_mansion.html","#4a148c,#9c27b0"]
-    ];
-    const FAVS = [
-      ["Base Wars","1.4K Playing",91,"base_wars.html","#37474f,#78909c"],
-      ["Rocket Arena","530 Playing",93,"rocket_arena.html","#b71c1c,#e57373"],
-      ["Happy Home in Robloxia","710 Playing",94,"happy_home.html","#f57f17,#fbc02d"],
-      ["Lumber Tycoon","2.3K Playing",94,"lumber_tycoon.html","#4e342e,#8d6e63"],
-      ["Natural Disaster Survival","4.1K Playing",95,"nds.html","#1565c0,#42a5f5"],
-      ["Classic Sandbox Demo","Online",100,"sandbox.html","#0074bd,#00a2ff"]
-    ];
-    document.getElementById("flist").innerHTML = FRIENDS.map(([n,on]) => `<div class="f"><div>${n[0]}${on?'<span class="on"></span>':''}</div><div>${n}</div></div>`).join("");
-    function up(e) { const f = e.target.files[0]; if (!f) return; const r = new FileReader(); r.onload = () => { sessionStorage.setItem("customPlaceData", r.result); location.href = "sandbox.html?custom=1"; }; r.readAsDataURL(f); }
-    function render() {
-      const q = document.getElementById("q").value.toLowerCase();
-      [["recent",RECENT],["favs",FAVS]].forEach(([id,list]) => {
-        document.getElementById(id).innerHTML = list.filter(g => g[0].toLowerCase().includes(q)).map(([t,s,r,u,c]) =>
-          `<a class="card" href="${u}"><div class="thumb" style="background:linear-gradient(135deg,${c})">${t}</div><div class="meta"><div class="t">${t}</div><div class="s">${s}</div><div class="bar"><div class="fill" style="width:${r}%"></div></div></div></a>`
-        ).join("");
+    (async function () {
+      const p = new URLSearchParams(location.search);
+      const mapFile = p.get('map');
+      const isCustom = p.get('custom') === '1';
+      document.getElementById('gname').textContent = p.get('title') || 'WebBlox';
+      const loadDiv = document.getElementById('loading');
+      const loadTxt = document.getElementById('loading-text');
+      const subTxt = document.getElementById('sub-text');
+      document.addEventListener('contextmenu', e => e.preventDefault());
+
+      // 1. Download custom .rbxl before rblx.js starts
+      let customBytes = null;
+      if (isCustom && sessionStorage.getItem('customPlaceData')) {
+        const buf = await (await fetch(sessionStorage.getItem('customPlaceData'))).arrayBuffer();
+        customBytes = new Uint8Array(buf);
+      } else if (mapFile) {
+        subTxt.textContent = 'Downloading ' + mapFile + '...';
+        const res = await fetch('places/' + encodeURIComponent(mapFile));
+        if (res.ok) customBytes = new Uint8Array(await res.arrayBuffer());
+        else subTxt.textContent = 'Missing places/' + mapFile + ' (HTTP ' + res.status + ')';
+      }
+
+      // 2. Stitch the 12 rblx.data chunks
+      let loaded = 0;
+      const chunksP = Promise.all(Array.from({ length: 12 }, (_, i) =>
+        fetch('rblx.data.' + i).then(r => r.arrayBuffer()).then(b => {
+          loaded++;
+          loadTxt.textContent = 'Loading ' + Math.round(loaded / 12 * 100) + '%';
+          return b;
+        })
+      )).then(chunks => {
+        const out = new Uint8Array(chunks.reduce((s, c) => s + c.byteLength, 0));
+        let off = 0;
+        for (let i = 0; i < chunks.length; i++) {
+          out.set(new Uint8Array(chunks[i]), off);
+          off += chunks[i].byteLength;
+          chunks[i] = null;
+        }
+        return URL.createObjectURL(new Blob([out], { type: 'application/octet-stream' }));
       });
-    }
-    render();
+
+      const origFetch = window.fetch.bind(window);
+      window.fetch = (res, init) => /rblx\.data$/.test(typeof res === 'string' ? res : res?.url || '')
+        ? chunksP.then(u => origFetch(u, init)) : origFetch(res, init);
+
+      // 3. Intercept all unpacked files from rblx.data and log them
+      const unpackedFiles = [];
+      window.Module = {
+        canvas: document.getElementById('canvas'),
+        print: t => { subTxt.textContent = t; },
+        printErr: t => { if (/error|exception/i.test(t)) subTxt.textContent = t; },
+        setStatus: t => { if (t) subTxt.textContent = t; },
+        preRun: [() => {
+          const wrap = (fn) => function (parent, name, data) {
+            const fullPath = (parent === '/' ? '' : parent) + '/' + name;
+            unpackedFiles.push(fullPath);
+            if (customBytes && (/\.rbxlx?$/i.test(name) || /place|game|map/i.test(name))) {
+              arguments = customBytes;
+              subTxt.textContent = 'Injected custom map into: ' + fullPath;
+            }
+            return fn.apply(this, arguments);
+          };
+          FS.createDataFile = wrap(FS.createDataFile);
+          if (FS.createPreloadedFile) FS.createPreloadedFile = wrap(FS.createPreloadedFile);
+        }],
+        onRuntimeInitialized: () => {
+          console.log('Files unpacked from rblx.data:', unpackedFiles);
+          loadDiv.style.display = 'none';
+        }
+      };
+
+      const s = document.createElement('script');
+      s.src = 'rblx.js';
+      document.body.appendChild(s);
+    })();
   </script>
 </body>
 </html>
