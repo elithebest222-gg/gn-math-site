@@ -4,169 +4,57 @@
   <Item class="Workspace" referent="RBX0">
     <Properties>
       <bool name="AllowThirdPartySales">false</bool>
-      <token name="AnimationWeightedBlendFix">0</token>
-      <BinaryString name="AttributesSerialize"></BinaryString>
-      <token name="ClientAnimatorThrottling">0</token>
-      <string name="CollisionGroups">Default^0^-1</string>
       <Ref name="CurrentCamera">RBX1</Ref>
-      <double name="DistributedGameTime">0</double>
-      <bool name="ExplicitAutoJoints">true</bool>
       <float name="FallenPartsDestroyHeight">-500</float>
-      <Vector3 name="GlobalWind">
-        <X>0</X>
-        <Y>0</Y>
-        <Z>0</Z>
-      </Vector3>
       <float name="Gravity">196.199997</float>
-      <token name="InterpolationThrottling">0</token>
-      <token name="LevelOfDetail">0</token>
-      <token name="MeshPartHeadsAndAccessories">0</token>
-      <CoordinateFrame name="ModelInPrimary">
-        <X>0</X>
-        <Y>0</Y>
-        <Z>0</Z>
-        <R00>1</R00>
-        <R01>0</R01>
-        <R02>0</R02>
-        <R10>0</R10>
-        <R11>1</R11>
-        <R12>0</R12>
-        <R20>0</R20>
-        <R21>0</R21>
-        <R22>1</R22>
-      </CoordinateFrame>
-      <Ref name="PrimaryPart">null</Ref>
       <string name="Name">Workspace</string>
-      <bool name="StreamingEnabled">false</bool>
     </Properties>
     <Item class="Camera" referent="RBX1">
       <Properties>
         <CoordinateFrame name="CFrame">
-          <X>0</X>
-          <Y>15</Y>
-          <Z>25</Z>
-          <R00>1</R00>
-          <R01>0</R01>
-          <R02>0</R02>
-          <R10>0</R10>
-          <R11>0.89442718</R11>
-          <R12>0.44721359</R12>
-          <R20>0</R20>
-          <R21>-0.44721359</R21>
-          <R22>0.89442718</R22>
+          <X>0</X><Y>15</Y><Z>25</Z>
+          <R00>1</R00><R01>0</R01><R02>0</R02>
+          <R10>0</R10><R11>0.89442718</R11><R12>0.44721359</R12>
+          <R20>0</R20><R21>-0.44721359</R21><R22>0.89442718</R22>
         </CoordinateFrame>
-        <Ref name="CameraSubject">null</Ref>
-        <token name="CameraType">0</token>
         <float name="FieldOfView">70</float>
-        <CoordinateFrame name="Focus">
-          <X>0</X>
-          <Y>5</Y>
-          <Z>0</Z>
-          <R00>1</R00>
-          <R01>0</R01>
-          <R02>0</R02>
-          <R10>0</R10>
-          <R11>1</R11>
-          <R12>0</R12>
-          <R20>0</R20>
-          <R21>0</R21>
-          <R22>1</R22>
-        </CoordinateFrame>
         <string name="Name">Camera</string>
       </Properties>
     </Item>
     <Item class="Part" referent="RBX2">
       <Properties>
         <bool name="Anchored">true</bool>
-        <float name="BackParamA">-0.5</float>
-        <float name="BackParamB">0.5</float>
-        <token name="BackSurface">0</token>
-        <token name="BackSurfaceInput">0</token>
-        <float name="BottomParamA">-0.5</float>
-        <float name="BottomParamB">0.5</float>
-        <token name="BottomSurface">4</token>
-        <token name="BottomSurfaceInput">0</token>
         <CoordinateFrame name="CFrame">
-          <X>0</X>
-          <Y>-10</Y>
-          <Z>0</Z>
-          <R00>1</R00>
-          <R01>0</R01>
-          <R02>0</R02>
-          <R10>0</R10>
-          <R11>1</R11>
-          <R12>0</R12>
-          <R20>0</R20>
-          <R21>0</R21>
-          <R22>1</R22>
+          <X>0</X><Y>-10</Y><Z>0</Z>
+          <R00>1</R00><R01>0</R01><R02>0</R02>
+          <R10>0</R10><R11>1</R11><R12>0</R12>
+          <R20>0</R20><R21>0</R21><R22>1</R22>
         </CoordinateFrame>
         <bool name="CanCollide">true</bool>
         <int name="BrickColor">194</int>
-        <float name="Elasticity">0.5</float>
-        <float name="Friction">0.300000012</float>
-        <float name="FrontParamA">-0.5</float>
-        <float name="FrontParamB">0.5</float>
-        <token name="FrontSurface">0</token>
-        <token name="FrontSurfaceInput">0</token>
-        <float name="LeftParamA">-0.5</float>
-        <float name="LeftParamB">0.5</float>
-        <token name="LeftSurface">0</token>
-        <token name="LeftSurfaceInput">0</token>
         <bool name="Locked">true</bool>
-        <token name="Material">256</token>
         <string name="Name">Baseplate</string>
-        <float name="Reflectance">0</float>
-        <float name="RightParamA">-0.5</float>
-        <float name="RightParamB">0.5</float>
-        <token name="RightSurface">0</token>
-        <token name="RightSurfaceInput">0</token>
-        <Vector3 name="size">
-          <X>512</X>
-          <Y>20</Y>
-          <Z>512</Z>
-        </Vector3>
-        <float name="TopParamA">-0.5</float>
-        <float name="TopParamB">0.5</float>
+        <Vector3 name="size"><X>512</X><Y>20</Y><Z>512</Z></Vector3>
         <token name="TopSurface">3</token>
-        <token name="TopSurfaceInput">0</token>
-        <float name="Transparency">0</float>
         <token name="formFactorRaw">1</token>
         <token name="shape">1</token>
       </Properties>
     </Item>
     <Item class="SpawnLocation" referent="RBX3">
       <Properties>
-        <bool name="AllowTeamChangeOnTouch">false</bool>
         <bool name="Anchored">true</bool>
         <int name="BrickColor">194</int>
         <CoordinateFrame name="CFrame">
-          <X>0</X>
-          <Y>0.5</Y>
-          <Z>0</Z>
-          <R00>1</R00>
-          <R01>0</R01>
-          <R02>0</R02>
-          <R10>0</R10>
-          <R11>1</R11>
-          <R12>0</R12>
-          <R20>0</R20>
-          <R21>0</R21>
-          <R22>1</R22>
+          <X>0</X><Y>0.5</Y><Z>0</Z>
+          <R00>1</R00><R01>0</R01><R02>0</R02>
+          <R10>0</R10><R11>1</R11><R12>0</R12>
+          <R20>0</R20><R21>0</R21><R22>1</R22>
         </CoordinateFrame>
         <bool name="CanCollide">true</bool>
-        <int name="Duration">10</int>
         <bool name="Enabled">true</bool>
         <string name="Name">SpawnLocation</string>
         <bool name="Neutral">true</bool>
-        <Vector3 name="size">
-          <X>12</X>
-          <Y>1</Y>
-          <Z>12</Z>
-        </Vector3>
-        <token name="TopSurface">0</token>
-        <float name="Transparency">0</float>
-        <token name="formFactorRaw">1</token>
-        <token name="shape">1</token>
+        <Vector3 name="size"><X>12</X><Y>1</Y><Z>12</Z></Vector3>
       </Properties>
     </Item>
   </Item>
@@ -174,12 +62,7 @@
     <Properties>
       <Color3 name="Ambient">4286611584</Color3>
       <float name="Brightness">1</float>
-      <Color3 name="ColorShift_Bottom">4278190080</Color3>
-      <Color3 name="ColorShift_Top">4278190080</Color3>
       <float name="FogEnd">100000</float>
-      <float name="FogStart">0</float>
-      <Color3 name="FogColor">4290822336</Color3>
-      <bool name="GlobalShadows">true</bool>
       <string name="Name">Lighting</string>
       <Color3 name="OutdoorAmbient">4286611584</Color3>
       <string name="TimeOfDay">14:00:00</string>
@@ -201,10 +84,45 @@
 local RunService = game:GetService("RunService")
 local Players = game:GetService("Players")
 local player = Players.LocalPlayer
+local myName = (player and player.Name) or "Player1"
 
--- Build the RemotePlayer character model purely from code (no Studio needed)
+-- 1. Build 2016-style Top-Right Leaderboard UI
+local pg = player:WaitForChild("PlayerGui")
+local gui = Instance.new("ScreenGui")
+gui.Name = "PeerLeaderboard"
+gui.ResetOnSpawn = false
+gui.Parent = pg
+
+local board = Instance.new("Frame")
+board.Name = "List"
+board.Size = UDim2.new(0, 170, 0, 56)
+board.Position = UDim2.new(1, -180, 0, 8)
+board.BackgroundColor3 = Color3.new(0.12, 0.13, 0.14)
+board.BackgroundTransparency = 0.35
+board.BorderSizePixel = 0
+board.Parent = gui
+
+local function makeRow(y, text)
+	local lbl = Instance.new("TextLabel")
+	lbl.Size = UDim2.new(1, -16, 0, 24)
+	lbl.Position = UDim2.new(0, 8, 0, y)
+	lbl.BackgroundTransparency = 1
+	lbl.TextColor3 = Color3.new(1, 1, 1)
+	lbl.Font = Enum.Font.SourceSansBold
+	lbl.FontSize = Enum.FontSize.Size18
+	lbl.TextXAlignment = Enum.TextXAlignment.Left
+	lbl.Text = text
+	lbl.Parent = board
+	return lbl
+end
+
+local row1 = makeRow(4, myName)
+local row2 = makeRow(28, "")
+row2.Visible = false
+
+-- 2. Build RemotePlayer R6 Model
 local rig = Instance.new("Model")
-rig.Name = "RemotePlayer"
+rig.Name = "Friend"
 rig.Parent = workspace
 
 local function makePart(name, size, colorName, offset)
@@ -222,7 +140,7 @@ local function makePart(name, size, colorName, offset)
 end
 
 local torso, torsoOff = makePart("Torso", Vector3.new(2, 2, 1), "Bright blue", CFrame.new(0, 0, 0))
-local head, headOff = makePart("Head", Vector3.new(1.2, 1.2, 1.2), "Bright yellow", CFrame.new(0, 1.6, 0))
+local head, headOff = makePart("Head", Vector3.new(1.2, 1.2, 1.2), "Bright yellow", CFrame.new(0, 1.5, 0))
 local lArm, lArmOff = makePart("Left Arm", Vector3.new(1, 2, 1), "Bright yellow", CFrame.new(-1.5, 0, 0))
 local rArm, rArmOff = makePart("Right Arm", Vector3.new(1, 2, 1), "Bright yellow", CFrame.new(1.5, 0, 0))
 local lLeg, lLegOff = makePart("Left Leg", Vector3.new(1, 2, 1), "Br. yellowish green", CFrame.new(-0.5, -2, 0))
@@ -233,38 +151,73 @@ headMesh.MeshType = Enum.MeshType.Head
 headMesh.Scale = Vector3.new(1.25, 1.25, 1.25)
 headMesh.Parent = head
 
-local currentCF = CFrame.new(0, -100, 0) -- Hide underground until a friend connects
+-- Floating name tag above Friend's head
+local bb = Instance.new("BillboardGui")
+bb.Size = UDim2.new(0, 140, 0, 30)
+bb.StudsOffset = Vector3.new(0, 2, 0)
+bb.AlwaysOnTop = true
+bb.Parent = head
+local nameTag = Instance.new("TextLabel")
+nameTag.Size = UDim2.new(1, 0, 1, 0)
+nameTag.BackgroundTransparency = 1
+nameTag.TextColor3 = Color3.new(1, 1, 1)
+nameTag.TextStrokeTransparency = 0.3
+nameTag.Font = Enum.Font.SourceSansBold
+nameTag.FontSize = Enum.FontSize.Size18
+nameTag.Text = "Player2"
+nameTag.Parent = bb
 
-RunService.RenderStepped:Connect(function()
-	local char = player and player.Character
-	local root = char and (char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("Torso"))
-	if root then
-		local pos = root.Position
-		local _, rotY, _ = root.CFrame:ToEulerAnglesYXZ()
-		local speed = root.Velocity.Magnitude
-		local data = string.format("%.2f,%.2f,%.2f,%.2f,%.1f", pos.X, pos.Y, pos.Z, rotY, speed)
-		pcall(function()
-			writefile("/content/local_player.txt", data)
+local targetCF = CFrame.new(0, -100, 0)
+local currentCF = targetCF
+local timer = 0
+
+RunService.RenderStepped:Connect(function(dt)
+	timer = timer + dt
+	if timer >= 0.066 then
+		timer = 0
+		local char = player and player.Character
+		local root = char and (char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("Torso"))
+		local payload = ""
+		if root then
+			local pos = root.Position
+			local _, rotY, _ = root.CFrame:ToEulerAnglesYXZ()
+			payload = string.format("%.2f,%.2f,%.2f,%.2f,%s", pos.X, pos.Y, pos.Z, rotY, myName)
+		end
+
+		local ok, res = pcall(function()
+			return game:HttpGet("http://peer.local" .. payload, true)
 		end)
-	end
 
-	local ok, raw = pcall(function()
-		return readfile("/content/remote_player.txt")
-	end)
-
-	if ok and raw and #raw > 0 then
-		local x, y, z, ry = raw:match("([^,]+),([^,]+),([^,]+),([^,]+)")
-		if x and y and z and ry then
-			local target = CFrame.new(tonumber(x), tonumber(y), tonumber(z)) * CFrame.Angles(0, tonumber(ry), 0)
-			currentCF = currentCF:Lerp(target, 0.35)
-			torso.CFrame = currentCF * torsoOff
-			head.CFrame = currentCF * headOff
-			lArm.CFrame = currentCF * lArmOff
-			rArm.CFrame = currentCF * rArmOff
-			lLeg.CFrame = currentCF * lLegOff
-			rLeg.CFrame = currentCF * rLegOff
+		if ok and res and #res > 0 then
+			local connFlag, remote = res:match("^(%d)|(.*)$")
+			if connFlag == "1" then
+				row2.Visible = true
+				board.Size = UDim2.new(0, 170, 0, 56)
+				local x, y, z, ry, rName = remote:match("([^,]+),([^,]+),([^,]+),([^,]+),?(.*)")
+				if rName and #rName > 0 then
+					row2.Text = rName
+					nameTag.Text = rName
+				else
+					row2.Text = "Player2"
+				end
+				if x and y and z and ry then
+					targetCF = CFrame.new(tonumber(x), tonumber(y), tonumber(z)) * CFrame.Angles(0, tonumber(ry), 0)
+				end
+			else
+				row2.Visible = false
+				board.Size = UDim2.new(0, 170, 0, 32)
+				targetCF = CFrame.new(0, -100, 0)
+			end
 		end
 	end
+
+	currentCF = currentCF:Lerp(targetCF, 0.35)
+	torso.CFrame = currentCF * torsoOff
+	head.CFrame = currentCF * headOff
+	lArm.CFrame = currentCF * lArmOff
+	rArm.CFrame = currentCF * rArmOff
+	lLeg.CFrame = currentCF * lLegOff
+	rLeg.CFrame = currentCF * rLegOff
 end)
 ]]></ProtectedString>
         </Properties>
