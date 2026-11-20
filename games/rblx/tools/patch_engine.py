@@ -15,6 +15,11 @@ repeatable on a fresh copy of the original files).
    They used to fail against the missing asset server and the place loader
    waited for them forever.
 
+3. A malformed request URL no longer kills a worker thread.
+
+4. Multiplayer groundwork for ?replication=1 (see relay/): fixes a message-length
+   bug in Emscripten's socket bridge and lets the page set Module.bridgeUrl.
+
 usage: python3 patch_engine.py ../rblx.wasm ../rblx.js
 """
 import sys
@@ -184,6 +189,22 @@ def patch_js(s, PUSHSTRING_TABLE_INDEX):
     old_url = 'var url_=UTF8ToString(url);var fetch_attr=fetch+108;'
     assert s.count(old_url) == 1
     s = s.replace(old_url, 'var url_=UTF8ToString(url);if(/[?&]serverplaceid=/.test(url_))url_="data:text/plain,";var fetch_attr=fetch+108;')
+
+    # A malformed URL made XMLHttpRequest.open throw inside a worker, killing that thread.
+    old_open = 'xhr.open(requestMethod,url_,!fetchAttrSynchronous,userNameStr,passwordStr);'
+    assert s.count(old_open) == 1
+    s = s.replace(old_open, 'try{xhr.open(requestMethod,url_,!fetchAttrSynchronous,userNameStr,passwordStr)}catch(e){onerror(fetch,"invalid url");return}')
+
+    # Multiplayer groundwork (only used with ?replication=1):
+    # - Emscripten's socket bridge sends getsockname/getpeername with a negative length
+    #   (16 + addrlen - 256), which went out as an empty message and hung the caller.
+    old_send = 'function _emscripten_websocket_send_binary(socketId,binaryData,dataLength){if(ENVIRONMENT_IS_PTHREAD)return proxyToMainThread(53,0,1,socketId,binaryData,dataLength);'
+    assert s.count(old_send) == 1
+    s = s.replace(old_send, old_send + 'if(dataLength<0)dataLength=16;')
+    # - the bridge URL is hard-coded to ws://127.0.0.1:4016; let the page point it at a relay.
+    old_ws = 'var url=UTF8ToString((growMemViews(),HEAPU32)[SAFE_HEAP_INDEX((growMemViews(),HEAPU32),createAttributes>>2,"loading")]);'
+    assert s.count(old_ws) == 1
+    s = s.replace(old_ws, old_ws + 'if(url=="ws://127.0.0.1:4016"&&Module["bridgeUrl"])url=Module["bridgeUrl"];')
     return s
 
 

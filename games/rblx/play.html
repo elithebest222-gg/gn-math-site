@@ -63,12 +63,13 @@
     try { Object.defineProperty(navigator, 'hardwareConcurrency', { get: () => 32 }); } catch (e) {}
 
     (async function () {
-      const VERSION = '33';                       // bump when rblx.js / rblx.wasm change
+      const VERSION = '34';                       // bump when rblx.js / rblx.wasm change
       const CHUNKS = 12, CHUNK_SIZE = 25165824, DATA_SIZE = 289418733;
       const $ = id => document.getElementById(id);
       const canvas = $('canvas'), loading = $('loading');
       const params = new URLSearchParams(location.search);
       const title = params.get('title') || 'Natural Disaster Survival';
+      const DEBUG = params.has('debug');           // ?debug=1 prints the engine log to the console
       const TIPS = ['Tip: hold right mouse button to turn the camera.', 'Tip: use W A S D to walk and Space to jump.',
                     'Tip: press / to chat.', 'Tip: scroll or use I / O to zoom in and out.'];
 
@@ -171,13 +172,16 @@
       window.Module = {
         canvas,
         locateFile: p => p === 'rblx.wasm' ? 'rblx.wasm?v=' + VERSION : p,
+        bridgeUrl: params.get('relay') || undefined,   // experimental multiplayer (with ?replication=1)
         getPreloadedPackage: name => name.endsWith('rblx.data') ? data.buffer : null,
         print: t => {
+          if (DEBUG) console.log(t);
           if (ready) return;
           if (t.includes('loading verification place')) { placeStarted = true; status(custom && !isBinaryPlace(custom) ? 'Loading place… (XML places can take a minute)' : 'Loading place…', 92); }
           else if (t.includes('gameLoaded signaled') || t.includes('verification place loaded')) show();
         },
         printErr: t => {
+          if (DEBUG) console.warn(t);
           // An exception that escapes the engine thread ends the game.
           if (/sent an error!|uncaught exception|^Aborted|out of memory/i.test(t)) fail('The game stopped unexpectedly.', t.split('\n')[0]);
         },
