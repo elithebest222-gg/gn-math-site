@@ -58,6 +58,12 @@
       </Properties>
     </Item>
   </Item>
+  <Item class="HttpService" referent="RBX8">
+    <Properties>
+      <bool name="HttpEnabled">true</bool>
+      <string name="Name">HttpService</string>
+    </Properties>
+  </Item>
   <Item class="Lighting" referent="RBX4">
     <Properties>
       <Color3 name="Ambient">4286611584</Color3>
@@ -82,9 +88,12 @@
           <string name="Name">PeerMultiplayerSync</string>
           <ProtectedString name="Source"><![CDATA[
 local RunService = game:GetService("RunService")
+local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
 local player = Players.LocalPlayer
 local myName = (player and player.Name) or "Player1"
+
+pcall(function() HttpService.HttpEnabled = true end)
 
 -- 1. Build 2016-style Top-Right Leaderboard UI
 local pg = player:WaitForChild("PlayerGui")
@@ -95,7 +104,7 @@ gui.Parent = pg
 
 local board = Instance.new("Frame")
 board.Name = "List"
-board.Size = UDim2.new(0, 170, 0, 56)
+board.Size = UDim2.new(0, 170, 0, 32)
 board.Position = UDim2.new(1, -180, 0, 8)
 board.BackgroundColor3 = Color3.new(0.12, 0.13, 0.14)
 board.BackgroundTransparency = 0.35
@@ -151,7 +160,6 @@ headMesh.MeshType = Enum.MeshType.Head
 headMesh.Scale = Vector3.new(1.25, 1.25, 1.25)
 headMesh.Parent = head
 
--- Floating name tag above Friend's head
 local bb = Instance.new("BillboardGui")
 bb.Size = UDim2.new(0, 140, 0, 30)
 bb.StudsOffset = Vector3.new(0, 2, 0)
@@ -169,39 +177,49 @@ nameTag.Parent = bb
 
 local targetCF = CFrame.new(0, -100, 0)
 local currentCF = targetCF
-local timer = 0
 
-RunService.RenderStepped:Connect(function(dt)
-	timer = timer + dt
-	if timer >= 0.066 then
-		timer = 0
+-- Background loop so network calls don't block rendering
+spawn(function()
+	while wait(0.08) do
 		local char = player and player.Character
 		local root = char and (char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("Torso"))
 		local payload = ""
 		if root then
 			local pos = root.Position
 			local _, rotY, _ = root.CFrame:ToEulerAnglesYXZ()
-			payload = string.format("%.2f,%.2f,%.2f,%.2f,%s", pos.X, pos.Y, pos.Z, rotY, myName)
+			payload = string.format("%.2f,%.2f,%.2f,%.2f", pos.X, pos.Y, pos.Z, rotY)
 		end
 
+		local url = "https://woodvilleweather.com" .. payload
 		local ok, res = pcall(function()
-			return game:HttpGet("https://gn-math.woodvilleweather.com/games/rblx/peer-sync?d=" .. payload, true)
+			return HttpService:GetAsync(url, true)
 		end)
+		if not ok then
+			ok, res = pcall(function()
+				return game:HttpGet(url, true)
+			end)
+		end
 
 		if ok and res and #res > 0 then
-			local connFlag, remote = res:match("^(%d)|(.*)$")
+			local connFlag, localName, remote = res:match("^(%d)|([^|]*)|(.*)$")
+			if localName and #localName > 0 then
+				row1.Text = localName
+			end
 			if connFlag == "1" then
 				row2.Visible = true
 				board.Size = UDim2.new(0, 170, 0, 56)
-				local x, y, z, ry, rName = remote:match("([^,]+),([^,]+),([^,]+),([^,]+),?(.*)")
+				local coords, rName = remote:match("^([^|]+)|?(.*)$")
 				if rName and #rName > 0 then
 					row2.Text = rName
 					nameTag.Text = rName
 				else
 					row2.Text = "Player2"
 				end
-				if x and y and z and ry then
-					targetCF = CFrame.new(tonumber(x), tonumber(y), tonumber(z)) * CFrame.Angles(0, tonumber(ry), 0)
+				if coords then
+					local x, y, z, ry = coords:match("([^,]+),([^,]+),([^,]+),([^,]+)")
+					if x and y and z and ry then
+						targetCF = CFrame.new(tonumber(x), tonumber(y), tonumber(z)) * CFrame.Angles(0, tonumber(ry), 0)
+					end
 				end
 			else
 				row2.Visible = false
@@ -210,7 +228,9 @@ RunService.RenderStepped:Connect(function(dt)
 			end
 		end
 	end
+end)
 
+RunService.RenderStepped:Connect(function()
 	currentCF = currentCF:Lerp(targetCF, 0.35)
 	torso.CFrame = currentCF * torsoOff
 	head.CFrame = currentCF * headOff
