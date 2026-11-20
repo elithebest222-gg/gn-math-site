@@ -14,7 +14,12 @@
       padding: 5px 12px; border-radius: 3px; font-size: 12px; font-weight: 700;
       border: 1px solid rgba(255,255,255,0.35); cursor: pointer;
     }
-    #canvas { display: block; width: 100vw; height: 100vh; }
+    #warn-banner {
+      display: none; position: fixed; top: 8px; left: 12px; z-index: 99999;
+      background: rgba(180, 30, 30, 0.92); color: #fff; padding: 6px 12px;
+      border-radius: 3px; font-size: 12px; font-weight: 700; max-width: 75%;
+    }
+    #canvas { display: block; width: 100vw; height: 100vh; background: #000; }
     #loading { position: fixed; inset: 0; background: #000; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 9999; padding: 16px; text-align: center; }
     #loading img { width: 220px; margin-bottom: 20px; }
     #loading-text { color: #fff; font-size: 17px; margin-bottom: 8px; }
@@ -27,6 +32,7 @@
   </script>
 </head>
 <body>
+  <div id="warn-banner"></div>
   <a id="home-btn" href="./index.html" onclick="if(document.exitPointerLock)document.exitPointerLock();">Home</a>
   <div id="loading"><img src="WebBlox.png" alt="" /><span id="loading-text">Loading...</span><span id="sub-text"></span></div>
   <canvas id="canvas" oncontextmenu="return false"></canvas>
@@ -39,21 +45,43 @@
       const loadDiv = document.getElementById('loading');
       const loadTxt = document.getElementById('loading-text');
       const subTxt = document.getElementById('sub-text');
+      const warnEl = document.getElementById('warn-banner');
+      const warn = (msg) => { warnEl.textContent = msg; warnEl.style.display = 'block'; };
       document.addEventListener('contextmenu', e => e.preventDefault());
 
-      // Only load a custom map if ?map= or ?custom=1 is in the URL
+      function prepareRbxl(bytes) {
+        if (!bytes || bytes.byteLength < 16) return null;
+        const head = new TextDecoder().decode(bytes.subarray(0, 32));
+        if (!head.includes('<roblox')) return null;
+        // If XML format (not binary <roblox!), patch FogEnd=0 whiteout
+        if (!head.startsWith('<roblox!')) {
+          let xml = new TextDecoder().decode(bytes);
+          xml = xml.replace(/<float name="FogEnd">0(\.0+)?<\/float>/g, '<float name="FogEnd">100000</float>');
+          return new TextEncoder().encode(xml);
+        }
+        return bytes;
+      }
+
       let customBytes = null;
       if (isCustom && sessionStorage.getItem('customPlaceData')) {
         const buf = await (await fetch(sessionStorage.getItem('customPlaceData'))).arrayBuffer();
-        customBytes = new Uint8Array(buf);
+        customBytes = prepareRbxl(new Uint8Array(buf));
+        if (!customBytes) warn('Invalid .rbxl file uploaded.');
       } else if (mapFile) {
         subTxt.textContent = 'Downloading ' + mapFile + '...';
-        const res = await fetch('places/' + encodeURIComponent(mapFile));
-        if (res.ok) customBytes = new Uint8Array(await res.arrayBuffer());
-        else subTxt.textContent = 'Missing places/' + mapFile + ' (HTTP ' + res.status + ')';
+        try {
+          const res = await fetch('places/' + encodeURIComponent(mapFile));
+          if (res.ok) {
+            customBytes = prepareRbxl(new Uint8Array(await res.arrayBuffer()));
+            if (!customBytes) warn('Invalid .rbxl file — loaded default map.');
+          } else {
+            warn('Missing places/' + mapFile + ' (HTTP ' + res.status + ')');
+          }
+        } catch (err) {
+          warn('Error loading ' + mapFile);
+        }
       }
 
-      // Stitch the 12 rblx.data chunks
       let loaded = 0;
       const chunksP = Promise.all(Array.from({ length: 12 }, (_, i) =>
         fetch('rblx.data.' + i).then(r => r.arrayBuffer()).then(b => {
@@ -76,11 +104,10 @@
       window.fetch = (res, init) => /rblx\.data$/.test(typeof res === 'string' ? res : res?.url || '')
         ? chunksP.then(u => origFetch(u, init)) : origFetch(res, init);
 
-      // Overwrite /content/game.rbxl only when customBytes is present
       window.Module = {
         canvas: document.getElementById('canvas'),
         print: () => {},
-        printErr: t => { if (/error|exception/i.test(t)) console.error('[rblx]', t); },
+        printErr: t => { if (/error|exception|abort/i.test(t)) console.error('[rblx]', t); },
         setStatus: t => {
           if (!t) { loadDiv.style.display = 'none'; return; }
           subTxt.textContent = t;
@@ -90,8 +117,7 @@
           const origCreate = Module.FS_createDataFile;
           Module.FS_createDataFile = function (parent, name, data, canRead, canWrite, canOwn) {
             if (parent === '/content/game.rbxl' || name === 'game.rbxl') {
-              data = customBytes;
-              subTxt.textContent = 'Loaded ' + (mapFile || 'custom place');
+              return origCreate.call(this, parent, name, customBytes.slice(), canRead, canWrite, false);
             }
             return origCreate.call(this, parent, name, data, canRead, canWrite, canOwn);
           };
