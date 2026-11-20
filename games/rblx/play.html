@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
-  <title>WebBlox Player</title>
+  <title>GN-BLOX Player</title>
   <link rel="icon" href="favicon.png" />
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; font-family: Arial, sans-serif; }
@@ -20,7 +20,7 @@
       border-radius: 3px; font-size: 12px; font-weight: 700; max-width: 75%;
     }
     #canvas { display: block; width: 100vw; height: 100vh; background: #000; }
-    #loading { position: fixed; inset: 0; background: #000; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 9999; padding: 16px; text-align: center; }
+    #loading { position: fixed; inset: 0; background: #000; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 9999; padding: 16px; text-align: center; transition: opacity 0.25s; }
     #loading img { width: 220px; margin-bottom: 20px; }
     #loading-text { color: #fff; font-size: 17px; margin-bottom: 8px; }
     #sub-text { color: #aaa; font-size: 12px; max-width: 90%; word-break: break-word; }
@@ -41,7 +41,7 @@
       const p = new URLSearchParams(location.search);
       const mapFile = p.get('map');
       const isCustom = p.get('custom') === '1';
-      if (p.get('title')) document.title = p.get('title') + ' - WebBlox';
+      if (p.get('title')) document.title = p.get('title') + ' - GN-BLOX';
       const loadDiv = document.getElementById('loading');
       const loadTxt = document.getElementById('loading-text');
       const subTxt = document.getElementById('sub-text');
@@ -49,11 +49,17 @@
       const warn = (msg) => { warnEl.textContent = msg; warnEl.style.display = 'block'; };
       document.addEventListener('contextmenu', e => e.preventDefault());
 
+      const hideLoader = () => {
+        setTimeout(() => {
+          loadDiv.style.opacity = '0';
+          setTimeout(() => { loadDiv.style.display = 'none'; }, 260);
+        }, 350);
+      };
+
       function prepareRbxl(bytes) {
         if (!bytes || bytes.byteLength < 16) return null;
         const head = new TextDecoder().decode(bytes.subarray(0, 32));
         if (!head.includes('<roblox')) return null;
-        // If XML format (not binary <roblox!), patch FogEnd=0 whiteout
         if (!head.startsWith('<roblox!')) {
           let xml = new TextDecoder().decode(bytes);
           xml = xml.replace(/<float name="FogEnd">0(\.0+)?<\/float>/g, '<float name="FogEnd">100000</float>');
@@ -62,25 +68,21 @@
         return bytes;
       }
 
-      let customBytes = null;
-      if (isCustom && sessionStorage.getItem('customPlaceData')) {
-        const buf = await (await fetch(sessionStorage.getItem('customPlaceData'))).arrayBuffer();
-        customBytes = prepareRbxl(new Uint8Array(buf));
-        if (!customBytes) warn('Invalid .rbxl file uploaded.');
-      } else if (mapFile) {
-        subTxt.textContent = 'Downloading ' + mapFile + '...';
-        try {
-          const res = await fetch('places/' + encodeURIComponent(mapFile));
-          if (res.ok) {
-            customBytes = prepareRbxl(new Uint8Array(await res.arrayBuffer()));
-            if (!customBytes) warn('Invalid .rbxl file — loaded default map.');
-          } else {
-            warn('Missing places/' + mapFile + ' (HTTP ' + res.status + ')');
-          }
-        } catch (err) {
-          warn('Error loading ' + mapFile);
+      // Download map and 12 engine chunks in parallel for faster startup
+      const mapPromise = (async () => {
+        if (isCustom && sessionStorage.getItem('customPlaceData')) {
+          const buf = await (await fetch(sessionStorage.getItem('customPlaceData'))).arrayBuffer();
+          return prepareRbxl(new Uint8Array(buf));
         }
-      }
+        if (mapFile) {
+          try {
+            const res = await fetch('places/' + encodeURIComponent(mapFile));
+            if (res.ok) return prepareRbxl(new Uint8Array(await res.arrayBuffer()));
+            warn('Missing places/' + mapFile + ' (HTTP ' + res.status + ')');
+          } catch (e) { warn('Failed to load ' + mapFile); }
+        }
+        return null;
+      })();
 
       let loaded = 0;
       const chunksP = Promise.all(Array.from({ length: 12 }, (_, i) =>
@@ -100,6 +102,9 @@
         return URL.createObjectURL(new Blob([out], { type: 'application/octet-stream' }));
       });
 
+      const customBytes = await mapPromise;
+      const emptyLua = new TextEncoder().encode('-- disabled white loading screen\n');
+
       const origFetch = window.fetch.bind(window);
       window.fetch = (res, init) => /rblx\.data$/.test(typeof res === 'string' ? res : res?.url || '')
         ? chunksP.then(u => origFetch(u, init)) : origFetch(res, init);
@@ -109,20 +114,24 @@
         print: () => {},
         printErr: t => { if (/error|exception|abort/i.test(t)) console.error('[rblx]', t); },
         setStatus: t => {
-          if (!t) { loadDiv.style.display = 'none'; return; }
+          if (!t) { hideLoader(); return; }
           subTxt.textContent = t;
         },
         preRun: [() => {
-          if (!customBytes) return;
           const origCreate = Module.FS_createDataFile;
           Module.FS_createDataFile = function (parent, name, data, canRead, canWrite, canOwn) {
-            if (parent === '/content/game.rbxl' || name === 'game.rbxl') {
+            // 1. Replace default game map
+            if (customBytes && (parent === '/content/game.rbxl' || name === 'game.rbxl')) {
               return origCreate.call(this, parent, name, customBytes.slice(), canRead, canWrite, false);
+            }
+            // 2. Disable the built-in white LoadingScript.lua splash screen
+            if (typeof parent === 'string' && parent.endsWith('LoadingScript.lua')) {
+              return origCreate.call(this, parent, name, emptyLua, canRead, canWrite, false);
             }
             return origCreate.call(this, parent, name, data, canRead, canWrite, canOwn);
           };
         }],
-        onRuntimeInitialized: () => { loadDiv.style.display = 'none'; }
+        onRuntimeInitialized: hideLoader
       };
 
       const s = document.createElement('script');
