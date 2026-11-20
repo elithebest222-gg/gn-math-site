@@ -179,58 +179,33 @@
         const roomId = 'webblox-' + room.replace(/[^a-zA-Z0-9_-]/g, '');
         badge.textContent = isHost ? 'Hosting: ' + room : 'Joining: ' + room;
 
-        window.__mpRemote = '';
-        window.__mpConnected = false;
+        let remoteData = '';
+        let connected = false;
+        let conn = null;
 
-        // Intercept Lua HttpGet calls to http://peer.local...
-        const origFetch = window.fetch;
-        window.fetch = function(input, init) {
-          const url = typeof input === 'string' ? input : (input && input.url) || '';
-          if (url.includes('peer.local/sync')) {
-            const u = new URL(url);
-            const out = u.searchParams.get('d');
-            if (out && conn && conn.open) { try { conn.send(out); } catch (e) {} }
-            const reply = (window.__mpConnected ? '1|' : '0|') + window.__mpRemote;
-            return Promise.resolve(new Response(reply, { status: 200 }));
+        // Answer sync requests coming from the rblx.wasm worker via coi-serviceworker.js
+        const mpChan = new BroadcastChannel('webblox-mp');
+        mpChan.onmessage = e => {
+          const { id, out } = e.data || {};
+          if (!id) return;
+          if (out && conn && conn.open) {
+            try { conn.send(out); } catch (err) {}
           }
-          return origFetch.apply(this, arguments);
-        };
-
-        const origOpen = XMLHttpRequest.prototype.open;
-        const origSend = XMLHttpRequest.prototype.send;
-        XMLHttpRequest.prototype.open = function(method, url) {
-          this.__peerUrl = String(url || '');
-          return origOpen.apply(this, arguments);
-        };
-        XMLHttpRequest.prototype.send = function(body) {
-          if (this.__peerUrl && this.__peerUrl.includes('peer.local/sync')) {
-            const u = new URL(this.__peerUrl);
-            const out = u.searchParams.get('d');
-            if (out && conn && conn.open) { try { conn.send(out); } catch (e) {} }
-            const reply = (window.__mpConnected ? '1|' : '0|') + window.__mpRemote;
-            Object.defineProperty(this, 'status', { value: 200 });
-            Object.defineProperty(this, 'readyState', { value: 4 });
-            Object.defineProperty(this, 'responseText', { value: reply });
-            Object.defineProperty(this, 'response', { value: reply });
-            setTimeout(() => { if (this.onload) this.onload(); if (this.onreadystatechange) this.onreadystatechange(); }, 0);
-            return;
-          }
-          return origSend.apply(this, arguments);
+          mpChan.postMessage({ id, reply: (connected ? '1|' : '0|') + remoteData });
         };
 
         const peer = isHost ? new Peer(roomId) : new Peer();
-        let conn = null;
 
         const bindConn = c => {
           conn = c;
           c.on('open', () => {
-            window.__mpConnected = true;
+            connected = true;
             badge.textContent = 'Connected: ' + room;
             badge.style.color = '#02b757';
           });
-          c.on('data', msg => { window.__mpRemote = String(msg); });
+          c.on('data', msg => { remoteData = String(msg); });
           c.on('close', () => {
-            window.__mpConnected = false;
+            connected = false;
             badge.textContent = 'Peer Left: ' + room;
             badge.style.color = '#d86868';
           });
@@ -242,6 +217,7 @@
         peer.on('connection', incoming => bindConn(incoming));
         peer.on('error', err => { badge.textContent = 'MP Error: ' + err.type; badge.style.color = '#d86868'; });
       }
+
 
 
       
