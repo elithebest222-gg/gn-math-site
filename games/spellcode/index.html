@@ -1,0 +1,2729 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Spellcode</title>
+<meta name="description" content="Spellcode: a coding adventure. Every monster is a coding problem, and your functions are the spells that beat it.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🪄</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0c0d22;
+  --bg-2: #13153a;
+  --panel: #191b45;
+  --panel-2: #20235a;
+  --line: #31367a;
+  --text: #ecebff;
+  --muted: #a5a8db;
+  --faint: #6d71ad;
+  --gold: #ffd166;
+  --hp: #ff5d8f;
+  --mana: #5ee7ff;
+  --ok: #5be49b;
+  --bad: #ff6b6b;
+  --violet: #9d7bff;
+  --code-bg: #0a0b1d;
+  --pixel: "Press Start 2P", ui-monospace, Menlo, Consolas, monospace;
+  --mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace;
+  --radius: 16px;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  min-height: 100vh;
+  background:
+    radial-gradient(1200px 600px at 80% -10%, #2a1f6b55, transparent 60%),
+    radial-gradient(900px 500px at -10% 110%, #0f5a6b33, transparent 60%),
+    var(--bg);
+  color: var(--text);
+  font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+button { font: inherit; color: inherit; cursor: pointer; }
+button:disabled { cursor: not-allowed; opacity: .45; }
+code, pre { font-family: var(--mono); }
+code { background: #ffffff12; border: 1px solid #ffffff14; padding: 0 5px; border-radius: 6px; font-size: .92em; white-space: pre-wrap; }
+pre { background: var(--code-bg); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; overflow-x: auto; font-size: 13px; line-height: 1.5; margin: 8px 0; white-space: pre; }
+pre code { background: none; border: 0; padding: 0; }
+[hidden] { display: none !important; }
+
+/* ---------- HUD ---------- */
+.hud {
+  position: sticky; top: 0; z-index: 20;
+  display: flex; align-items: center; gap: 10px 14px; flex-wrap: wrap;
+  padding: 10px 16px;
+  background: #12143acc; backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--line);
+}
+.hud-id { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.hud-avatar { font-size: 30px; line-height: 1; filter: drop-shadow(0 0 8px #9d7bff88); }
+.hud-name { font-weight: 800; letter-spacing: .01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px; }
+.hud-title { font-size: 12px; color: var(--muted); white-space: nowrap; }
+.hud-level { display: flex; align-items: center; gap: 8px; flex: 1 1 220px; min-width: 200px; max-width: 420px; }
+.lv { font-family: var(--pixel); font-size: 10px; color: #1b1300; background: var(--gold); padding: 6px 7px; border-radius: 8px; white-space: nowrap; box-shadow: 0 0 14px #ffd16655; }
+.xpbar { flex: 1; height: 12px; background: #0a0b20; border: 1px solid var(--line); border-radius: 99px; overflow: hidden; }
+.xpfill { height: 100%; width: 0; background: linear-gradient(90deg, #ffb703, var(--gold)); border-radius: 99px; transition: width .6s cubic-bezier(.2,.8,.2,1); box-shadow: 0 0 10px #ffd16688; }
+.xptext { font-size: 12px; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.chip { font-size: 13px; padding: 5px 10px; border-radius: 99px; background: var(--panel); border: 1px solid var(--line); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.chip.hot { border-color: #ff8c42; box-shadow: 0 0 12px #ff8c4255; }
+.chip.engine.loading { color: var(--gold); }
+.chip.engine.failed { color: var(--bad); }
+.hud-actions { display: flex; gap: 6px; margin-left: auto; }
+.icon-btn { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 6px 10px; font-size: 15px; line-height: 1.2; }
+.icon-btn:hover { background: var(--panel-2); }
+
+/* ---------- Layout ---------- */
+.layout {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); gap: 16px;
+  padding: 16px; max-width: 1440px; margin: 0 auto;
+}
+@media (max-width: 920px) { .layout { grid-template-columns: minmax(0, 1fr); } }
+.col { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+
+/* ---------- Stage ---------- */
+.stage {
+  position: relative; height: 240px; border-radius: var(--radius); overflow: hidden;
+  border: 1px solid var(--line); isolation: isolate;
+  background: var(--sky);
+  --sky: linear-gradient(#173a2d, #0e271f 70%);
+  --ground: #1d5a3a;
+  --ground-2: #154a2f;
+}
+.stage.area-1 { --sky: linear-gradient(180deg, #17402f 0%, #0f2c22 65%, #0b221a 100%); --ground: #2a6b45; --ground-2: #1d5236; }
+.stage.area-2 { --sky: linear-gradient(180deg, #44190f 0%, #2c0f0a 65%, #200a07 100%); --ground: #6b2c18; --ground-2: #511f10; }
+.stage.area-3 { --sky: linear-gradient(180deg, #14385a 0%, #0d2740 65%, #0a1d31 100%); --ground: #3f7ca1; --ground-2: #2c5f7f; }
+.stage.area-4 { --sky: linear-gradient(180deg, #2c1250 0%, #1b0b34 65%, #130726 100%); --ground: #4a2a85; --ground-2: #361e63; }
+.stage::before { /* stars / motes */
+  content: ""; position: absolute; inset: 0; z-index: -1; opacity: .55;
+  background-image:
+    radial-gradient(2px 2px at 12% 18%, #fff8 50%, transparent 51%),
+    radial-gradient(1.5px 1.5px at 32% 40%, #fff6 50%, transparent 51%),
+    radial-gradient(2px 2px at 58% 12%, #fff7 50%, transparent 51%),
+    radial-gradient(1.5px 1.5px at 74% 30%, #fff5 50%, transparent 51%),
+    radial-gradient(2px 2px at 90% 14%, #fff8 50%, transparent 51%),
+    radial-gradient(1.5px 1.5px at 46% 26%, #fff5 50%, transparent 51%);
+}
+.stage.boss { box-shadow: inset 0 0 90px #ff2a5a55; border-color: #ff5d8f99; }
+.ground { position: absolute; left: -15%; right: -15%; bottom: -80px; height: 140px; border-radius: 50%; background: radial-gradient(ellipse at 50% 20%, var(--ground), var(--ground-2) 70%); z-index: 0; }
+.props span { position: absolute; bottom: 30px; font-size: 34px; opacity: .55; filter: saturate(.8); z-index: 0; pointer-events: none; }
+.area-label { position: absolute; left: 14px; top: 12px; font-family: var(--pixel); font-size: 9px; letter-spacing: .06em; color: #ffffffcc; text-shadow: 0 2px 0 #0006; z-index: 3; }
+.next-label { position: absolute; left: 14px; top: 32px; font-size: 12px; color: #ffffffa8; z-index: 3; }
+.next-label.boss { color: var(--hp); font-weight: 800; }
+.fighter { position: absolute; bottom: 34px; display: flex; flex-direction: column; align-items: center; z-index: 2; }
+.player { left: 11%; }
+.enemy { right: 11%; }
+.sprite { display: inline-block; font-size: 64px; line-height: 1; filter: drop-shadow(0 8px 6px #0007); }
+.enemy .sprite { font-size: 78px; animation: bob 2.6s ease-in-out infinite; }
+.boss .enemy .sprite { font-size: 106px; }
+.player .sprite { animation: bob 3.2s ease-in-out infinite reverse; }
+.relic { position: absolute; left: -18px; top: -6px; font-size: 24px; animation: orbit 3s ease-in-out infinite; filter: drop-shadow(0 0 8px #ffd166aa); }
+.nameplate { margin-top: 4px; font-size: 11px; font-weight: 700; color: #fff; background: #0008; padding: 2px 8px; border-radius: 99px; white-space: nowrap; max-width: 170px; overflow: hidden; text-overflow: ellipsis; }
+@keyframes bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-7px); } }
+@keyframes orbit { 0%, 100% { transform: translate(0, 0) rotate(-8deg); } 50% { transform: translate(4px, -8px) rotate(8deg); } }
+.hp { position: absolute; right: 14px; top: 12px; width: min(46%, 300px); z-index: 3; }
+.hp-label { display: flex; justify-content: space-between; gap: 8px; font-size: 11px; font-weight: 700; margin-bottom: 4px; text-shadow: 0 1px 0 #0008; }
+.hp-label span:first-child { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.hp-label span:last-child { white-space: nowrap; flex: none; }
+.hp-bar { display: flex; gap: 3px; height: 12px; padding: 2px; background: #0009; border: 1px solid #ffffff2a; border-radius: 99px; }
+.seg { flex: 1; border-radius: 99px; background: linear-gradient(180deg, #ff86ab, var(--hp)); box-shadow: 0 0 6px #ff5d8f88; transition: opacity .25s, transform .25s; }
+.seg.lost { opacity: .12; transform: scaleY(.6); box-shadow: none; }
+.fx { position: absolute; inset: 0; pointer-events: none; z-index: 4; }
+.orb { position: absolute; width: 24px; height: 24px; border-radius: 50%; background: radial-gradient(circle, #fff 0 22%, var(--mana) 48%, #5ee7ff00 72%); box-shadow: 0 0 22px var(--mana), 0 0 44px #5ee7ff66; }
+.orb.dud { background: radial-gradient(circle, #fff 0 18%, #b0b3d6 46%, #b0b3d600 72%); box-shadow: 0 0 14px #b0b3d6; }
+.pop { position: absolute; font-weight: 900; font-size: 18px; color: #fff; text-shadow: 0 2px 0 #000a, 0 0 10px #000; white-space: nowrap; transform: translate(-50%, -50%); }
+.pop.good { color: var(--ok); }
+.pop.bad { color: #d4d6f0; }
+.pop.xp { color: var(--gold); font-family: var(--pixel); font-size: 12px; }
+.bubble { position: absolute; right: 9%; top: 52px; max-width: 46%; background: #fff; color: #1b1840; font-weight: 700; font-size: 13px; padding: 6px 10px; border-radius: 12px; z-index: 5; opacity: 0; transform: translateY(6px); transition: opacity .2s, transform .2s; pointer-events: none; }
+.bubble.show { opacity: 1; transform: translateY(0); }
+.banner { position: absolute; inset: 0; display: grid; place-items: center; z-index: 6; pointer-events: none; }
+.banner span { font-family: var(--pixel); font-size: clamp(14px, 3.4vw, 22px); color: var(--gold); text-shadow: 0 3px 0 #000, 0 0 24px #ffd166; letter-spacing: .04em; }
+
+/* ---------- Panels ---------- */
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); }
+.quest { padding: 16px 18px 18px; }
+.badges { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.badge { font-size: 11px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; padding: 3px 8px; border-radius: 99px; background: #ffffff10; border: 1px solid #ffffff1c; color: var(--muted); }
+.badge.boss { background: #ff5d8f22; border-color: #ff5d8f88; color: #ffb3c9; }
+.badge.spiral { background: #9d7bff22; border-color: #9d7bff88; color: #d4c6ff; }
+.badge.side { background: #5be49b1f; border-color: #5be49b88; color: #b6f5d2; }
+.badge.rematch { background: #5ee7ff1a; border-color: #5ee7ff77; color: #bdf5ff; }
+.badge.xp { background: #ffd16618; border-color: #ffd16688; color: var(--gold); }
+.quest h2 { margin: 2px 0 6px; font-size: 20px; line-height: 1.25; }
+.story { color: var(--muted); font-style: italic; margin: 0 0 10px; }
+.task { margin: 0 0 12px; }
+.examples { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.examples li { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-family: var(--mono); font-size: 13px; background: var(--code-bg); border: 1px solid var(--line); border-radius: 10px; padding: 6px 10px; }
+.examples .arrow { color: var(--faint); }
+.examples .want { color: var(--gold); }
+.hidden-note { font-size: 12px; color: var(--faint); margin-top: 6px; }
+.hints { margin: 12px 0 0; padding: 10px 12px 10px 30px; background: #ffd1660d; border: 1px dashed #ffd16655; border-radius: 12px; font-size: 14px; }
+.hints li + li { margin-top: 4px; }
+.hints-title { font-size: 12px; font-weight: 800; color: var(--gold); margin: 12px 0 -6px; text-transform: uppercase; letter-spacing: .05em; }
+
+/* ---------- Editor ---------- */
+.editor-panel { display: flex; flex-direction: column; overflow: hidden; }
+.editor-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 12px; border-bottom: 1px solid var(--line); font-size: 12px; color: var(--muted); }
+.editor-head b { color: var(--text); }
+.editor { position: relative; display: flex; height: 300px; background: var(--code-bg); }
+@media (max-width: 920px) { .editor { height: 260px; } }
+.gutter { width: 46px; flex: none; overflow: hidden; background: #0e1030; border-right: 1px solid #ffffff10; }
+.gutter pre { margin: 0; padding: 12px 10px 12px 0; background: none; border: 0; border-radius: 0; text-align: right; color: #50548f; font: 14px/20px var(--mono); overflow: visible; }
+.gutter .bad-ln { color: var(--bad); font-weight: 800; }
+.code-wrap { position: relative; flex: 1; min-width: 0; }
+.err-line { position: absolute; left: 0; right: 0; height: 20px; background: #ff6b6b22; border-left: 3px solid var(--bad); pointer-events: none; }
+textarea#code {
+  position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; padding: 12px 14px;
+  background: transparent; color: #e9e9ff; caret-color: var(--gold);
+  font: 14px/20px var(--mono); tab-size: 4; border: 0; outline: none; resize: none;
+  white-space: pre; overflow: auto;
+}
+textarea#code::selection { background: #9d7bff55; }
+.toolbar { display: flex; flex-wrap: wrap; gap: 8px; padding: 10px 12px; border-top: 1px solid var(--line); background: #15173f; }
+.btn { border: 1px solid var(--line); background: var(--panel-2); border-radius: 12px; padding: 9px 14px; font-weight: 700; font-size: 14px; line-height: 1.1; transition: transform .08s, background .15s, box-shadow .15s; }
+.btn:hover:not(:disabled) { background: #2a2e72; }
+.btn:active:not(:disabled) { transform: translateY(1px); }
+.btn.primary { background: linear-gradient(180deg, #7cefff, #31c7e8); color: #062430; border-color: #9af4ff; box-shadow: 0 0 18px #5ee7ff44; }
+.btn.primary:hover:not(:disabled) { background: linear-gradient(180deg, #9af4ff, #4fd6f0); }
+.btn.gold { background: linear-gradient(180deg, #ffe08a, #ffc23d); color: #2b1d00; border-color: #ffe7a6; box-shadow: 0 0 16px #ffd16644; }
+.btn.gold:hover:not(:disabled) { background: linear-gradient(180deg, #ffeaa9, #ffcd5a); }
+.btn.ghost { background: transparent; }
+.btn.danger { border-color: #ff6b6b88; color: #ffc1c1; background: #ff6b6b14; }
+.btn .k { font-size: 11px; opacity: .7; font-weight: 600; margin-left: 4px; }
+.btn.small { padding: 8px 10px; font-size: 13px; font-weight: 600; }
+@media (max-width: 1360px) { .btn .k { display: none; } }
+.spacer { flex: 1; }
+
+/* ---------- Oracle ---------- */
+.oracle { padding: 14px 16px; min-height: 140px; max-height: 420px; overflow: auto; }
+.oracle-title { font-family: var(--pixel); font-size: 9px; color: var(--faint); letter-spacing: .08em; margin-bottom: 10px; }
+.o-head { font-weight: 800; font-size: 16px; margin-bottom: 6px; }
+.o-head.good { color: var(--ok); }
+.o-head.bad { color: #ffb1b1; }
+.o-head.gold { color: var(--gold); }
+.o-line { margin: 6px 0; }
+.o-err { font-family: var(--mono); font-size: 13px; background: #ff6b6b14; border: 1px solid #ff6b6b55; border-radius: 10px; padding: 8px 10px; margin: 6px 0; color: #ffd0d0; white-space: pre-wrap; word-break: break-word; }
+.o-tip { color: var(--muted); margin: 6px 0; }
+.o-hint { margin: 10px 0 6px; padding: 8px 12px; background: #ffd16612; border: 1px solid #ffd16655; border-radius: 10px; }
+.o-mentor { margin: 10px 0 6px; padding: 10px 12px; background: #9d7bff14; border: 1px solid #9d7bff66; border-radius: 10px; }
+.o-logs { margin-top: 10px; }
+.o-logs summary { cursor: pointer; color: var(--muted); font-size: 13px; }
+.o-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.scry-list { list-style: none; margin: 6px 0; padding: 0; display: grid; gap: 4px; font-family: var(--mono); font-size: 13px; }
+.scry-list li { padding: 5px 9px; border-radius: 8px; background: var(--code-bg); border: 1px solid var(--line); word-break: break-word; }
+.scry-list li.ok { border-color: #5be49b66; }
+.scry-list li.no { border-color: #ff6b6b77; }
+.extra { margin: 4px 0; font-weight: 700; }
+
+/* ---------- Overlay / Modals ---------- */
+.overlay { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 16px; background: #05061acc; backdrop-filter: blur(4px); overflow-y: auto; }
+.modal { width: min(560px, 100%); background: linear-gradient(180deg, #1f2257, #171944); border: 1px solid #4a50a8; border-radius: 20px; padding: 22px; box-shadow: 0 30px 80px #000a, 0 0 0 1px #ffffff08 inset; animation: rise .25s ease-out; max-height: calc(100vh - 32px); overflow-y: auto; }
+.modal.wide { width: min(680px, 100%); }
+@keyframes rise { from { transform: translateY(12px); opacity: 0; } to { transform: none; opacity: 1; } }
+.modal h2 { margin: 0 0 10px; font-size: 20px; }
+.modal .big { font-family: var(--pixel); font-size: clamp(14px, 4vw, 18px); line-height: 1.6; color: var(--gold); text-shadow: 0 0 20px #ffd16677; margin: 4px 0 12px; }
+.modal p { margin: 8px 0; }
+.modal .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+.logo { font-family: var(--pixel); font-size: clamp(22px, 7vw, 38px); text-align: center; margin: 4px 0 4px; letter-spacing: .04em; background: linear-gradient(180deg, #fff 0%, #bdf5ff 40%, #9d7bff 100%); -webkit-background-clip: text; background-clip: text; color: transparent; filter: drop-shadow(0 4px 0 #0008) drop-shadow(0 0 22px #5ee7ff55); }
+.tagline { text-align: center; color: var(--muted); margin: 0 0 18px; }
+.field { margin: 14px 0; }
+.field > label, .field > .label { display: block; font-size: 12px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
+.field input[type=text] { width: 100%; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--code-bg); color: var(--text); font: inherit; }
+.field input[type=text]:focus { outline: 2px solid var(--mana); outline-offset: 1px; }
+.choices { display: flex; flex-wrap: wrap; gap: 8px; }
+.choice { border: 1px solid var(--line); background: var(--panel); border-radius: 12px; padding: 9px 12px; text-align: left; flex: 1 1 140px; }
+.choice small { display: block; color: var(--muted); font-size: 12px; font-weight: 500; }
+.choice.on { border-color: var(--mana); background: #5ee7ff18; box-shadow: 0 0 0 1px var(--mana) inset; }
+.avatar-choice { flex: 0 0 auto; font-size: 26px; padding: 6px 10px; }
+.how { font-size: 13px; color: var(--muted); padding-left: 18px; margin: 8px 0 0; }
+.how li + li { margin-top: 3px; }
+.stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; margin: 12px 0; }
+.stat { background: #0b0c2366; border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+.stat .k { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); font-weight: 800; }
+.stat .v { font-size: 18px; font-weight: 800; margin-top: 2px; font-variant-numeric: tabular-nums; }
+.loot-list { list-style: none; margin: 8px 0; padding: 0; display: grid; gap: 8px; }
+.loot-list li { display: flex; align-items: center; gap: 12px; padding: 10px 12px; background: #0b0c2366; border: 1px solid var(--line); border-radius: 12px; }
+.loot-list .ic { font-size: 28px; }
+.loot-list .nm { font-weight: 800; }
+.loot-list .fl { font-size: 13px; color: var(--muted); }
+.loot-list li.on { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold) inset; }
+.loot-reveal { display: flex; align-items: center; gap: 14px; background: #ffd16612; border: 1px solid #ffd16666; border-radius: 14px; padding: 12px 14px; margin: 12px 0; }
+.loot-reveal .ic { font-size: 40px; filter: drop-shadow(0 0 12px #ffd166aa); }
+.muted { color: var(--muted); }
+.small { font-size: 13px; }
+.concept-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+
+/* ---------- Toasts ---------- */
+.toasts { position: fixed; right: 16px; bottom: 16px; z-index: 60; display: grid; gap: 8px; justify-items: end; pointer-events: none; }
+.toast { background: #22256a; border: 1px solid #5257b8; color: var(--text); padding: 9px 14px; border-radius: 12px; font-weight: 700; box-shadow: 0 10px 30px #0008; animation: rise .2s ease-out; max-width: min(360px, calc(100vw - 32px)); }
+.toast.gold { border-color: var(--gold); color: var(--gold); }
+.toast.fire { border-color: #ff8c42; color: #ffc39e; }
+
+@media (max-width: 560px) {
+  .hud { padding: 8px 12px; gap: 8px; }
+  .hud-id { order: 1; flex: 1 1 auto; }
+  .hud-actions { order: 2; gap: 4px; }
+  .icon-btn { padding: 5px 8px; }
+  .hud-level { order: 3; flex: 1 1 150px; min-width: 0; }
+  .chip { order: 4; font-size: 12px; padding: 3px 8px; }
+  .hud-name { max-width: 130px; }
+  .props span:nth-child(2), .props span:nth-child(3) { display: none; }
+  .layout { padding: 12px; gap: 12px; }
+  .stage { height: 210px; }
+  .sprite { font-size: 50px; }
+  .enemy .sprite { font-size: 60px; }
+  .boss .enemy .sprite { font-size: 80px; }
+  .player { left: 7%; } .enemy { right: 7%; }
+  .btn-end .lbl { display: none; }
+  .quest h2 { font-size: 18px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+</style>
+</head>
+<body>
+<header class="hud" id="hud" hidden>
+  <div class="hud-id">
+    <span class="hud-avatar" id="hudAvatar">🧙</span>
+    <div style="min-width:0">
+      <div class="hud-name" id="hudName">Wizard</div>
+      <div class="hud-title" id="hudTitle">Apprentice of Python</div>
+    </div>
+  </div>
+  <div class="hud-level">
+    <span class="lv" id="hudLv">LV 1</span>
+    <div class="xpbar" role="progressbar" aria-label="Experience" aria-valuemin="0" aria-valuemax="100" id="xpBar"><div class="xpfill" id="xpFill"></div></div>
+    <span class="xptext" id="xpText">0 / 100 XP</span>
+  </div>
+  <span class="chip" id="hudStreak" title="Streak: correct casts in a row">🔥 0</span>
+  <span class="chip" id="hudQuest" title="Quest number">Quest 1</span>
+  <span class="chip engine" id="hudEngine" hidden></span>
+  <div class="hud-actions">
+    <button class="icon-btn" id="btnSatchel" title="Satchel (loot)" aria-label="Satchel">🎒</button>
+    <button class="icon-btn" id="btnSound" title="Sound on/off" aria-label="Toggle sound">🔊</button>
+    <button class="icon-btn" id="btnSettings" title="Settings" aria-label="Settings">⚙️</button>
+    <button class="icon-btn btn-end" id="btnEnd" title="End adventure and see your summary">📜 <span class="lbl">End adventure</span></button>
+  </div>
+</header>
+
+<main class="layout" id="game" hidden>
+  <section class="col">
+    <div class="stage area-1" id="stage" aria-label="Battle">
+      <div class="props" id="props"></div>
+      <div class="ground"></div>
+      <div class="area-label" id="areaLabel">MOSSY HOLLOW</div>
+      <div class="next-label" id="nextLabel"></div>
+      <div class="fighter player" id="player">
+        <span class="relic" id="relic" hidden></span>
+        <span class="sprite" id="playerSprite">🧙</span>
+        <div class="nameplate" id="playerPlate">Wizard</div>
+      </div>
+      <div class="fighter enemy" id="enemy">
+        <span class="sprite" id="enemySprite">❄️</span>
+        <div class="nameplate" id="enemyPlate"></div>
+      </div>
+      <div class="hp" id="hp">
+        <div class="hp-label"><span id="hpName"></span><span id="hpNum"></span></div>
+        <div class="hp-bar" id="hpBar"></div>
+      </div>
+      <div class="bubble" id="bubble"></div>
+      <div class="fx" id="fx"></div>
+    </div>
+    <article class="panel quest" id="questCard"></article>
+  </section>
+
+  <section class="col">
+    <div class="panel editor-panel">
+      <div class="editor-head">
+        <span>📖 Spellbook · <b id="langLabel">Python</b></span>
+        <span id="sigLabel"></span>
+      </div>
+      <div class="editor">
+        <div class="gutter" id="gutter"><pre id="gutterPre">1</pre></div>
+        <div class="code-wrap">
+          <div class="err-line" id="errLine" hidden></div>
+          <textarea id="code" spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off" wrap="off" aria-label="Code editor"></textarea>
+        </div>
+      </div>
+      <div class="toolbar">
+        <button class="btn primary" id="btnCast" title="Run every test (Ctrl+Enter)">⚡ Cast<span class="k">Ctrl+Enter</span></button>
+        <button class="btn" id="btnScry" title="Scry: run only the examples. Free, with no XP and no penalty.">🔮 Scry</button>
+        <button class="btn" id="btnHint">💡 Hint</button>
+        <button class="btn" id="btnMentor" hidden title="Mentor's whisper: a worked example. Halves this quest's XP.">🧙 Mentor</button>
+        <span class="spacer"></span>
+        <button class="btn ghost small" id="btnReset" title="Reset to the starter spell">↺ Reset</button>
+        <button class="btn ghost small" id="btnShow" title="Reveal the answer (0 XP)">🏳️ Show me</button>
+      </div>
+    </div>
+    <div class="panel oracle" id="oracle" aria-live="polite"></div>
+  </section>
+</main>
+
+<div class="overlay" id="overlay" hidden></div>
+<div class="toasts" id="toasts" aria-live="polite"></div>
+
+<script>
+/*QUESTS_START*/
+// Each quest: t = tests as [args, expected, hidden?]. Text supports:
+//   @sig -> <code>name(params)</code>, @fn -> function name (language-cased),
+//   $list / $lists / $dict / $none / $True / $False -> language terms,
+//   [[python text||javascript text]] -> per-language text.
+var OPEN18 = Array.from({ length: 18 }, function () { return Array(18).fill(0); });
+var QUESTS = [
+// ───────────── TIER 1 · Mossy Hollow ─────────────
+{ id: "frost", tier: 1, concept: "if", enemy: "❄️", name: "Frostcloak the Snow Wraith",
+  story: "A wraith in a frozen cloak blocks the cave mouth. Its cloak is solid ice, so fire spells do double damage.",
+  task: "Write @sig. Return the damage dealt: <b>double</b> the power when the element is <code>\"fire\"</code>, otherwise just the power.",
+  fn: "cast", params: ["power", "element"],
+  t: [[[10, "fire"], 20], [[10, "ice"], 10], [[7, "storm"], 7], [[0, "fire"], 0, 1], [[25, "fire"], 50, 1]],
+  hints: ["Use an <code>if</code> to check whether <code>element</code> equals <code>\"fire\"</code>. Comparing uses [[<code>==</code>||<code>===</code>]], not <code>=</code>.",
+          "Two paths: fire → return <code>power * 2</code>. Anything else → return <code>power</code>."],
+  mentor: "Same shape, different spell:<pre>function shield(armor, metal):\n    if metal is \"iron\":\n        return armor * 3\n    return armor</pre>Check the special case and return early. Otherwise return the plain value.",
+  win: "You doubled only the fire path and left every other element alone.",
+  sol: { py: `def cast(power, element):
+    if element == "fire":
+        return power * 2
+    return power`, js: `function cast(power, element) {
+  if (element === "fire") {
+    return power * 2;
+  }
+  return power;
+}` } },
+
+{ id: "mana", tier: 1, concept: "math", enemy: "🦟", name: "The Mana Leech",
+  story: "A leech is draining your mana pool. Every spell you cast costs 5 mana.",
+  task: "Write @sig. Return how much mana is left after casting <code>spells</code> spells.",
+  fn: "mana_left", params: ["mana", "spells"],
+  t: [[[50, 3], 35], [[20, 4], 0], [[12, 0], 12], [[100, 10], 50, 1], [[5, 1], 0, 1]],
+  hints: ["Each spell costs 5, so the total cost is <code>spells * 5</code>.", "Return the starting mana minus the total cost."],
+  mentor: "Worked example:<pre>function arrows_left(quiver, shots):\n    # each shot uses 2 arrows\n    return quiver - shots * 2</pre>",
+  win: "One clean expression: starting mana minus the total cost.",
+  sol: { py: `def mana_left(mana, spells):
+    return mana - spells * 5`, js: `function manaLeft(mana, spells) {
+  return mana - spells * 5;
+}` } },
+
+{ id: "gold", tier: 1, concept: "math", enemy: "🗿", name: "The Coin Golem",
+  story: "The golem won't move until its gold is shared fairly. Each hero gets the same number of <b>whole</b> coins, and the golem keeps the leftovers.",
+  task: "Write @sig. Return each hero's share, rounded <b>down</b>.",
+  fn: "split_gold", params: ["gold", "heroes"],
+  t: [[[10, 3], 3], [[100, 4], 25], [[7, 7], 1], [[3, 5], 0, 1], [[99, 10], 9, 1]],
+  hints: ["Dividing splits the gold, but shares must be whole coins, so round <b>down</b>.",
+          "[[Python's <code>//</code> divides and rounds down in one step.||<code>Math.floor(gold / heroes)</code> divides, then rounds down.]]"],
+  mentor: "Worked example:<pre>function full_boxes(apples, per_box):\n    # 14 apples, 4 per box -> 3 full boxes\n    return round_down(apples / per_box)</pre>",
+  win: "You remembered coins don't come in fractions, and rounded down.",
+  sol: { py: `def split_gold(gold, heroes):
+    return gold // heroes`, js: `function splitGold(gold, heroes) {
+  return Math.floor(gold / heroes);
+}` } },
+
+{ id: "hourglass", tier: 1, concept: "math", enemy: "⌛", name: "The Hourglass Wraith",
+  story: "The wraith counts everything in seconds. Your timer shows minutes and seconds.",
+  task: "Write @sig. Return the total number of seconds.",
+  fn: "to_seconds", params: ["minutes", "seconds"],
+  t: [[[2, 30], 150], [[0, 45], 45], [[10, 0], 600], [[1, 59], 119, 1]],
+  hints: ["There are 60 seconds in a minute.", "Turn the minutes into seconds, then add the leftover seconds."],
+  mentor: "Worked example:<pre>function to_inches(feet, inches):\n    return feet * 12 + inches</pre>",
+  win: "Minutes converted, seconds added. The hourglass cracks.",
+  sol: { py: `def to_seconds(minutes, seconds):
+    return minutes * 60 + seconds`, js: `function toSeconds(minutes, seconds) {
+  return minutes * 60 + seconds;
+}` } },
+
+{ id: "even", tier: 1, concept: "math", enemy: "👿", name: "The Twin Imps",
+  story: "Two imps argue about every number: is it even or odd? Settle it for good.",
+  task: "Write @sig. Return $True if <code>n</code> is even, $False otherwise.",
+  fn: "is_even", params: ["n"],
+  t: [[[4], true], [[7], false], [[0], true], [[-2], true, 1], [[13], false, 1]],
+  hints: ["The remainder operator <code>%</code> gives what's left over after dividing.",
+          "A number is even when <code>n % 2</code> is 0. You can return that comparison directly."],
+  mentor: "Worked example:<pre>function divisible_by_3(n):\n    return n % 3 == 0</pre>",
+  win: "You settled it with the remainder, and zero and negatives came out right too.",
+  sol: { py: `def is_even(n):
+    return n % 2 == 0`, js: `function isEven(n) {
+  return n % 2 === 0;
+}` } },
+
+{ id: "gate", tier: 1, concept: "if", enemy: "👹", name: "The Ogre's Gate",
+  story: "The ogre only opens the gate for wizards of level 10 or higher.",
+  task: "Write @sig. Return <code>\"open\"</code> if <code>level</code> is 10 or more, otherwise <code>\"closed\"</code>.",
+  fn: "gate", params: ["level"],
+  t: [[[12], "open"], [[3], "closed"], [[10], "open"], [[9], "closed", 1], [[0], "closed", 1]],
+  hints: ["Compare <code>level</code> with 10. Should exactly 10 open the gate?", "Use <code>&gt;=</code> so that 10 counts."],
+  mentor: "Worked example:<pre>function ride(height):\n    if height >= 120:\n        return \"ride\"\n    return \"too short\"</pre>",
+  win: "You caught the boundary: level 10 walks right through.",
+  sol: { py: `def gate(level):
+    if level >= 10:
+        return "open"
+    return "closed"`, js: `function gate(level) {
+  if (level >= 10) {
+    return "open";
+  }
+  return "closed";
+}` } },
+
+{ id: "biggest", tier: 1, concept: "if", enemy: "🐸", name: "The Three-Headed Toad",
+  story: "Only the strongest head can be hit. Find it.",
+  task: "Write @sig. Return the largest of the three numbers.",
+  fn: "biggest", params: ["a", "b", "c"],
+  t: [[[1, 5, 3], 5], [[9, 2, 4], 9], [[2, 2, 8], 8], [[-1, -5, -3], -1, 1], [[7, 7, 7], 7, 1]],
+  hints: ["Keep a 'best so far'. Start it at <code>a</code>.",
+          "If <code>b</code> beats the best, replace it. Do the same with <code>c</code>. Then return the best."],
+  mentor: "Worked example (smaller of two):<pre>function smaller(x, y):\n    best = x\n    if y &lt; best:\n        best = y\n    return best</pre>",
+  win: "Every head compared, and ties and negatives didn't fool you.",
+  sol: { py: `def biggest(a, b, c):
+    best = a
+    if b > best:
+        best = b
+    if c > best:
+        best = c
+    return best`, js: `function biggest(a, b, c) {
+  let best = a;
+  if (b > best) best = b;
+  if (c > best) best = c;
+  return best;
+}` } },
+
+{ id: "shield", tier: 1, concept: "if", enemy: "🦔", name: "Spinebark the Hedgehog",
+  story: "Spinebark curls into a spiky shield. Your hit loses power equal to the shield, but damage can never drop below zero.",
+  task: "Write @sig. Return <code>hit - shield</code>, but never less than 0.",
+  fn: "damage_taken", params: ["hit", "shield"],
+  t: [[[10, 3], 7], [[2, 5], 0], [[5, 5], 0], [[100, 1], 99, 1], [[0, 0], 0, 1]],
+  hints: ["Subtract first: <code>hit - shield</code>.",
+          "If that's negative, return 0 instead. ([[<code>max(0, x)</code>||<code>Math.max(0, x)</code>]] does it in one step.)"],
+  mentor: "Worked example:<pre>function change_due(paid, cost):\n    change = paid - cost\n    if change &lt; 0:\n        return 0\n    return change</pre>",
+  win: "No negative damage on your watch. You clamped it at zero.",
+  sol: { py: `def damage_taken(hit, shield):
+    return max(0, hit - shield)`, js: `function damageTaken(hit, shield) {
+  return Math.max(0, hit - shield);
+}` } },
+
+{ id: "shout", tier: 1, concept: "strings", enemy: "🦇", name: "The Echo Bat",
+  story: "The bat only respects spells that are SHOUTED.",
+  task: "Write @sig. Return the word in uppercase with <code>\"!\"</code> on the end.",
+  fn: "shout", params: ["word"],
+  t: [[["boo"], "BOO!"], [["Hi"], "HI!"], [["a"], "A!", 1], [[""], "!", 1]],
+  hints: ["Strings have a method that makes them uppercase: [[<code>word.upper()</code>||<code>word.toUpperCase()</code>]].",
+          "Join the uppercase word and <code>\"!\"</code> with <code>+</code>."],
+  mentor: "Worked example:<pre>function whisper(word):\n    return lowercase(word) + \"...\"</pre>",
+  win: "Uppercase plus an exclamation mark. Louder than the bat.",
+  sol: { py: `def shout(word):
+    return word.upper() + "!"`, js: `function shout(word) {
+  return word.toUpperCase() + "!";
+}` } },
+
+{ id: "bookends", tier: 1, concept: "strings", enemy: "🪞", name: "The Mirror Imp",
+  story: "The imp hides in the middle of words. Grab both ends and it can't escape.",
+  task: "Write @sig. Return the first letter followed by the last letter.",
+  fn: "bookends", params: ["word"],
+  t: [[["goblin"], "gn"], [["ox"], "ox"], [["a"], "aa"], [["wizard"], "wd", 1]],
+  hints: ["The first character is at index <code>0</code>.",
+          "[[The last character is at index <code>-1</code>.||The last character is at index <code>word.length - 1</code>.]]"],
+  mentor: "Worked example (first two letters):<pre>function first_two(word):\n    return word[0] + word[1]</pre>",
+  win: "Index 0 and the very last index. You grabbed both ends.",
+  sol: { py: `def bookends(word):
+    return word[0] + word[-1]`, js: `function bookends(word) {
+  return word[0] + word[word.length - 1];
+}` } },
+
+{ id: "greet", tier: 1, concept: "strings", enemy: "👻", name: "The Name-Stealing Ghost",
+  story: "The ghost stole your name. Speak the greeting to take it back.",
+  task: "Write @sig. Return <code>\"Hail, \"</code> + the name + <code>\"!\"</code>. For example, <code>\"Ana\"</code> gives <code>\"Hail, Ana!\"</code>.",
+  fn: "greet", params: ["name"],
+  t: [[["Ana"], "Hail, Ana!"], [["Zork"], "Hail, Zork!"], [[""], "Hail, !", 1], [["Sir Byte"], "Hail, Sir Byte!", 1]],
+  hints: ["Build the result from three pieces: <code>\"Hail, \"</code>, the name, and <code>\"!\"</code>.",
+          "[[An f-string works too: <code>f\"Hail, {name}!\"</code>||A template literal works too: <code>`Hail, ${name}!`</code>]]"],
+  mentor: "Worked example:<pre>function label(item):\n    return \"Item: \" + item + \".\"</pre>",
+  win: "Comma, space and exclamation mark, all in the right places. Name restored.",
+  sol: { py: `def greet(name):
+    return "Hail, " + name + "!"`, js: `function greet(name) {
+  return "Hail, " + name + "!";
+}` } },
+
+{ id: "rank", tier: 1, concept: "if", boss: true, enemy: "🐊", name: "The Bog King",
+  story: "The Bog King sorts every wizard into a rank, and he never gets a boundary wrong. Neither can you.",
+  task: "Write @sig. Return <code>\"Invalid\"</code> for negative xp, <code>\"Apprentice\"</code> below 100, <code>\"Adept\"</code> below 200, <code>\"Master\"</code> below 300, and <code>\"Archmage\"</code> for 300 or more.",
+  fn: "rank", params: ["xp"],
+  t: [[[50], "Apprentice"], [[150], "Adept"], [[250], "Master"], [[999], "Archmage"], [[-5], "Invalid", 1], [[0], "Apprentice", 1], [[100], "Adept", 1], [[299], "Master", 1], [[300], "Archmage", 1]],
+  hints: ["Handle the special case first: negative xp is invalid.",
+          "Then climb the ladder with [[<code>if</code> / <code>elif</code> / <code>else</code>||<code>if</code> / <code>else if</code> / <code>else</code>]]. The first matching branch wins, so check <code>&lt; 100</code>, then <code>&lt; 200</code>, and so on."],
+  mentor: "Worked example:<pre>function size(n):\n    if n &lt; 0:\n        return \"??\"\n    else if n &lt; 10:\n        return \"small\"\n    else if n &lt; 100:\n        return \"medium\"\n    else:\n        return \"huge\"</pre>",
+  win: "Nine boundaries, zero mistakes. You checked the special case first and climbed the ladder in order.",
+  sol: { py: `def rank(xp):
+    if xp < 0:
+        return "Invalid"
+    elif xp < 100:
+        return "Apprentice"
+    elif xp < 200:
+        return "Adept"
+    elif xp < 300:
+        return "Master"
+    return "Archmage"`, js: `function rank(xp) {
+  if (xp < 0) return "Invalid";
+  if (xp < 100) return "Apprentice";
+  if (xp < 200) return "Adept";
+  if (xp < 300) return "Master";
+  return "Archmage";
+}` } },
+
+{ id: "password", tier: 1, concept: "strings", boss: true, enemy: "🦀", name: "Sir Pinchington, Keeper of Keys",
+  story: "The crab knight tests every password at the castle door. Rate them the way he does.",
+  task: "Write @sig. The exact word <code>\"password\"</code> is always <code>\"weak\"</code>. Otherwise, fewer than 6 characters is <code>\"weak\"</code>, 6 to 9 characters is <code>\"ok\"</code>, and 10 or more is <code>\"strong\"</code>.",
+  fn: "strength", params: ["pw"],
+  t: [[["abc"], "weak"], [["dragon7"], "ok"], [["spellcasting"], "strong"], [["password"], "weak"], [["abcdef"], "ok", 1], [["abcdefghi"], "ok", 1], [["abcdefghij"], "strong", 1], [[""], "weak", 1]],
+  hints: ["Check the special case first: the exact word <code>\"password\"</code>.",
+          "Then use the length, [[<code>len(pw)</code>||<code>pw.length</code>]], in an if / else-if chain."],
+  mentor: "Worked example:<pre>function grade(score, name):\n    if name == \"cheater\":\n        return \"F\"\n    if score &lt; 50:\n        return \"F\"\n    if score &lt; 80:\n        return \"B\"\n    return \"A\"</pre>",
+  win: "You handled the special case first and got both length boundaries exactly right.",
+  sol: { py: `def strength(pw):
+    if pw == "password" or len(pw) < 6:
+        return "weak"
+    if len(pw) < 10:
+        return "ok"
+    return "strong"`, js: `function strength(pw) {
+  if (pw === "password" || pw.length < 6) return "weak";
+  if (pw.length < 10) return "ok";
+  return "strong";
+}` } },
+
+// ───────────── TIER 2 · Ember Caves ─────────────
+{ id: "sumto", tier: 2, concept: "loops", enemy: "💀", name: "The Stair Skeleton",
+  story: "The skeleton climbs a staircase, adding up every step number: 1 + 2 + 3 + … all the way to <code>n</code>.",
+  task: "Write @sig. Return the sum of every whole number from 1 to <code>n</code>.",
+  fn: "sum_to", params: ["n"],
+  t: [[[3], 6], [[10], 55], [[1], 1], [[0], 0, 1], [[100], 5050, 1]],
+  hints: ["Keep a running total that starts at 0, and loop over 1, 2, …, n.",
+          "[[<code>range(1, n + 1)</code> includes n. <code>range(1, n)</code> stops one short!||Loop while <code>i &lt;= n</code>, not <code>i &lt; n</code>, so n itself gets added.]]"],
+  mentor: "Worked example (multiply instead of add):<pre>function product_to(n):\n    total = 1\n    for i from 1 to n (including n):\n        total = total * i\n    return total</pre>",
+  win: "Running total, with n itself included. The off-by-one trap missed you.",
+  sol: { py: `def sum_to(n):
+    total = 0
+    for i in range(1, n + 1):
+        total += i
+    return total`, js: `function sumTo(n) {
+  let total = 0;
+  for (let i = 1; i <= n; i++) {
+    total += i;
+  }
+  return total;
+}` } },
+
+{ id: "countdown", tier: 2, concept: "loops", enemy: "🕰️", name: "The Clockwork Lich",
+  story: "The lich only obeys a proper countdown.",
+  task: "Write @sig. Return a $list counting down from <code>n</code> to 1.",
+  fn: "countdown", params: ["n"],
+  t: [[[3], [3, 2, 1]], [[1], [1]], [[0], []], [[5], [5, 4, 3, 2, 1], 1]],
+  hints: ["Start with an empty $list and add numbers to it inside a loop.",
+          "[[<code>range(n, 0, -1)</code> counts down from n to 1.||<code>for (let i = n; i &gt;= 1; i--)</code> counts down. <code>push</code> each <code>i</code>.]]"],
+  mentor: "Worked example (count up by twos):<pre>function evens_up_to(n):\n    result = []\n    i = 2\n    while i &lt;= n:\n        add i to result\n        i = i + 2\n    return result</pre>",
+  win: "Counted all the way down to 1, and an empty countdown for 0.",
+  sol: { py: `def countdown(n):
+    result = []
+    for i in range(n, 0, -1):
+        result.append(i)
+    return result`, js: `function countdown(n) {
+  const result = [];
+  for (let i = n; i >= 1; i--) {
+    result.push(i);
+  }
+  return result;
+}` } },
+
+{ id: "fizzbuzz", tier: 2, concept: "if", enemy: "🐝", name: "The Buzzing Swarm",
+  story: "The swarm attacks in numbered waves, and every wave has its own battle cry.",
+  task: "Write @sig. Return <code>\"FizzBuzz\"</code> if <code>n</code> divides by both 3 and 5, <code>\"Fizz\"</code> if only by 3, <code>\"Buzz\"</code> if only by 5, otherwise the number as text.",
+  fn: "fizzbuzz", params: ["n"],
+  t: [[[3], "Fizz"], [[10], "Buzz"], [[15], "FizzBuzz"], [[7], "7"], [[30], "FizzBuzz", 1], [[1], "1", 1]],
+  hints: ["Check divisibility with <code>%</code>. Which check has to come first?",
+          "Check 'divisible by 15' <b>before</b> the single checks. The fallback is [[<code>str(n)</code>||<code>String(n)</code>]]."],
+  mentor: "Worked example (most specific case first):<pre>function label(n):\n    if n % 4 == 0 and n % 6 == 0:\n        return \"both\"\n    if n % 4 == 0:\n        return \"four\"\n    if n % 6 == 0:\n        return \"six\"\n    return text(n)</pre>",
+  win: "You checked the 'both' case first. The order of conditions mattered, and you got it right.",
+  sol: { py: `def fizzbuzz(n):
+    if n % 15 == 0:
+        return "FizzBuzz"
+    if n % 3 == 0:
+        return "Fizz"
+    if n % 5 == 0:
+        return "Buzz"
+    return str(n)`, js: `function fizzbuzz(n) {
+  if (n % 15 === 0) return "FizzBuzz";
+  if (n % 3 === 0) return "Fizz";
+  if (n % 5 === 0) return "Buzz";
+  return String(n);
+}` } },
+
+{ id: "doublings", tier: 2, concept: "loops", enemy: "🦠", name: "The Doubling Slime",
+  story: "Every turn the slime doubles in size. How many turns until it reaches the target?",
+  task: "Write @sig. Keep doubling <code>start</code> until it is at least <code>target</code>. Return how many doublings that took.",
+  fn: "doublings", params: ["start", "target"],
+  t: [[[1, 10], 4], [[3, 3], 0], [[5, 6], 1], [[1, 1024], 10], [[7, 100], 4, 1]],
+  hints: ["You don't know in advance how many loops you need. That's a job for a <code>while</code> loop.",
+          "While <code>start &lt; target</code>: double <code>start</code> and add 1 to a counter. Then return the counter."],
+  mentor: "Worked example:<pre>function halvings(n):\n    count = 0\n    while n > 1:\n        n = n / 2\n        count = count + 1\n    return count</pre>",
+  win: "A while loop that knows when to stop. The slime has nowhere left to grow.",
+  sol: { py: `def doublings(start, target):
+    count = 0
+    while start < target:
+        start *= 2
+        count += 1
+    return count`, js: `function doublings(start, target) {
+  let count = 0;
+  while (start < target) {
+    start *= 2;
+    count++;
+  }
+  return count;
+}` } },
+
+{ id: "vowels", tier: 2, concept: "strings", enemy: "🪱", name: "The Vowel Leech",
+  story: "The leech feeds on vowels. Count how many it can smell in a word.",
+  task: "Write @sig. Return how many vowels (<code>a e i o u</code>, upper or lower case) are in <code>word</code>.",
+  fn: "count_vowels", params: ["word"],
+  t: [[["goblin"], 2], [["rhythm"], 0], [["AEIOU"], 5], [[""], 0, 1], [["Ogre"], 2, 1]],
+  hints: ["Loop over each character and check whether it's a vowel.",
+          "Lowercase each character first ([[<code>ch.lower()</code>||<code>ch.toLowerCase()</code>]]), then check [[<code>ch in \"aeiou\"</code>||<code>\"aeiou\".includes(ch)</code>]]."],
+  mentor: "Worked example:<pre>function count_x(word):\n    count = 0\n    for each ch in word:\n        if lowercase(ch) == \"x\":\n            count = count + 1\n    return count</pre>",
+  win: "Case-proof counting. Even a shouting ogre can't hide its vowels.",
+  sol: { py: `def count_vowels(word):
+    count = 0
+    for ch in word.lower():
+        if ch in "aeiou":
+            count += 1
+    return count`, js: `function countVowels(word) {
+  let count = 0;
+  for (const ch of word.toLowerCase()) {
+    if ("aeiou".includes(ch)) count++;
+  }
+  return count;
+}` } },
+
+{ id: "reverse", tier: 2, concept: "strings", enemy: "🙃", name: "The Upside-Down Banshee",
+  story: "The banshee only understands words spoken backwards.",
+  task: "Write @sig. Return the word reversed.",
+  fn: "reverse", params: ["word"],
+  t: [[["abc"], "cba"], [["level"], "level"], [[""], ""], [["Spell"], "llepS", 1]],
+  hints: ["Build a new string, adding each character to the <b>front</b>.",
+          "[[Slicing does it in one move: <code>word[::-1]</code>.||<code>word.split(\"\").reverse().join(\"\")</code> does it in one move.]]"],
+  mentor: "Worked example (building a string front-first):<pre>result = \"\"\nfor each ch in \"abc\":\n    result = ch + result\n# \"a\" -> \"ba\" -> \"cba\"</pre>",
+  win: "Backwards and letter-perfect. The banshee is speechless.",
+  sol: { py: `def reverse(word):
+    return word[::-1]`, js: `function reverse(word) {
+  return word.split("").reverse().join("");
+}` } },
+
+{ id: "stretch", tier: 2, concept: "strings", enemy: "🦜", name: "The Stuttering Parrot",
+  story: "The parrot says every letter twice. Speak its language.",
+  task: "Write @sig. Return a new string where every character appears twice in a row.",
+  fn: "stretch", params: ["word"],
+  t: [[["hey"], "hheeyy"], [["a"], "aa"], [[""], ""], [["ab c"], "aabb  cc", 1]],
+  hints: ["Loop over the characters and build a new string.", "For each character <code>ch</code>, add it twice: <code>result += ch + ch</code>."],
+  mentor: "Worked example:<pre>function dashed(word):\n    result = \"\"\n    for each ch in word:\n        result = result + ch + \"-\"\n    return result</pre>",
+  win: "Every character doubled, spaces included. The parrot approves.",
+  sol: { py: `def stretch(word):
+    result = ""
+    for ch in word:
+        result += ch + ch
+    return result`, js: `function stretch(word) {
+  let result = "";
+  for (const ch of word) {
+    result += ch + ch;
+  }
+  return result;
+}` } },
+
+{ id: "total", tier: 2, concept: "lists", enemy: "🦎", name: "The Hoarding Dragonling",
+  story: "The dragonling guards a pile of coin stacks. Count its hoard.",
+  task: "Write @sig. Return the sum of all the numbers in the $list <code>coins</code>.",
+  fn: "total", params: ["coins"],
+  t: [[[[1, 2, 3]], 6], [[[]], 0], [[[10]], 10], [[[5, -2, 7]], 10, 1]],
+  hints: ["Start a total at 0 and add each coin.",
+          "[[<code>for c in coins: total += c</code> (Python's built-in <code>sum()</code> works too).||<code>for (const c of coins) total += c;</code>]]"],
+  mentor: "Worked example:<pre>function count_big(nums):\n    count = 0\n    for each n in nums:\n        if n > 100:\n            count = count + 1\n    return count</pre>",
+  win: "Every stack counted, and the empty hoard comes out to zero.",
+  sol: { py: `def total(coins):
+    result = 0
+    for c in coins:
+        result += c
+    return result`, js: `function total(coins) {
+  let result = 0;
+  for (const c of coins) result += c;
+  return result;
+}` } },
+
+{ id: "largest", tier: 2, concept: "lists", enemy: "🐂", name: "The Max Minotaur",
+  story: "The minotaur respects only the biggest number in the labyrinth.",
+  task: "Write @sig. Return the largest number in <code>nums</code>. It always has at least one number.",
+  fn: "largest", params: ["nums"],
+  t: [[[[3, 9, 2]], 9], [[[-5, -2, -9]], -2], [[[7]], 7], [[[1, 1, 1]], 1, 1], [[[0, -1]], 0, 1]],
+  hints: ["Track the biggest value seen so far while you loop.",
+          "Start 'biggest so far' at the <b>first element</b>, not 0. What if every number is negative?"],
+  mentor: "Worked example (smallest):<pre>function smallest(nums):\n    best = nums[0]\n    for each n in nums:\n        if n &lt; best:\n            best = n\n    return best</pre>",
+  win: "You started from the first element, so the all-negative trap missed you.",
+  sol: { py: `def largest(nums):
+    best = nums[0]
+    for n in nums:
+        if n > best:
+            best = n
+    return best`, js: `function largest(nums) {
+  let best = nums[0];
+  for (const n of nums) {
+    if (n > best) best = n;
+  }
+  return best;
+}` } },
+
+{ id: "evens", tier: 2, concept: "lists", enemy: "🐟", name: "The Even Eel",
+  story: "The eel swallows odd numbers. Rescue the even ones.",
+  task: "Write @sig. Return a new $list with only the even numbers, in their original order.",
+  fn: "only_evens", params: ["nums"],
+  t: [[[[1, 2, 3, 4]], [2, 4]], [[[1, 3]], []], [[[]], []], [[[0, -2, 5]], [0, -2], 1]],
+  hints: ["Make an empty $list, loop over <code>nums</code>, and keep the numbers that pass a test.",
+          "Keep <code>n</code> when <code>n % 2</code> is 0 ([[<code>append</code>||<code>push</code>]] it)."],
+  mentor: "Worked example:<pre>function positives(nums):\n    result = []\n    for each n in nums:\n        if n > 0:\n            add n to result\n    return result</pre>",
+  win: "Filtered cleanly. Zero and the negative evens made it out too.",
+  sol: { py: `def only_evens(nums):
+    result = []
+    for n in nums:
+        if n % 2 == 0:
+            result.append(n)
+    return result`, js: `function onlyEvens(nums) {
+  const result = [];
+  for (const n of nums) {
+    if (n % 2 === 0) result.push(n);
+  }
+  return result;
+}` } },
+
+{ id: "restock", tier: 2, concept: "dicts", enemy: "📦", name: "The Inventory Mimic",
+  story: "A mimic disguised as a supply chest eats anything that isn't recorded properly.",
+  task: "Write @sig. Add <code>qty</code> to <code>inv[item]</code>, creating the item if it's missing. Then return <code>inv</code>.",
+  fn: "restock", params: ["inv", "item", "qty"],
+  t: [[[{ potion: 2 }, "potion", 3], { potion: 5 }], [[{}, "rope", 1], { rope: 1 }], [[{ gem: 1 }, "key", 2], { gem: 1, key: 2 }], [[{ a: 5 }, "a", 0], { a: 5 }, 1]],
+  hints: ["Check whether <code>item</code> is already a key in <code>inv</code>.",
+          "If it is, add to it. If not, set it to <code>qty</code>. Don't forget to return <code>inv</code>."],
+  mentor: "Worked example:<pre>function add_score(scores, player, points):\n    if player is a key in scores:\n        scores[player] = scores[player] + points\n    else:\n        scores[player] = points\n    return scores</pre>",
+  win: "Old items topped up, new ones created. Nothing left for the mimic to eat.",
+  sol: { py: `def restock(inv, item, qty):
+    inv[item] = inv.get(item, 0) + qty
+    return inv`, js: `function restock(inv, item, qty) {
+  inv[item] = (inv[item] || 0) + qty;
+  return inv;
+}` } },
+
+{ id: "caesar", tier: 2, concept: "strings", boss: true, enemy: "🐙", name: "The Ink Kraken",
+  story: "The kraken writes in a secret code: every letter is shifted forward in the alphabet, wrapping from z back to a.",
+  task: "Write @sig. Shift each lowercase letter forward by <code>shift</code>, wrapping past <code>z</code>. Leave every other character as it is.",
+  fn: "caesar", params: ["text", "shift"],
+  t: [[["abc", 1], "bcd"], [["xyz", 2], "zab"], [["hi there!", 3], "kl wkhuh!"], [["abc", 26], "abc"], [["", 5], "", 1], [["zz top", 1], "aa upq", 1]],
+  hints: ["Turn a letter into a number from 0 to 25: [[<code>ord(ch) - ord(\"a\")</code>||<code>ch.charCodeAt(0) - 97</code>]].",
+          "Add the shift, wrap with <code>% 26</code>, then turn it back into a letter with [[<code>chr(num + ord(\"a\"))</code>||<code>String.fromCharCode(num + 97)</code>]]. Characters that aren't a–z pass through unchanged."],
+  mentor: "Worked example (a 10-digit dial):<pre>function turn_dial(digit, steps):\n    return (digit + steps) % 10\n# turn_dial(8, 3) -> 1   (wraps past 9)</pre>Letters work the same way, with 26 positions instead of 10.",
+  win: "Letters wrapped, punctuation untouched. The kraken's code is broken.",
+  sol: { py: `def caesar(text, shift):
+    out = ""
+    for ch in text:
+        if "a" <= ch <= "z":
+            out += chr((ord(ch) - 97 + shift) % 26 + 97)
+        else:
+            out += ch
+    return out`, js: `function caesar(text, shift) {
+  let out = "";
+  for (const ch of text) {
+    if (ch >= "a" && ch <= "z") {
+      out += String.fromCharCode((ch.charCodeAt(0) - 97 + shift) % 26 + 97);
+    } else {
+      out += ch;
+    }
+  }
+  return out;
+}` } },
+
+{ id: "compress", tier: 2, concept: "loops", boss: true, enemy: "🐍", name: "The Rune Serpent",
+  story: "The serpent's scales spell runes in long repeating runs. Shrink them so the spell fits in your book.",
+  task: "Write @sig. Replace each run of the same character with that character and the run's length: <code>\"aaabcc\"</code> becomes <code>\"a3b1c2\"</code>.",
+  fn: "compress", params: ["s"],
+  t: [[["aaabcc"], "a3b1c2"], [["abc"], "a1b1c1"], [["zzzz"], "z4"], [[""], ""], [["aabbaa"], "a2b2a2", 1], [["x"], "x1", 1]],
+  hints: ["Walk through the string and count how many times the current character repeats.",
+          "When the character changes (or the string ends), write the character and its count, then start a new count."],
+  mentor: "Worked example (count the runs instead of writing them):<pre>function count_runs(s):\n    runs = 0\n    for i from 0 to len(s) - 1:\n        if i == 0 or s[i] != s[i - 1]:\n            runs = runs + 1\n    return runs</pre>",
+  win: "Every run counted, including the very last one. The runes shrink into your spellbook.",
+  sol: { py: `def compress(s):
+    out = ""
+    i = 0
+    while i < len(s):
+        j = i
+        while j < len(s) and s[j] == s[i]:
+            j += 1
+        out += s[i] + str(j - i)
+        i = j
+    return out`, js: `function compress(s) {
+  let out = "";
+  let i = 0;
+  while (i < s.length) {
+    let j = i;
+    while (j < s.length && s[j] === s[i]) j++;
+    out += s[i] + (j - i);
+    i = j;
+  }
+  return out;
+}` } },
+
+// ───────────── TIER 3 · Frostspire Peaks ─────────────
+{ id: "lettercount", tier: 3, concept: "dicts", enemy: "🦉", name: "The Rune-Counting Owl",
+  story: "The owl counts every rune it sees and records each one in its ledger.",
+  task: "Write @sig. Return a $dict that maps each letter to how many times it appears in <code>word</code>.",
+  fn: "letter_count", params: ["word"],
+  t: [[["hoot"], { h: 1, o: 2, t: 1 }], [["aaa"], { a: 3 }], [[""], {}], [["abca"], { a: 2, b: 1, c: 1 }, 1]],
+  hints: ["Start with an empty $dict. For each letter, add 1 to its count.",
+          "If the letter isn't a key yet, start it at 1. [[<code>counts[ch] = counts.get(ch, 0) + 1</code> handles both cases.||<code>counts[ch] = (counts[ch] || 0) + 1</code> handles both cases.]]"],
+  mentor: "Worked example (count words):<pre>function tally(words):\n    counts = {}\n    for each w in words:\n        if w is not a key in counts:\n            counts[w] = 0\n        counts[w] = counts[w] + 1\n    return counts</pre>",
+  win: "Each letter got its own key, and the repeats added up. The owl's ledger is perfect.",
+  sol: { py: `def letter_count(word):
+    counts = {}
+    for ch in word:
+        counts[ch] = counts.get(ch, 0) + 1
+    return counts`, js: `function letterCount(word) {
+  const counts = {};
+  for (const ch of word) {
+    counts[ch] = (counts[ch] || 0) + 1;
+  }
+  return counts;
+}` } },
+
+{ id: "richest", tier: 3, concept: "dicts", enemy: "📜", name: "The Ledger Lich",
+  story: "The lich keeps a ledger of everyone's gold. It only fears the richest name in it.",
+  task: "Write @sig. <code>gold</code> maps names to amounts. Return the name with the most gold. There are no ties.",
+  fn: "richest", params: ["gold"],
+  t: [[[{ ana: 5, bo: 9, cy: 2 }], "bo"], [[{ solo: 0 }], "solo"], [[{ x: -1, y: -5 }], "x"], [[{ z: 100, q: 99 }], "z", 1]],
+  hints: ["Loop over the keys and remember the best name so far.",
+          "Start with $none as the best name. Replace it whenever there's no best yet, or this name has more gold."],
+  mentor: "Worked example (longest word):<pre>function longest(words):\n    best = nothing\n    for each w in words:\n        if best is nothing or len(w) > len(best):\n            best = w\n    return best</pre>",
+  win: "Even negative balances couldn't fool your tracker.",
+  sol: { py: `def richest(gold):
+    best = None
+    for name in gold:
+        if best is None or gold[name] > gold[best]:
+            best = name
+    return best`, js: `function richest(gold) {
+  let best = null;
+  for (const name in gold) {
+    if (best === null || gold[name] > gold[best]) best = name;
+  }
+  return best;
+}` } },
+
+{ id: "dupes", tier: 3, concept: "lists", enemy: "🐌", name: "The Echo Snail",
+  story: "The snail hides behind its twin. Is any number repeated in the line?",
+  task: "Write @sig. Return $True if any number appears more than once.",
+  fn: "has_duplicate", params: ["nums"],
+  t: [[[[1, 2, 3, 1]], true], [[[1, 2, 3]], false], [[[]], false], [[[5, 5]], true, 1], [[[-1, 1]], false, 1]],
+  hints: ["Remember everything you've already seen.",
+          "Keep a [[set||<code>Set</code>]] of seen numbers. If the current one is already in it, you found a twin. (One line: [[<code>len(set(nums)) != len(nums)</code>||<code>new Set(nums).size !== nums.length</code>]].)"],
+  mentor: "Worked example (first repeated letter):<pre>function first_repeat(word):\n    seen = empty set\n    for each ch in word:\n        if ch in seen:\n            return ch\n        add ch to seen\n    return nothing</pre>",
+  win: "You remembered what you'd seen. No twin can hide from that.",
+  sol: { py: `def has_duplicate(nums):
+    seen = set()
+    for n in nums:
+        if n in seen:
+            return True
+        seen.add(n)
+    return False`, js: `function hasDuplicate(nums) {
+  const seen = new Set();
+  for (const n of nums) {
+    if (seen.has(n)) return true;
+    seen.add(n);
+  }
+  return false;
+}` } },
+
+{ id: "palindrome", tier: 3, concept: "strings", enemy: "🦁", name: "The Palindrome Sphinx",
+  story: "The sphinx asks one riddle: does this phrase read the same forwards and backwards? Ignore spaces and capital letters.",
+  task: "Write @sig. Return $True if <code>text</code> is a palindrome, ignoring spaces and case.",
+  fn: "is_palindrome", params: ["text"],
+  t: [[["Race car"], true], [["level"], true], [["spell"], false], [["A man a plan a canal Panama"], true, 1], [[""], true, 1], [["ab"], false, 1]],
+  hints: ["Clean the text first: lowercase it and remove the spaces.",
+          "A palindrome equals its own reverse. Compare the cleaned text with a reversed copy."],
+  mentor: "Worked example (clean first, then compare):<pre>cleaned = lowercase(\"Taco Cat\") without spaces   # \"tacocat\"\nanswer  = cleaned == reverse(cleaned)            # true</pre>",
+  win: "Cleaned first, compared second. The sphinx's riddle is solved.",
+  sol: { py: `def is_palindrome(text):
+    cleaned = text.lower().replace(" ", "")
+    return cleaned == cleaned[::-1]`, js: `function isPalindrome(text) {
+  const cleaned = text.toLowerCase().split(" ").join("");
+  return cleaned === cleaned.split("").reverse().join("");
+}` } },
+
+{ id: "chunk", tier: 3, concept: "lists", enemy: "🧱", name: "The Chunk Golem",
+  story: "The golem eats its supplies in fixed-size bites.",
+  task: "Write @sig. Split <code>items</code> into $lists of length <code>size</code>. The last one may be shorter.",
+  fn: "chunk", params: ["items", "size"],
+  t: [[[[1, 2, 3, 4, 5], 2], [[1, 2], [3, 4], [5]]], [[[1, 2, 3], 3], [[1, 2, 3]]], [[[], 4], []], [[[1, 2, 3], 1], [[1], [2], [3]], 1], [[["a", "b", "c", "d"], 3], [["a", "b", "c"], ["d"]], 1]],
+  hints: ["Step through the $list in jumps of <code>size</code>.",
+          "[[<code>for i in range(0, len(items), size)</code>, then slice <code>items[i:i + size]</code>.||<code>for (let i = 0; i &lt; items.length; i += size)</code>, then <code>items.slice(i, i + size)</code>.]]"],
+  mentor: "Worked example (size 2):<pre>items = [a, b, c, d, e]\ni = 0 -> take positions 0..1 -> [a, b]\ni = 2 -> take positions 2..3 -> [c, d]\ni = 4 -> take positions 4..5 -> [e]   (slicing past the end is fine)</pre>",
+  win: "Clean bites, and a shorter last chunk when the supplies ran out.",
+  sol: { py: `def chunk(items, size):
+    result = []
+    for i in range(0, len(items), size):
+        result.append(items[i:i + size])
+    return result`, js: `function chunk(items, size) {
+  const result = [];
+  for (let i = 0; i < items.length; i += size) {
+    result.push(items.slice(i, i + size));
+  }
+  return result;
+}` } },
+
+{ id: "second", tier: 3, concept: "lists", enemy: "🥈", name: "The Runner-Up Revenant",
+  story: "The revenant always finishes second and is bitter about it. Find its number.",
+  task: "Write @sig. Return the second-largest <b>distinct</b> value. There are always at least two different values.",
+  fn: "second_largest", params: ["nums"],
+  t: [[[[3, 1, 3, 2]], 2], [[[10, 20]], 10], [[[5, 5, 4]], 4], [[[-1, -2, -3]], -2, 1], [[[7, 7, 7, 1]], 1, 1], [[[10, 9, 2]], 9, 1]],
+  hints: ["Copies of the biggest don't count. The answer must be a <b>different</b> value.",
+          "Remove duplicates, sort, and take the second-to-last. Or track <code>best</code> and <code>second</code> in one pass.[[|| Careful: plain <code>.sort()</code> compares numbers as text. Use <code>.sort((a, b) =&gt; a - b)</code>.]]"],
+  mentor: "Worked example:<pre>nums    = [4, 9, 9, 2]\nunique  = [4, 9, 2]\nsorted  = [2, 4, 9]\nanswer  = sorted[length - 2] = 4</pre>",
+  win: "Copies of the top value didn't fool you. Second place, correctly identified.",
+  sol: { py: `def second_largest(nums):
+    unique = sorted(set(nums))
+    return unique[-2]`, js: `function secondLargest(nums) {
+  const unique = [...new Set(nums)].sort((a, b) => a - b);
+  return unique[unique.length - 2];
+}` } },
+
+{ id: "anagram", tier: 3, concept: "strings", enemy: "🃏", name: "The Anagram Jester",
+  story: "The jester scrambles words and dares you to spot the fakes.",
+  task: "Write @sig. Return $True if <code>a</code> and <code>b</code> use exactly the same letters, the same number of times.",
+  fn: "is_anagram", params: ["a", "b"],
+  t: [[["listen", "silent"], true], [["rat", "car"], false], [["aab", "abb"], false], [["", ""], true, 1], [["abc", "abcd"], false, 1]],
+  hints: ["Anagrams use the same letters, the same number of times.",
+          "Sort the letters of both words and compare: [[<code>sorted(a) == sorted(b)</code>||<code>[...a].sort().join(\"\") === [...b].sort().join(\"\")</code>]]."],
+  mentor: "Worked example:<pre>\"tea\" sorted -> \"aet\"\n\"eat\" sorted -> \"aet\"   same      -> anagrams\n\"tee\" sorted -> \"eet\"   different -> not anagrams</pre>",
+  win: "Same letters, same counts. The jester's fakes are exposed.",
+  sol: { py: `def is_anagram(a, b):
+    return sorted(a) == sorted(b)`, js: `function isAnagram(a, b) {
+  return [...a].sort().join("") === [...b].sort().join("");
+}` } },
+
+{ id: "flatten", tier: 3, concept: "loops", enemy: "🕸️", name: "The Web Weaver",
+  story: "The spider wove your scrolls into a tangled grid. Pull them back into one line.",
+  task: "Write @sig. <code>grid</code> is a $list of $lists. Return one $list with every item, row by row.",
+  fn: "flatten", params: ["grid"],
+  t: [[[[[1, 2], [3, 4]]], [1, 2, 3, 4]], [[[[1], [], [2, 3]]], [1, 2, 3]], [[[]], []], [[[["a"], ["b", "c"]]], ["a", "b", "c"], 1]],
+  hints: ["You need a loop inside a loop: one over the rows, and one over the items in each row.", "Add each inner item to a single result $list."],
+  mentor: "Worked example (count every item):<pre>function count_all(grid):\n    count = 0\n    for each row in grid:\n        for each item in row:\n            count = count + 1\n    return count</pre>",
+  win: "A loop inside a loop, and the web is untangled.",
+  sol: { py: `def flatten(grid):
+    result = []
+    for row in grid:
+        for item in row:
+            result.append(item)
+    return result`, js: `function flatten(grid) {
+  const result = [];
+  for (const row of grid) {
+    for (const item of row) result.push(item);
+  }
+  return result;
+}` } },
+
+{ id: "running", tier: 3, concept: "lists", enemy: "👺", name: "The Tally Goblin",
+  story: "The goblin wants a running tally after every coin you pay.",
+  task: "Write @sig. Return a $list where each position holds the sum of all the numbers up to and including that position.",
+  fn: "running_total", params: ["nums"],
+  t: [[[[1, 2, 3]], [1, 3, 6]], [[[5]], [5]], [[[]], []], [[[2, -2, 2]], [2, 0, 2], 1]],
+  hints: ["Keep a running sum as you loop.", "After adding each number to the sum, add the <b>sum</b> (not the number) to your result."],
+  mentor: "Worked example (running maximum):<pre>best = -infinity\nresult = []\nfor each n in [3, 1, 5]:\n    best = max(best, n)\n    add best to result\n# result = [3, 3, 5]</pre>",
+  win: "Each tally builds on the last one. The goblin is paid in full.",
+  sol: { py: `def running_total(nums):
+    result = []
+    total = 0
+    for n in nums:
+        total += n
+        result.append(total)
+    return result`, js: `function runningTotal(nums) {
+  const result = [];
+  let total = 0;
+  for (const n of nums) {
+    total += n;
+    result.push(total);
+  }
+  return result;
+}` } },
+
+{ id: "pairsum", tier: 3, concept: "lists", enemy: "🔐", name: "The Vault of Pairs",
+  story: "The vault opens for two different gems whose values add up to the target.",
+  task: "Write @sig. Return $True if two numbers at <b>different</b> positions add up to <code>target</code>.",
+  fn: "pair_sum", params: ["nums", "target"],
+  t: [[[[1, 4, 6], 10], true], [[[1, 2, 3], 7], false], [[[5], 10], false], [[[5, 5], 10], true], [[[], 0], false, 1], [[[-3, 8, 1], 5], true, 1]],
+  hints: ["Try every pair of <b>different</b> positions: a loop inside a loop, where the inner loop starts just after the outer one.",
+          "Faster: as you loop, check whether <code>target - n</code> is in a set of numbers you've already seen."],
+  mentor: "Worked example (are any two equal?):<pre>for i from 0 to len - 1:\n    for j from i + 1 to len - 1:\n        if nums[i] == nums[j]:\n            return true\nreturn false</pre>",
+  win: "You never paired a gem with itself. A lone 5 can't open the vault.",
+  sol: { py: `def pair_sum(nums, target):
+    seen = set()
+    for n in nums:
+        if target - n in seen:
+            return True
+        seen.add(n)
+    return False`, js: `function pairSum(nums, target) {
+  const seen = new Set();
+  for (const n of nums) {
+    if (seen.has(target - n)) return true;
+    seen.add(n);
+  }
+  return false;
+}` } },
+
+{ id: "longestrun", tier: 3, concept: "lists", enemy: "🐋", name: "The Streak Leviathan",
+  story: "The leviathan surfaces for the longest streak of matching waves.",
+  task: "Write @sig. Return the length of the longest run of equal values next to each other. An empty $list returns 0.",
+  fn: "longest_run", params: ["nums"],
+  t: [[[[1, 1, 2, 2, 2, 3]], 3], [[[4]], 1], [[[]], 0], [[[7, 7]], 2], [[[1, 2, 1, 2]], 1, 1], [[[3, 3, 3, 1, 3, 3]], 3, 1]],
+  hints: ["Compare each element with the one just before it.",
+          "Keep <code>current</code> (this run's length) and <code>best</code>. When the value changes, reset <code>current</code> to 1. Update <code>best</code> as you go."],
+  mentor: "Worked example:<pre>nums    = [5, 5, 8, 8, 8]\ncurrent =  1  2  1  2  3\nbest    =  1  2  2  2  3</pre>",
+  win: "Runs tracked, best remembered, empty $list handled. The leviathan dives.",
+  sol: { py: `def longest_run(nums):
+    best = 0
+    current = 0
+    for i in range(len(nums)):
+        if i > 0 and nums[i] == nums[i - 1]:
+            current += 1
+        else:
+            current = 1
+        best = max(best, current)
+    return best`, js: `function longestRun(nums) {
+  let best = 0, current = 0;
+  for (let i = 0; i < nums.length; i++) {
+    current = i > 0 && nums[i] === nums[i - 1] ? current + 1 : 1;
+    best = Math.max(best, current);
+  }
+  return best;
+}` } },
+
+{ id: "groupfirst", tier: 3, concept: "dicts", enemy: "🐦", name: "The Archivist Crow",
+  story: "The crow files every word under its first letter.",
+  task: "Write @sig. Return a $dict that maps each first letter to a $list of the words starting with it, in their original order.",
+  fn: "group_by_first", params: ["words"],
+  t: [[[["apple", "avocado", "bean"]], { a: ["apple", "avocado"], b: ["bean"] }], [[[]], {}], [[["cat"]], { c: ["cat"] }], [[["bo", "al", "be"]], { b: ["bo", "be"], a: ["al"] }, 1]],
+  hints: ["The key is <code>word[0]</code>. The value is a $list.", "If the key isn't there yet, start it with an empty $list. Then add the word to it."],
+  mentor: "Worked example (group by length):<pre>groups = {}\nfor each w in words:\n    key = len(w)\n    if key not in groups:\n        groups[key] = []\n    add w to groups[key]\nreturn groups</pre>",
+  win: "Every word filed under the right letter, in order. The crow caws its approval.",
+  sol: { py: `def group_by_first(words):
+    groups = {}
+    for w in words:
+        groups.setdefault(w[0], []).append(w)
+    return groups`, js: `function groupByFirst(words) {
+  const groups = {};
+  for (const w of words) {
+    if (!groups[w[0]]) groups[w[0]] = [];
+    groups[w[0]].push(w);
+  }
+  return groups;
+}` } },
+
+{ id: "mostcommon", tier: 3, concept: "dicts", boss: true, enemy: "🦖", name: "The Tally Rex",
+  story: "The Rex devours the most-spoken word in the kingdom. Find it first. If two words are tied, the one that appears <b>first</b> wins.",
+  task: "Write @sig. Return the word that appears most often in <code>words</code>. On a tie, return the one that appears earliest.",
+  fn: "most_common", params: ["words"],
+  t: [[[["a", "b", "a"]], "a"], [[["x"]], "x"], [[["b", "a", "a", "b"]], "b"], [[["cat", "dog", "dog", "cat", "dog"]], "dog"], [[["q", "r", "s"]], "q", 1], [[["m", "n", "n", "m", "o", "o"]], "m", 1]],
+  hints: ["Count every word in a $dict first.",
+          "Then loop over the <b>original $list</b> in order and keep the first word with the highest count. That settles ties."],
+  mentor: "Worked example:<pre>words  = [\"b\", \"a\", \"a\", \"b\"]\ncounts = {b: 2, a: 2}\nwalk the list in order:\n  b has 2 -> best so far\n  a has 2 -> not MORE than 2 -> keep b</pre>",
+  win: "Counted first, then walked the $list in order, so the tie went to the earliest word.",
+  sol: { py: `def most_common(words):
+    counts = {}
+    for w in words:
+        counts[w] = counts.get(w, 0) + 1
+    best = words[0]
+    for w in words:
+        if counts[w] > counts[best]:
+            best = w
+    return best`, js: `function mostCommon(words) {
+  const counts = {};
+  for (const w of words) counts[w] = (counts[w] || 0) + 1;
+  let best = words[0];
+  for (const w of words) {
+    if (counts[w] > counts[best]) best = w;
+  }
+  return best;
+}` } },
+
+{ id: "transpose", tier: 3, concept: "loops", boss: true, enemy: "🦂", name: "The Matrix Scorpion",
+  story: "The scorpion's armor plates sit in a grid. Flip the grid over its diagonal (rows become columns) to expose its weak spot.",
+  task: "Write @sig. Return a new grid where the item at row <code>r</code>, column <code>c</code> moves to row <code>c</code>, column <code>r</code>. The grid is rectangular and not empty.",
+  fn: "transpose", params: ["grid"],
+  t: [[[[[1, 2, 3], [4, 5, 6]]], [[1, 4], [2, 5], [3, 6]]], [[[[1]]], [[1]]], [[[[1, 2]]], [[1], [2]]], [[[[1], [2], [3]]], [[1, 2, 3]], 1], [[[["a", "b"], ["c", "d"]]], [["a", "c"], ["b", "d"]], 1]],
+  hints: ["The new grid has one row for each <b>column</b> of the old grid.",
+          "New row <code>c</code> is <code>grid[r][c]</code> for every row <code>r</code>, collected in order."],
+  mentor: "Worked example (building one new row):<pre>grid = [[1, 2, 3],\n        [4, 5, 6]]\nnew row 1 = [grid[0][1], grid[1][1]] = [2, 5]\nDo that for every column.</pre>",
+  win: "Rows became columns, and every plate landed in the right place. The scorpion's armor falls away.",
+  sol: { py: `def transpose(grid):
+    result = []
+    for c in range(len(grid[0])):
+        row = []
+        for r in range(len(grid)):
+            row.append(grid[r][c])
+        result.append(row)
+    return result`, js: `function transpose(grid) {
+  const result = [];
+  for (let c = 0; c < grid[0].length; c++) {
+    const row = [];
+    for (let r = 0; r < grid.length; r++) row.push(grid[r][c]);
+    result.push(row);
+  }
+  return result;
+}` } },
+
+// ───────────── TIER 4 · The Void Archive ─────────────
+{ id: "factorial", tier: 4, concept: "recursion", enemy: "🔥", name: "The Factorial Flame",
+  story: "The flame multiplies itself: n × (n−1) × … × 1. Quench it with recursion.",
+  task: "Write @sig. Return n! (n factorial). By definition 0! is 1. Try having the function call itself.",
+  fn: "factorial", params: ["n"],
+  t: [[[0], 1], [[1], 1], [[5], 120], [[10], 3628800], [[3], 6, 1]],
+  hints: ["Recursion means the function calls itself on a smaller problem. What's the smallest case?",
+          "Base case: <code>n == 0</code> → 1. Otherwise return <code>n * @fn(n - 1)</code>."],
+  mentor: "Worked example (sum down to 0):<pre>function sum_down(n):\n    if n == 0:                      # base case\n        return 0\n    return n + sum_down(n - 1)     # smaller problem</pre>",
+  win: "A base case, then a smaller call. The flame burns out.",
+  sol: { py: `def factorial(n):
+    if n == 0:
+        return 1
+    return n * factorial(n - 1)`, js: `function factorial(n) {
+  if (n === 0) return 1;
+  return n * factorial(n - 1);
+}` } },
+
+{ id: "fib", tier: 4, concept: "recursion", enemy: "🐚", name: "The Fibonacci Fiend",
+  story: "The fiend hides in a spiral shell. Each number in its spiral is the sum of the two before it: 0, 1, 1, 2, 3, 5, 8, …",
+  task: "Write @sig. Return the n-th Fibonacci number, where fib(0) = 0 and fib(1) = 1. It must be <b>fast</b> for big n.",
+  fn: "fib", params: ["n"],
+  t: [[[0], 0], [[1], 1], [[10], 55], [[20], 6765], [[50], 12586269025, 1]],
+  hints: ["fib(n) = fib(n − 1) + fib(n − 2). Plain recursion works for small n…",
+          "…but it recomputes the same values over and over, so fib(50) would take ages. Loop upward keeping only the last two numbers, or memoize."],
+  slow: "Plain recursion makes billions of calls for fib(50). Remember results you've already computed, or build up from 0 with a loop.",
+  mentor: "Worked example (building up):<pre>a, b = 0, 1          # fib(0), fib(1)\nrepeat n times:\n    a, b = b, a + b\nreturn a\n# n = 3: (0,1) -> (1,1) -> (1,2) -> (2,3) -> answer 2</pre>",
+  win: "Linear time instead of exponential. fib(50) answers in a blink.",
+  sol: { py: `def fib(n):
+    a, b = 0, 1
+    for _ in range(n):
+        a, b = b, a + b
+    return a`, js: `function fib(n) {
+  let a = 0, b = 1;
+  for (let i = 0; i < n; i++) {
+    [a, b] = [b, a + b];
+  }
+  return a;
+}` } },
+
+{ id: "digitsum", tier: 4, concept: "recursion", enemy: "🧞", name: "The Digit Djinn",
+  story: "The djinn grants nothing until you add up the digits of its number.",
+  task: "Write @sig. Return the sum of the digits of the non-negative whole number <code>n</code>.",
+  fn: "digit_sum", params: ["n"],
+  t: [[[123], 6], [[0], 0], [[9], 9], [[1000], 1], [[98765], 35, 1]],
+  hints: ["<code>n % 10</code> is the last digit, and [[<code>n // 10</code>||<code>Math.floor(n / 10)</code>]] chops it off.",
+          "Recursive version: if <code>n &lt; 10</code>, return n. Otherwise return the last digit plus <code>@fn</code> of the rest."],
+  mentor: "Worked example (count the digits):<pre>function count_digits(n):\n    if n &lt; 10:\n        return 1\n    return 1 + count_digits(round_down(n / 10))</pre>",
+  win: "One digit peeled off at a time. The djinn grants your wish.",
+  sol: { py: `def digit_sum(n):
+    if n < 10:
+        return n
+    return n % 10 + digit_sum(n // 10)`, js: `function digitSum(n) {
+  if (n < 10) return n;
+  return (n % 10) + digitSum(Math.floor(n / 10));
+}` } },
+
+{ id: "deepsum", tier: 4, concept: "recursion", enemy: "🪆", name: "The Nesting Mimic",
+  story: "The mimic hides numbers inside boxes inside boxes. Add them all up.",
+  task: "Write @sig. <code>items</code> holds numbers and nested $lists of numbers, any number of levels deep. Return the total of every number.",
+  fn: "deep_sum", params: ["items"],
+  t: [[[[1, [2, [3]], 4]], 10], [[[]], 0], [[[[[]]]], 0], [[[5]], 5], [[[[1, 2], [3, [4, [5]]]]], 15, 1]],
+  hints: ["Each item is either a number or another $list.",
+          "If it's a $list ([[<code>isinstance(x, list)</code>||<code>Array.isArray(x)</code>]]), add <code>@fn(x)</code>. Otherwise add <code>x</code>."],
+  mentor: "Worked example (how deep does it go?):<pre>function depth(items):\n    best = 1\n    for each x in items:\n        if x is a list:\n            best = max(best, 1 + depth(x))\n    return best</pre>",
+  win: "You trusted the recursion to open every box. Nothing stays hidden.",
+  sol: { py: `def deep_sum(items):
+    total = 0
+    for x in items:
+        if isinstance(x, list):
+            total += deep_sum(x)
+        else:
+            total += x
+    return total`, js: `function deepSum(items) {
+  let total = 0;
+  for (const x of items) {
+    total += Array.isArray(x) ? deepSum(x) : x;
+  }
+  return total;
+}` } },
+
+{ id: "climb", tier: 4, concept: "dp", enemy: "🦕", name: "The Staircase Sauropod",
+  story: "To reach the sauropod's head you climb its neck, one or two steps at a time. How many different ways can you climb?",
+  task: "Write @sig. Return the number of different ways to climb <code>n</code> steps (n ≥ 1) taking 1 or 2 steps at a time. It must be fast for big n.",
+  fn: "climb", params: ["n"],
+  t: [[[1], 1], [[2], 2], [[3], 3], [[5], 8], [[30], 1346269, 1], [[45], 1836311903, 1]],
+  hints: ["To land on step n, your last move came from step n − 1 or from step n − 2.",
+          "So ways(n) = ways(n − 1) + ways(n − 2). Build it from the bottom up with a loop so it stays fast."],
+  slow: "Branching recursion explodes for n = 45. Build the answer bottom-up and keep only the last two counts.",
+  mentor: "Worked example (a bottom-up table):<pre>ways[1] = 1\nways[2] = 2\nways[3] = ways[2] + ways[1] = 3\nways[4] = ways[3] + ways[2] = 5\n...</pre>",
+  win: "Bottom-up and fast. You climbed 45 steps without breaking a sweat.",
+  sol: { py: `def climb(n):
+    a, b = 1, 1
+    for _ in range(n - 1):
+        a, b = b, a + b
+    return b`, js: `function climb(n) {
+  let a = 1, b = 1;
+  for (let i = 1; i < n; i++) {
+    [a, b] = [b, a + b];
+  }
+  return b;
+}` } },
+
+{ id: "balanced", tier: 4, concept: "lists", enemy: "🧛", name: "Count Bracketula",
+  story: "The Count seals his crypt with brackets. Every opener needs the right closer, in the right order.",
+  task: "Write @sig. Return $True if every <code>(</code> <code>[</code> <code>{</code> in <code>s</code> is closed by its matching bracket in the right order. Ignore all other characters.",
+  fn: "balanced", params: ["s"],
+  t: [[["([]{})"], true], [["([)]"], false], [["((("], false], [[""], true], [["a(b)c"], true, 1], [[")("], false, 1], [["{[()()]}"], true, 1], [["]"], false, 1]],
+  hints: ["Use a stack: push opening brackets, and pop when you see a closing one.",
+          "When you pop, the opener must match the closer. A closer with an empty stack fails. At the end, the stack must be empty."],
+  mentor: "Worked example on <code>\"([)]\"</code>:<pre>(   push          stack: (\n[   push          stack: ( [\n)   pop gives [   [ doesn't match )  -> false</pre>",
+  win: "Push, pop, match, and an empty stack at the end. The crypt is unsealed.",
+  sol: { py: `def balanced(s):
+    pairs = {")": "(", "]": "[", "}": "{"}
+    stack = []
+    for ch in s:
+        if ch in "([{":
+            stack.append(ch)
+        elif ch in pairs:
+            if not stack or stack.pop() != pairs[ch]:
+                return False
+    return not stack`, js: `function balanced(s) {
+  const pairs = { ")": "(", "]": "[", "}": "{" };
+  const stack = [];
+  for (const ch of s) {
+    if ("([{".includes(ch)) stack.push(ch);
+    else if (ch in pairs && stack.pop() !== pairs[ch]) return false;
+  }
+  return stack.length === 0;
+}` } },
+
+{ id: "binsearch", tier: 4, concept: "lists", enemy: "👁️", name: "The All-Seeing Eye",
+  story: "The Eye guards a sorted vault. Find the gem's position in as few looks as possible.",
+  task: "Write @sig. <code>nums</code> is sorted. Return the index of <code>target</code>, or <code>-1</code> if it isn't there. Try binary search: halve the search area every step.",
+  fn: "find", params: ["nums", "target"],
+  t: [[[[1, 3, 5, 7, 9], 7], 3], [[[1, 3, 5], 4], -1], [[[], 1], -1], [[[2], 2], 0], [[[1, 2, 3, 4, 5, 6, 7, 8], 1], 0, 1], [[[1, 2, 3, 4, 5, 6, 7, 8], 8], 7, 1], [[[1, 2, 3, 4, 5, 6, 7, 8], 9], -1, 1]],
+  hints: ["The $list is sorted. Look at the middle, then throw away the half that can't contain the target.",
+          "Keep <code>lo</code> and <code>hi</code>. While <code>lo &lt;= hi</code>: look at <code>mid</code>. If it's the target, return <code>mid</code>. If it's too small, set <code>lo = mid + 1</code>. Otherwise set <code>hi = mid - 1</code>."],
+  mentor: "Worked example, looking for 7 in [1, 3, 5, 7, 9]:<pre>lo=0 hi=4 mid=2 -> 5 is too small -> lo=3\nlo=3 hi=4 mid=3 -> 7 found        -> return 3</pre>",
+  win: "Halving every step. The Eye blinks first.",
+  sol: { py: `def find(nums, target):
+    lo, hi = 0, len(nums) - 1
+    while lo <= hi:
+        mid = (lo + hi) // 2
+        if nums[mid] == target:
+            return mid
+        if nums[mid] < target:
+            lo = mid + 1
+        else:
+            hi = mid - 1
+    return -1`, js: `function find(nums, target) {
+  let lo = 0, hi = nums.length - 1;
+  while (lo <= hi) {
+    const mid = Math.floor((lo + hi) / 2);
+    if (nums[mid] === target) return mid;
+    if (nums[mid] < target) lo = mid + 1;
+    else hi = mid - 1;
+  }
+  return -1;
+}` } },
+
+{ id: "merge", tier: 4, concept: "lists", enemy: "⛓️", name: "The Chain Wraith",
+  story: "Two sorted chains must become one, link by link, still in order.",
+  task: "Write @sig. <code>a</code> and <code>b</code> are sorted. Return one sorted $list containing every element of both. Use two pointers instead of sorting.",
+  fn: "merge_sorted", params: ["a", "b"],
+  t: [[[[1, 4, 7], [2, 3, 9]], [1, 2, 3, 4, 7, 9]], [[[], [1, 2]], [1, 2]], [[[5], []], [5]], [[[1, 1], [1]], [1, 1, 1], 1], [[[-5, 0], [-6, 10]], [-6, -5, 0, 10], 1]],
+  hints: ["Keep an index into each $list and compare the two front elements.",
+          "Take the smaller one and move that index forward. When one $list runs out, add the rest of the other."],
+  mentor: "Worked example:<pre>a = [1, 4]   b = [2, 3]\n1 vs 2 -> take 1\n4 vs 2 -> take 2\n4 vs 3 -> take 3\nb is used up -> add the rest of a: 4\nresult = [1, 2, 3, 4]</pre>",
+  win: "Two pointers, one clean chain. The wraith is bound.",
+  sol: { py: `def merge_sorted(a, b):
+    i = j = 0
+    out = []
+    while i < len(a) and j < len(b):
+        if a[i] <= b[j]:
+            out.append(a[i]); i += 1
+        else:
+            out.append(b[j]); j += 1
+    return out + a[i:] + b[j:]`, js: `function mergeSorted(a, b) {
+  let i = 0, j = 0;
+  const out = [];
+  while (i < a.length && j < b.length) {
+    out.push(a[i] <= b[j] ? a[i++] : b[j++]);
+  }
+  return out.concat(a.slice(i), b.slice(j));
+}` } },
+
+{ id: "lcs", tier: 4, concept: "dp", boss: true, enemy: "🐲", name: "The Dragon of Recursion",
+  story: "The dragon compares two incantations and breathes fire at their longest shared thread: letters that appear in both, in the same order, though not necessarily side by side.",
+  task: "Write @sig. Return the length of the longest common subsequence of <code>a</code> and <code>b</code>. Long incantations must still be fast.",
+  fn: "lcs", params: ["a", "b"],
+  t: [[["abcde", "ace"], 3], [["abc", "abc"], 3], [["abc", "def"], 0], [["", "abc"], 0], [["AGGTAB", "GXTXAYB"], 4, 1], [["dragonfire", "garden"], 3, 1], [["thequickbrownfoxjumpsoverthelazydog", "packmyboxwithfivedozenliquorjugs"], 12, 1]],
+  hints: ["If the first letters match, they're part of the answer. If not, try skipping a letter from one string or the other, and keep the better result.",
+          "Make that fast with a table: <code>dp[i][j]</code> is the answer for the first i letters of a and the first j letters of b. A match gives <code>dp[i-1][j-1] + 1</code>. Otherwise take the larger of <code>dp[i-1][j]</code> and <code>dp[i][j-1]</code>."],
+  slow: "Branching recursion explodes on long strings. Store every (i, j) answer in a table, or memoize, so each pair is solved only once.",
+  mentor: "Worked example, a = \"ab\", b = \"cb\" (rows: letters of a, columns: letters of b):<pre>        \"\"  c  b\n  \"\"     0  0  0\n  a      0  0  0\n  b      0  0  1   &lt;- b matches b: 1 + the diagonal (0)</pre>",
+  win: "A full DP table, with every cell solved once. The Dragon of Recursion falls.",
+  sol: { py: `def lcs(a, b):
+    dp = [[0] * (len(b) + 1) for _ in range(len(a) + 1)]
+    for i in range(1, len(a) + 1):
+        for j in range(1, len(b) + 1):
+            if a[i - 1] == b[j - 1]:
+                dp[i][j] = dp[i - 1][j - 1] + 1
+            else:
+                dp[i][j] = max(dp[i - 1][j], dp[i][j - 1])
+    return dp[len(a)][len(b)]`, js: `function lcs(a, b) {
+  const dp = Array.from({ length: a.length + 1 }, () => Array(b.length + 1).fill(0));
+  for (let i = 1; i <= a.length; i++) {
+    for (let j = 1; j <= b.length; j++) {
+      dp[i][j] = a[i - 1] === b[j - 1] ? dp[i - 1][j - 1] + 1 : Math.max(dp[i - 1][j], dp[i][j - 1]);
+    }
+  }
+  return dp[a.length][b.length];
+}` } },
+
+{ id: "coins", tier: 4, concept: "dp", boss: true, enemy: "🦑", name: "The Kraken of Change",
+  story: "The kraken demands exact payment with as few coins as possible. Careful: grabbing the biggest coin first doesn't always work.",
+  task: "Write @sig. Using as many of each coin as you like, return the fewest coins that add up to exactly <code>amount</code>, or <code>-1</code> if it can't be done.",
+  fn: "min_coins", params: ["coins", "amount"],
+  t: [[[[1, 5, 10], 27], 5], [[[2], 3], -1], [[[1, 3, 4], 6], 2], [[[7], 0], 0], [[[1, 5, 10, 25], 63], 6, 1], [[[5, 10], 1], -1, 1], [[[186, 419, 83, 408], 6249], 20, 1]],
+  hints: ["Greedy fails. With coins [1, 3, 4] and amount 6, greedy picks 4 + 1 + 1, but 3 + 3 is better.",
+          "Build a $list <code>best</code> where <code>best[x]</code> is the fewest coins for amount x. Set <code>best[0] = 0</code>. For each x, try every coin c ≤ x: <code>best[x - c] + 1</code>."],
+  slow: "Trying every combination explodes. Build a table of best answers for every amount from 0 up to the target.",
+  mentor: "Worked example, coins [1, 3, 4], amount 6:<pre>best[0] = 0\nbest[1] = 1   (1)\nbest[2] = 2   (1+1)\nbest[3] = 1   (3)\nbest[4] = 1   (4)\nbest[5] = 2   (4+1)\nbest[6] = 2   (3+3)  &lt;- best[3] + 1</pre>",
+  win: "Greed didn't fool you. Your table found the true minimum every time.",
+  sol: { py: `def min_coins(coins, amount):
+    INF = float("inf")
+    best = [0] + [INF] * amount
+    for x in range(1, amount + 1):
+        for c in coins:
+            if c <= x:
+                best[x] = min(best[x], best[x - c] + 1)
+    return best[amount] if best[amount] != INF else -1`, js: `function minCoins(coins, amount) {
+  const best = [0].concat(Array(amount).fill(Infinity));
+  for (let x = 1; x <= amount; x++) {
+    for (const c of coins) {
+      if (c <= x) best[x] = Math.min(best[x], best[x - c] + 1);
+    }
+  }
+  return best[amount] === Infinity ? -1 : best[amount];
+}` } },
+
+{ id: "paths", tier: 4, concept: "dp", boss: true, enemy: "🕷️", name: "The Labyrinth Spider",
+  story: "The spider's labyrinth is a grid: <code>0</code> is open floor and <code>1</code> is web. You can only move right or down.",
+  task: "Write @sig. Return how many paths lead from the top-left cell to the bottom-right cell, moving only right or down and never through a <code>1</code>. Big open grids must still be fast.",
+  fn: "count_paths", params: ["grid"],
+  t: [[[[[0, 0], [0, 0]]], 2], [[[[0, 1], [0, 0]]], 1], [[[[0, 0, 0], [0, 1, 0], [0, 0, 0]]], 2], [[[[1]]], 0], [[[[0, 0, 0], [0, 0, 0], [0, 0, 0]]], 6, 1], [[[[0, 0], [1, 1]]], 0, 1], [[OPEN18], 2333606220, 1]],
+  hints: ["Paths into a cell can only come from the cell above it or the cell to its left.",
+          "Fill a table row by row: <code>ways[r][c] = ways[r-1][c] + ways[r][c-1]</code>. Web cells get 0. The start gets 1, unless it's web."],
+  slow: "Walking every route one at a time is far too slow on an 18×18 grid. Count the routes into each cell with a table instead.",
+  mentor: "Worked example, a 2 × 3 open grid:<pre>1  1  1\n1  2  3    &lt;- each cell = above + left\nanswer = 3</pre>",
+  win: "Each cell counted once, and the webs blocked. You found every route out of the labyrinth.",
+  sol: { py: `def count_paths(grid):
+    rows, cols = len(grid), len(grid[0])
+    ways = [[0] * cols for _ in range(rows)]
+    for r in range(rows):
+        for c in range(cols):
+            if grid[r][c] == 1:
+                continue
+            above = ways[r - 1][c] if r > 0 else 0
+            left = ways[r][c - 1] if c > 0 else 0
+            ways[r][c] = 1 if r == 0 and c == 0 else above + left
+    return ways[-1][-1]`, js: `function countPaths(grid) {
+  const R = grid.length, C = grid[0].length;
+  const ways = Array.from({ length: R }, () => Array(C).fill(0));
+  for (let r = 0; r < R; r++) {
+    for (let c = 0; c < C; c++) {
+      if (grid[r][c] === 1) continue;
+      ways[r][c] = r === 0 && c === 0 ? 1 : (r ? ways[r - 1][c] : 0) + (c ? ways[r][c - 1] : 0);
+    }
+  }
+  return ways[R - 1][C - 1];
+}` } }
+];
+/*QUESTS_END*/
+</script>
+
+<script>
+(function () {
+"use strict";
+
+// ═══════════════════════ helpers ═══════════════════════
+var $ = function (s, r) { return (r || document).querySelector(s); };
+var $$ = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
+function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
+var REDUCED = !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+QUESTS.forEach(function (q) {
+  q.tests = q.t.map(function (x) { return { args: x[0], want: x[1], hidden: !!x[2] }; });
+});
+var QMAP = {};
+QUESTS.forEach(function (q) { QMAP[q.id] = q; });
+
+var AREAS = {
+  1: { name: "Mossy Hollow", props: ["🌲", "🍄", "🌿", "🌲"] },
+  2: { name: "Ember Caves", props: ["🪨", "🔥", "🕯️", "🪨"] },
+  3: { name: "Frostspire Peaks", props: ["🏔️", "❄️", "🌨️", "🏔️"] },
+  4: { name: "The Void Archive", props: ["📚", "✨", "🕯️", "📚"] }
+};
+var TITLES = ["Apprentice", "Adept", "Master", "Archmage", "Grand Wizard"];
+var CONCEPT_NAMES = {
+  math: ["Arithmetic", "Arithmetic"], "if": ["Conditionals", "Conditionals"], strings: ["Strings", "Strings"],
+  loops: ["Loops", "Loops"], lists: ["Lists", "Arrays"], dicts: ["Dictionaries", "Objects"],
+  recursion: ["Recursion", "Recursion"], dp: ["Dynamic Programming", "Dynamic Programming"]
+};
+var PREREQ = { "if": "math", strings: "if", loops: "if", lists: "loops", dicts: "lists", recursion: "if", dp: "loops" };
+var LOOT = [
+  { icon: "🗡️", name: "Blade of Big-O Notation", flavor: "Cuts slow code down to size." },
+  { icon: "🧥", name: "Cloak of Off-By-One Evasion", flavor: "Loop boundaries can't touch you." },
+  { icon: "🦆", name: "Rubber Duck Familiar", flavor: "Listens patiently while you explain your bug." },
+  { icon: "👢", name: "Boots of Early Return", flavor: "Leave a function the moment the job is done." },
+  { icon: "📕", name: "Tome of Tail Calls", flavor: "Recursion without the stack ache." },
+  { icon: "🛡️", name: "Shield of Short-Circuit", flavor: "Stops checking the moment it's sure." },
+  { icon: "💍", name: "Ring of Recursion", flavor: "A ring inside a ring inside a ring…" },
+  { icon: "🔦", name: "Lantern of Print Debugging", flavor: "Lights up exactly where the values go wrong." },
+  { icon: "🧭", name: "Compass of Binary Search", flavor: "Always points to the middle." },
+  { icon: "🧪", name: "Potion of Pure Functions", flavor: "Same input, same output. No side effects." },
+  { icon: "👑", name: "Crown of Clean Code", flavor: "Variables named like they mean it." },
+  { icon: "🧐", name: "Monocle of Modulo", flavor: "Sees the remainder in everything." },
+  { icon: "☕", name: "Mug of Infinite Coffee", flavor: "Refills itself, like a loop that never ends." },
+  { icon: "📜", name: "Scroll of Stack Traces", flavor: "Read errors from the bottom up, like a pro." },
+  { icon: "🪄", name: "Wand of Hash Maps", flavor: "Finds anything in a single flick." },
+  { icon: "🧤", name: "Gauntlets of Garbage Collection", flavor: "Tidies up the memory you forgot about." },
+  { icon: "🎒", name: "Bottomless Stack", flavor: "Push forever. Pop when ready." },
+  { icon: "🕯️", name: "Candle of Comments", flavor: "Leaves a light on for future you." },
+  { icon: "🪞", name: "Mirror of String Reversal", flavor: "Shows you yourself, backwards." },
+  { icon: "⚖️", name: "Scales of Equality", flavor: "Never mixes up = and ==." },
+  { icon: "🌀", name: "Amulet of Memoization", flavor: "Never solves the same problem twice." },
+  { icon: "🐢", name: "Tortoise-and-Hare Charm", flavor: "Finds the cycle in any loop." },
+  { icon: "🎲", name: "Die of Fixed Seeds", flavor: "Luck you can reproduce." },
+  { icon: "🔑", name: "Skeleton Key of Indexes", flavor: "Opens position 0, and every one after it." }
+];
+var TAUNTS = ["Ha! Fizzled!", "Is that all you've got?", "My scales barely tingled.", "Close… not close enough.", "*yawns*", "Try reading your own spell!", "Missed me!"];
+var CHEERS = ["💥 Direct hit!", "⚡ Spell landed!", "✨ Critical hit!", "🎯 Bullseye!", "🔥 Super effective!"];
+var AVATARS = ["🧙", "🧝", "🧚", "🥷", "🦊", "🤖"];
+
+// ═══════════════════════ save data ═══════════════════════
+var SAVE_KEY = "spellcode.save.v1";
+function defaults() {
+  return { v: 1, name: "Wizard", avatar: "🧙", lang: "py", xp: 0, tier: 1, questNo: 0, streak: 0, bestStreak: 0,
+    wrongRow: 0, solved: {}, loot: [], equipped: null, history: [], current: null, suspended: null, drafts: {},
+    reinforce: null, sound: true };
+}
+function loadSave() {
+  try {
+    var raw = localStorage.getItem(SAVE_KEY);
+    if (!raw) return null;
+    var d = JSON.parse(raw);
+    if (!d || typeof d !== "object") return null;
+    var p = defaults();
+    Object.keys(d).forEach(function (k) { p[k] = d[k]; });
+    return p;
+  } catch (e) { return null; }
+}
+var saveTimer = null;
+function save() {
+  try { localStorage.setItem(SAVE_KEY, JSON.stringify(P)); } catch (e) { /* storage blocked: progress lasts this visit */ }
+}
+function saveSoon() { clearTimeout(saveTimer); saveTimer = setTimeout(save, 400); }
+
+var P = null;   // player profile (saved)
+var S = null;   // this session's stats
+var Q = null;   // active quest state
+var SUSP = null; // main quest parked while a side quest runs
+var busy = false;
+
+function newSession() {
+  return { xpStart: P.xp, levelStart: levelOf(P.xp), casts: 0, correct: 0, cleared: 0, bosses: 0, sides: 0, revealed: 0,
+    concepts: {}, loot: [], bestStreak: P.streak, started: Date.now() };
+}
+
+// ═══════════════════════ language helpers ═══════════════════════
+function isPy() { return P.lang === "py"; }
+function camel(s) { return s.replace(/_([a-z])/g, function (m, c) { return c.toUpperCase(); }); }
+function fnName(q) { return isPy() ? q.fn : camel(q.fn); }
+function paramNames(q) { return q.params.map(function (p) { return isPy() ? p : camel(p); }); }
+function sig(q) { return fnName(q) + "(" + paramNames(q).join(", ") + ")"; }
+function langName() { return isPy() ? "Python" : "JavaScript"; }
+function conceptName(c) { return CONCEPT_NAMES[c] ? CONCEPT_NAMES[c][isPy() ? 0 : 1] : c; }
+var TERMS = {
+  list: ["list", "array"], lists: ["lists", "arrays"], dict: ["dictionary", "object"], dicts: ["dictionaries", "objects"],
+  none: ["<code>None</code>", "<code>null</code>"], True: ["<code>True</code>", "<code>true</code>"], False: ["<code>False</code>", "<code>false</code>"]
+};
+function T(s, q) {
+  var i = isPy() ? 0 : 1;
+  s = String(s).replace(/\[\[([\s\S]*?)\|\|([\s\S]*?)\]\]/g, function (m, a, b) { return i ? b : a; });
+  s = s.replace(/\$([A-Za-z]+)/g, function (m, k) { return TERMS[k] ? TERMS[k][i] : m; });
+  if (q) {
+    s = s.replace(/@sig/g, "<code>" + esc(sig(q)) + "</code>").replace(/@fn/g, esc(fnName(q)));
+  }
+  return s;
+}
+function starter(q) {
+  return isPy()
+    ? "def " + sig(q) + ":\n    # your spell here\n    pass\n"
+    : "function " + sig(q) + " {\n  // your spell here\n}\n";
+}
+function solution(q) { return q.sol[isPy() ? "py" : "js"]; }
+
+// value formatting in the player's language
+function fmt(v, max) {
+  max = max || 140;
+  var py = isPy();
+  function f(x) {
+    if (x === null) return py ? "None" : "null";
+    if (x && typeof x === "object" && x.__u) return py ? "None" : "undefined";
+    if (x && typeof x === "object" && typeof x.__repr === "string") return x.__repr;
+    if (typeof x === "boolean") return py ? (x ? "True" : "False") : String(x);
+    if (typeof x === "string") return JSON.stringify(x);
+    if (typeof x === "number") return String(x);
+    if (Array.isArray(x)) return "[" + x.map(f).join(", ") + "]";
+    if (typeof x === "object") return "{" + Object.keys(x).map(function (k) { return JSON.stringify(k) + ": " + f(x[k]); }).join(", ") + "}";
+    return String(x);
+  }
+  var s = f(v);
+  return s.length > max ? s.slice(0, max - 1) + "…" : s;
+}
+function callStr(q, args) {
+  var s = fnName(q) + "(" + args.map(function (a) { return fmt(a, 90); }).join(", ") + ")";
+  return s.length > 160 ? s.slice(0, 159) + "…" : s;
+}
+function deepEq(a, b) {
+  if (a && typeof a === "object" && !Array.isArray(a) && (a.__u || typeof a.__repr === "string")) return false;
+  if (typeof b === "number") return typeof a === "number" && Math.abs(a - b) <= 1e-9 * Math.max(1, Math.abs(b));
+  if (Array.isArray(b)) {
+    if (!Array.isArray(a) || a.length !== b.length) return false;
+    for (var i = 0; i < b.length; i++) if (!deepEq(a[i], b[i])) return false;
+    return true;
+  }
+  if (b && typeof b === "object") {
+    if (!a || typeof a !== "object" || Array.isArray(a)) return false;
+    var ka = Object.keys(a), kb = Object.keys(b);
+    if (ka.length !== kb.length) return false;
+    return kb.every(function (k) { return Object.prototype.hasOwnProperty.call(a, k) && deepEq(a[k], b[k]); });
+  }
+  return a === b;
+}
+function kind(x) {
+  if (x === null || (x && typeof x === "object" && x.__u)) return "none";
+  if (Array.isArray(x)) return "list";
+  if (x && typeof x === "object") return typeof x.__repr === "string" ? "other" : "dict";
+  return typeof x; // number, string, boolean
+}
+function kindName(k) {
+  var py = isPy();
+  return { number: "a number", string: "text (a string)", "boolean": "a " + (py ? "True/False" : "true/false") + " value",
+    list: "a " + (py ? "list" : "array"), dict: "a " + (py ? "dictionary" : "object"), none: py ? "None" : "nothing", other: "something unusual" }[k] || k;
+}
+function diagnose(got, want) {
+  var kg = kind(got), kw = kind(want);
+  if (kg === "none" && kw !== "none") {
+    return "Your spell returned <code>" + (isPy() ? "None" : (got && got.__u ? "undefined" : "null")) + "</code>. Did you forget to <code>return</code> the result?";
+  }
+  if (kg !== kw) return "The quest wants " + kindName(kw) + ", but your spell returned " + kindName(kg) + ".";
+  if (kw === "number" && Math.abs(got - want) === 1) return "Off by one! Check where your loop starts and stops, or <code>&lt;</code> versus <code>&lt;=</code>.";
+  if (kw === "string") {
+    if (got.toLowerCase() === want.toLowerCase()) return "Right letters, wrong capitalization.";
+    if (got.trim() === want.trim()) return "Close. Watch the spaces at the ends.";
+  }
+  if (kw === "list") {
+    var sa = JSON.stringify(got.slice().map(JSON.stringify).sort()), sb = JSON.stringify(want.slice().map(JSON.stringify).sort());
+    if (got.length === want.length && sa === sb) return "Right items, wrong order.";
+    if (Math.abs(got.length - want.length) === 1) return "Your " + (isPy() ? "list" : "array") + " has one item too " + (got.length > want.length ? "many" : "few") + ". Check your loop boundaries.";
+  }
+  if (kw === "dict") {
+    var gk = Object.keys(got).sort().join(","), wk = Object.keys(want).sort().join(",");
+    if (gk !== wk) return "The keys don't match. Expected keys: <code>" + esc(Object.keys(want).join(", ") || "(none)") + "</code>.";
+  }
+  return "";
+}
+
+var ERR_TIPS = {
+  NameError: "You used a name that doesn't exist. A typo, or a variable used before it was set?",
+  ReferenceError: "You used a name that doesn't exist. A typo, or a variable used before it was declared?",
+  IndentationError: "Python reads indentation as structure. Line up each block with 4 spaces.",
+  TabError: "Mixing tabs and spaces confuses Python. Use 4 spaces for each level.",
+  TypeError: "A value is the wrong type for that operation, like adding text to a number, or calling something that isn't a function.",
+  IndexError: "You reached past the end of a list. Valid positions run from 0 to length − 1.",
+  KeyError: "You looked up a key that isn't there. Check with <code>in</code> first, or use <code>.get()</code>.",
+  ZeroDivisionError: "Division by zero. The void stares back.",
+  RecursionError: "Your recursion never stops. Make sure every call moves toward the base case.",
+  AttributeError: "That value doesn't have the method you called. Check the spelling and the value's type.",
+  UnboundLocalError: "You used a variable inside the function before giving it a value.",
+  ValueError: "A function got a value it can't handle, like <code>int(\"abc\")</code>."
+};
+function errorHtml(err, q) {
+  if (err.msg === "NOFN") return "<div class=\"o-line\">I can't find a function named <code>" + esc(fnName(q)) + "</code>. Keep the name from the starter spell.</div>";
+  var tip = ERR_TIPS[err.name] || "";
+  if (err.name === "SyntaxError") tip = isPy()
+    ? "The spell's grammar is broken. Check for a colon after <code>if</code>/<code>for</code>/<code>def</code>, and for unclosed brackets or quotes."
+    : "The spell's grammar is broken. Check your brackets <code>{ }</code>, parentheses and quotes.";
+  if (err.name === "RangeError" && /call stack/i.test(err.msg)) tip = ERR_TIPS.RecursionError;
+  if (!isPy() && err.name === "TypeError" && /is not a function/.test(err.msg)) tip = "You called something that isn't a function. Check the spelling, and that the method exists for that type of value.";
+  if (!isPy() && err.name === "TypeError" && /Cannot read prop/.test(err.msg)) tip = "You read from <code>undefined</code> or <code>null</code>, often an index past the end of an array.";
+  var where = err.line ? "Line " + err.line + " · " : "";
+  return "<div class=\"o-err\">" + esc(where + (err.name ? err.name + ": " : "") + err.msg) + "</div>" + (tip ? "<div class=\"o-tip\">" + tip + "</div>" : "");
+}
+
+// ═══════════════════════ code runners ═══════════════════════
+// JavaScript: a fresh worker per run, so loops can be stopped and globals never leak between casts.
+function jsWorkerMain() {
+  var logs = [];
+  function show(v) {
+    try {
+      if (typeof v === "string") return v;
+      if (v === undefined) return "undefined";
+      if (typeof v === "function") return "[Function]";
+      return JSON.stringify(v);
+    } catch (e) { return String(v); }
+  }
+  function log() { if (logs.length < 200) logs.push(Array.prototype.map.call(arguments, show).join(" ")); }
+  console.log = console.info = console.warn = console.error = console.debug = log;
+  function describe(err) {
+    var line = null;
+    if (err && typeof err.stack === "string") { var m = err.stack.match(/spell\.js:(\d+)/); if (m) line = +m[1]; }
+    if (line == null && err && err.lineNumber) line = err.lineNumber;
+    return { name: (err && err.name) || "Error", msg: (err && err.message) || String(err), line: line };
+  }
+  function enc(v) {
+    if (v === undefined) return { __u: 1 };
+    if (typeof v === "number" && !isFinite(v)) return { __repr: String(v) };
+    if (typeof v === "function") return { __repr: "[Function]" };
+    try { return JSON.parse(JSON.stringify(v, function (k, x) { return x === undefined ? null : x; })); }
+    catch (e) { return { __repr: String(v) }; }
+  }
+  onmessage = function (e) {
+    var d = e.data, f;
+    try {
+      (0, eval)(d.code + "\n//# sourceURL=spell.js");
+      f = (0, eval)("typeof " + d.fn + " === 'function' ? " + d.fn + " : undefined");
+    } catch (err) { postMessage({ type: "error", error: describe(err), logs: logs.join("\n") }); return; }
+    if (typeof f !== "function") { postMessage({ type: "error", error: { name: "", msg: "NOFN", line: null }, logs: logs.join("\n") }); return; }
+    for (var i = 0; i < d.tests.length; i++) {
+      var args = JSON.parse(JSON.stringify(d.tests[i]));
+      try { postMessage({ type: "test", i: i, ok: true, value: enc(f.apply(null, args)) }); }
+      catch (err) { postMessage({ type: "test", i: i, ok: false, error: describe(err) }); }
+    }
+    postMessage({ type: "done", logs: logs.join("\n") });
+  };
+}
+function makeWorker(fn, replace) {
+  var src = "(" + fn.toString() + ")();";
+  if (replace) Object.keys(replace).forEach(function (k) { src = src.split(k).join(replace[k]); });
+  var url = URL.createObjectURL(new Blob([src], { type: "text/javascript" }));
+  var w = new Worker(url);
+  setTimeout(function () { URL.revokeObjectURL(url); }, 10000);
+  return w;
+}
+function runJS(code, fn, argsList, timeout) {
+  return new Promise(function (resolve) {
+    var w, results = [], done = false, timer;
+    function finish(r) { if (done) return; done = true; clearTimeout(timer); try { w.terminate(); } catch (e) {} resolve(r); }
+    try { w = makeWorker(jsWorkerMain); }
+    catch (e) { resolve({ status: "engine", msg: "This browser blocked the spell sandbox (Web Workers)." }); return; }
+    timer = setTimeout(function () { finish({ status: "timeout", results: results, index: results.length }); }, timeout);
+    w.onmessage = function (e) {
+      var m = e.data;
+      if (m.type === "test") results.push(m);
+      else if (m.type === "error") finish({ status: "error", error: m.error, logs: m.logs, results: results });
+      else if (m.type === "done") finish({ status: "ok", results: results, logs: m.logs });
+    };
+    w.onerror = function (e) { if (e.preventDefault) e.preventDefault(); finish({ status: "error", error: { name: "Error", msg: e.message || "Unknown error", line: e.lineno || null }, results: results }); };
+    w.postMessage({ code: code, fn: fn, tests: argsList });
+  });
+}
+
+// Python: Pyodide (CPython compiled to WebAssembly) in one long-lived worker.
+var PYODIDE_URL = "https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js";
+function pyWorkerMain() {
+  var HARNESS = [
+    "import sys, io, json, copy, traceback",
+    "import js",
+    "def _desc(e):",
+    "    line = None",
+    "    if isinstance(e, SyntaxError) and getattr(e, 'filename', None) == '<spell>':",
+    "        line = e.lineno",
+    "    else:",
+    "        for fr in traceback.extract_tb(e.__traceback__):",
+    "            if fr.filename == '<spell>':",
+    "                line = fr.lineno",
+    "    msg = e.msg if isinstance(e, SyntaxError) else str(e)",
+    "    return {'name': type(e).__name__, 'msg': msg, 'line': line}",
+    "def _enc(v):",
+    "    try:",
+    "        return json.loads(json.dumps(v, allow_nan=False))",
+    "    except Exception:",
+    "        return {'__repr': repr(v)[:200]}",
+    "def _spell_run(code, fn, tests_json):",
+    "    tests = json.loads(tests_json)",
+    "    buf = io.StringIO()",
+    "    old = sys.stdout",
+    "    sys.stdout = buf",
+    "    try:",
+    "        ns = {'__name__': '__main__'}",
+    "        try:",
+    "            exec(compile(code, '<spell>', 'exec'), ns)",
+    "        except BaseException as e:",
+    "            js.spellReport('error', json.dumps({'error': _desc(e), 'logs': buf.getvalue()[-4000:]}))",
+    "            return",
+    "        f = ns.get(fn)",
+    "        if not callable(f):",
+    "            js.spellReport('error', json.dumps({'error': {'name': '', 'msg': 'NOFN', 'line': None}, 'logs': buf.getvalue()[-4000:]}))",
+    "            return",
+    "        for i, args in enumerate(tests):",
+    "            try:",
+    "                res = {'i': i, 'ok': True, 'value': _enc(f(*copy.deepcopy(args)))}",
+    "            except BaseException as e:",
+    "                res = {'i': i, 'ok': False, 'error': _desc(e)}",
+    "            js.spellReport('test', json.dumps(res))",
+    "        js.spellReport('done', json.dumps({'logs': buf.getvalue()[-4000:]}))",
+    "    finally:",
+    "        sys.stdout = old"
+  ].join("\n");
+  self.spellReport = function (kind, payload) { var m = JSON.parse(payload); m.type = kind; postMessage(m); };
+  var ready = null;
+  try {
+    importScripts("__PYODIDE_URL__");
+    ready = loadPyodide().then(function (py) { py.runPython(HARNESS); postMessage({ type: "ready" }); return py; });
+    ready.catch(function (e) { postMessage({ type: "loadError", msg: String((e && e.message) || e) }); });
+  } catch (e) {
+    postMessage({ type: "loadError", msg: String((e && e.message) || e) });
+  }
+  onmessage = function (e) {
+    if (!ready) return;
+    ready.then(function (py) {
+      var run = py.globals.get("_spell_run");
+      try { run(e.data.code, e.data.fn, JSON.stringify(e.data.tests)); }
+      catch (err) { postMessage({ type: "error", error: { name: "EngineError", msg: String((err && err.message) || err), line: null }, logs: "" }); }
+      finally { run.destroy(); }
+    });
+  };
+}
+var Py = { w: null, state: "off", err: "", waiters: [], onMsg: null };
+function pyBoot() {
+  if (Py.state === "loading" || Py.state === "ready") return;
+  Py.state = "loading"; Py.err = "";
+  renderEngine();
+  try { Py.w = makeWorker(pyWorkerMain, { "__PYODIDE_URL__": PYODIDE_URL }); }
+  catch (e) { pyFail("This browser blocked the spell sandbox (Web Workers)."); return; }
+  Py.w.onmessage = function (e) {
+    var m = e.data;
+    if (m.type === "ready") { Py.state = "ready"; flushPy(true); renderEngine(); return; }
+    if (m.type === "loadError") { pyFail(m.msg); return; }
+    if (Py.onMsg) Py.onMsg(m);
+  };
+  Py.w.onerror = function (e) {
+    if (e.preventDefault) e.preventDefault();
+    if (Py.state === "loading") pyFail(e.message || "Could not load Python");
+  };
+}
+function pyFail(msg) {
+  Py.state = "failed"; Py.err = msg || "Could not load Python";
+  try { Py.w && Py.w.terminate(); } catch (e) {}
+  Py.w = null; flushPy(false); renderEngine();
+}
+function flushPy(ok) { var ws = Py.waiters; Py.waiters = []; ws.forEach(function (f) { f(ok); }); }
+function pyReady() {
+  if (Py.state === "ready") return Promise.resolve(true);
+  if (Py.state === "failed") Py.state = "off";
+  return new Promise(function (res) { Py.waiters.push(res); pyBoot(); });
+}
+function runPy(code, fn, argsList, timeout) {
+  return pyReady().then(function (ok) {
+    if (!ok) return { status: "engine", msg: Py.err };
+    return new Promise(function (resolve) {
+      var results = [], done = false;
+      function finish(r) { if (done) return; done = true; clearTimeout(timer); Py.onMsg = null; resolve(r); }
+      var timer = setTimeout(function () {
+        try { Py.w.terminate(); } catch (e) {}
+        Py.w = null; Py.state = "off";
+        finish({ status: "timeout", results: results, index: results.length });
+        pyBoot(); // restart the engine for the next cast
+      }, timeout);
+      Py.onMsg = function (m) {
+        if (m.type === "test") results.push(m);
+        else if (m.type === "error") finish({ status: "error", error: m.error, logs: m.logs, results: results });
+        else if (m.type === "done") finish({ status: "ok", results: results, logs: m.logs });
+      };
+      Py.w.postMessage({ code: code, fn: fn, tests: argsList });
+    });
+  });
+}
+function runSpell(code, q, tests) {
+  var args = tests.map(function (t) { return t.args; });
+  return isPy() ? runPy(code, fnName(q), args, 8000) : runJS(code, fnName(q), args, 3000);
+}
+function judge(run, tests) {
+  var items = tests.map(function (t, i) {
+    var r = null;
+    (run.results || []).forEach(function (x) { if (x.i === i) r = x; });
+    if (r) return r.ok ? { t: t, state: deepEq(r.value, t.want) ? "pass" : "fail", got: r.value } : { t: t, state: "error", error: r.error };
+    if (run.status === "timeout" && i === run.index) return { t: t, state: "timeout" };
+    return { t: t, state: "skip" };
+  });
+  var bad = null;
+  for (var i = 0; i < items.length; i++) if (items[i].state !== "pass" && items[i].state !== "skip") { bad = items[i]; break; }
+  return { items: items, pass: run.status === "ok" && items.every(function (x) { return x.state === "pass"; }), bad: bad };
+}
+
+// ═══════════════════════ sound ═══════════════════════
+var audio = null;
+function tone(freq, dur, type, vol, delay) {
+  if (!P || !P.sound) return;
+  try {
+    if (!audio) audio = new (window.AudioContext || window.webkitAudioContext)();
+    if (audio.state === "suspended") audio.resume();
+    var t0 = audio.currentTime + (delay || 0);
+    var o = audio.createOscillator(), g = audio.createGain();
+    o.type = type || "sine"; o.frequency.setValueAtTime(freq, t0);
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(vol || 0.05, t0 + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    o.connect(g); g.connect(audio.destination);
+    o.start(t0); o.stop(t0 + dur + 0.02);
+  } catch (e) {}
+}
+var SFX = {
+  cast: function () { tone(520, 0.09, "triangle", 0.04); tone(820, 0.09, "triangle", 0.035, 0.05); },
+  hit: function () { tone(170, 0.08, "square", 0.03); tone(120, 0.1, "sine", 0.05, 0.02); },
+  fizzle: function () { tone(330, 0.16, "sawtooth", 0.025); tone(170, 0.22, "sawtooth", 0.025, 0.1); },
+  win: function () { [523, 659, 784, 1047].forEach(function (f, i) { tone(f, 0.16, "triangle", 0.05, i * 0.09); }); },
+  level: function () { [392, 523, 659, 784, 1047, 1319].forEach(function (f, i) { tone(f, 0.2, "triangle", 0.05, i * 0.08); }); },
+  loot: function () { [988, 1319, 1568].forEach(function (f, i) { tone(f, 0.14, "sine", 0.05, i * 0.07); }); }
+};
+
+// ═══════════════════════ DOM refs ═══════════════════════
+var el = {
+  hud: $("#hud"), game: $("#game"), overlay: $("#overlay"), toasts: $("#toasts"),
+  hudAvatar: $("#hudAvatar"), hudName: $("#hudName"), hudTitle: $("#hudTitle"), hudLv: $("#hudLv"),
+  xpFill: $("#xpFill"), xpBar: $("#xpBar"), xpText: $("#xpText"), hudStreak: $("#hudStreak"), hudQuest: $("#hudQuest"), hudEngine: $("#hudEngine"),
+  stage: $("#stage"), props: $("#props"), areaLabel: $("#areaLabel"), nextLabel: $("#nextLabel"),
+  playerSprite: $("#playerSprite"), playerPlate: $("#playerPlate"), relic: $("#relic"),
+  enemy: $("#enemy"), enemySprite: $("#enemySprite"), enemyPlate: $("#enemyPlate"),
+  hpName: $("#hpName"), hpNum: $("#hpNum"), hpBar: $("#hpBar"), bubble: $("#bubble"), fx: $("#fx"),
+  card: $("#questCard"), code: $("#code"), gutter: $("#gutter"), gutterPre: $("#gutterPre"), errLine: $("#errLine"),
+  langLabel: $("#langLabel"), sigLabel: $("#sigLabel"), oracle: $("#oracle"),
+  btnCast: $("#btnCast"), btnScry: $("#btnScry"), btnHint: $("#btnHint"), btnMentor: $("#btnMentor"), btnReset: $("#btnReset"), btnShow: $("#btnShow"),
+  btnSatchel: $("#btnSatchel"), btnSound: $("#btnSound"), btnSettings: $("#btnSettings"), btnEnd: $("#btnEnd")
+};
+
+// ═══════════════════════ levels & XP ═══════════════════════
+function levelOf(xp) { return Math.floor(xp / 100) + 1; }
+function titleOf(level) {
+  var base = TITLES[Math.min(level, 5) - 1];
+  if (level > 5) base += " " + toRoman(level - 4);
+  return base;
+}
+function toRoman(n) {
+  var map = [[10, "X"], [9, "IX"], [5, "V"], [4, "IV"], [1, "I"]], out = "";
+  map.forEach(function (p) { while (n >= p[0]) { out += p[1]; n -= p[0]; } });
+  return out;
+}
+function article(word) { return /^[AEIOU]/i.test(word) ? "an" : "a"; }
+function fullTitle() { return titleOf(levelOf(P.xp)) + " of " + langName(); }
+function questXp() {
+  if (!Q) return 0;
+  var xp = Q.kind === "side" ? 10 : (Q.q.boss ? 50 : Q.q.tier * 10);
+  if (Q.rematch) xp = Math.max(5, Math.round(xp / 2 / 5) * 5);
+  if (Q.mentorUsed) xp = Math.max(5, Math.round(xp / 2 / 5) * 5);
+  return xp;
+}
+
+// ═══════════════════════ rendering ═══════════════════════
+function renderHud() {
+  var lv = levelOf(P.xp), into = P.xp % 100;
+  el.hudAvatar.textContent = P.avatar;
+  el.hudName.textContent = P.name;
+  var eq = P.equipped ? lootByName(P.equipped) : null;
+  el.hudTitle.textContent = fullTitle() + (eq ? " · " + eq.icon + " " + eq.name : "");
+  el.hudLv.textContent = "LV " + lv;
+  el.xpFill.style.width = into + "%";
+  el.xpBar.setAttribute("aria-valuenow", String(into));
+  el.xpText.textContent = into + " / 100 XP";
+  el.hudStreak.textContent = "🔥 " + P.streak;
+  el.hudStreak.classList.toggle("hot", P.streak >= 3);
+  el.hudQuest.textContent = Q && Q.kind === "side" ? "Side quest" : "Quest " + P.questNo;
+  el.btnSound.textContent = P.sound ? "🔊" : "🔇";
+  renderEngine();
+}
+function renderEngine() {
+  if (!P) return;
+  var c = el.hudEngine;
+  if (!isPy()) { c.hidden = true; return; }
+  c.hidden = false;
+  c.classList.remove("loading", "failed");
+  if (Py.state === "ready") c.textContent = "🐍 Python ready";
+  else if (Py.state === "failed") { c.textContent = "🐍 Python offline"; c.classList.add("failed"); c.title = Py.err; }
+  else { c.textContent = "🐍 Python loading…"; c.classList.add("loading"); }
+}
+function renderStage() {
+  var q = Q.q, tier = q.tier;
+  el.stage.className = "stage area-" + tier + (q.boss && Q.kind !== "side" ? " boss" : "");
+  el.areaLabel.textContent = AREAS[tier].name.toUpperCase();
+  var pos = [4, 30, 62, 86];
+  el.props.innerHTML = AREAS[tier].props.map(function (p, i) {
+    return "<span style=\"left:" + pos[i] + "%;" + (i % 2 ? "font-size:26px;bottom:40px;" : "") + "\">" + p + "</span>";
+  }).join("");
+  var nl = el.nextLabel;
+  nl.classList.remove("boss");
+  if (Q.kind === "side") nl.textContent = "Side quest · then back to " + (SUSP ? SUSP.q.name : "the fight");
+  else if (Q.kind === "boss") { nl.textContent = "⚠ BOSS FIGHT"; nl.classList.add("boss"); }
+  else { var left = 5 - (P.questNo % 5); nl.textContent = "Boss in " + left + " quest" + (left === 1 ? "" : "s"); }
+  el.playerSprite.textContent = P.avatar;
+  el.playerPlate.textContent = P.name;
+  var eq = P.equipped ? lootByName(P.equipped) : null;
+  el.relic.hidden = !eq;
+  el.relic.textContent = eq ? eq.icon : "";
+  el.enemySprite.textContent = q.enemy;
+  el.enemyPlate.textContent = q.name;
+  el.hpName.textContent = q.name;
+  resetHp();
+}
+function resetHp() {
+  var n = Q.q.tests.length;
+  el.hpBar.innerHTML = Q.q.tests.map(function () { return "<i class=\"seg\"></i>"; }).join("");
+  el.hpNum.textContent = n + " / " + n + " HP";
+}
+function loseHp() {
+  var segs = $$(".seg:not(.lost)", el.hpBar);
+  if (segs.length) segs[segs.length - 1].classList.add("lost");
+  el.hpNum.textContent = (segs.length - 1) + " / " + Q.q.tests.length + " HP";
+}
+function renderCard() {
+  var q = Q.q, badges = [];
+  if (Q.kind === "boss") badges.push("<span class=\"badge boss\">🐉 Boss fight</span>");
+  if (Q.kind === "spiral") badges.push("<span class=\"badge spiral\">🌀 Spiral review</span>");
+  if (Q.kind === "side") badges.push("<span class=\"badge side\">🏕️ Side quest</span>");
+  if (Q.rematch) badges.push("<span class=\"badge rematch\">🔁 Rematch</span>");
+  badges.push("<span class=\"badge\">" + esc(conceptName(q.concept)) + "</span>");
+  badges.push("<span class=\"badge\">" + esc(AREAS[q.tier].name) + "</span>");
+  badges.push("<span class=\"badge xp\">+" + questXp() + " XP</span>");
+  var visible = q.tests.filter(function (t) { return !t.hidden; });
+  var hiddenCount = q.tests.length - visible.length;
+  var ex = visible.map(function (t) {
+    return "<li><span>" + esc(callStr(q, t.args)) + "</span><span class=\"arrow\">→</span><span class=\"want\">" + esc(fmt(t.want)) + "</span></li>";
+  }).join("");
+  var hints = "";
+  if (Q.hintsShown > 0) {
+    hints = "<div class=\"hints-title\">💡 Hints</div><ol class=\"hints\">" +
+      q.hints.slice(0, Q.hintsShown).map(function (h) { return "<li>" + T(h, q) + "</li>"; }).join("") + "</ol>";
+  }
+  el.card.innerHTML =
+    "<div class=\"badges\">" + badges.join("") + "</div>" +
+    "<h2>" + esc(q.enemy) + " " + esc(q.name) + "</h2>" +
+    "<p class=\"story\">" + T(q.story, q) + "</p>" +
+    "<p class=\"task\">" + T(q.task, q) + "</p>" +
+    "<ul class=\"examples\" aria-label=\"Examples\">" + ex + "</ul>" +
+    (hiddenCount ? "<div class=\"hidden-note\">+ " + hiddenCount + " hidden test" + (hiddenCount === 1 ? "" : "s") + " (edge cases). Each test is one hit point.</div>" : "") +
+    hints;
+}
+function renderToolbar() {
+  var over = !Q || Q.won || Q.revealed;
+  el.btnCast.disabled = busy || over;
+  el.btnScry.disabled = busy || over;
+  el.btnHint.disabled = busy || over || Q.hintsShown >= Q.q.hints.length;
+  var left = Q ? Q.q.hints.length - Q.hintsShown : 0;
+  el.btnHint.textContent = "💡 Hint" + (left > 0 ? " (" + left + ")" : "");
+  el.btnMentor.hidden = !Q || Q.fails < 2;
+  el.btnMentor.disabled = busy || over || Q.mentorUsed;
+  el.btnReset.disabled = busy || over;
+  el.btnShow.disabled = busy || over;
+  el.langLabel.textContent = langName();
+  el.sigLabel.innerHTML = Q ? "<code>" + esc(sig(Q.q)) + "</code>" : "";
+}
+function renderAll() { renderHud(); renderStage(); renderCard(); renderToolbar(); }
+
+// ═══════════════════════ editor ═══════════════════════
+function draftKey(q) { return P.lang + ":" + q.id; }
+function loadEditor() {
+  var d = P.drafts[draftKey(Q.q)];
+  el.code.value = typeof d === "string" ? d : starter(Q.q);
+  el.code.style.tabSize = isPy() ? 4 : 2;
+  clearErrLine();
+  updateGutter();
+  el.code.scrollTop = 0;
+}
+function updateGutter() {
+  var n = el.code.value.split("\n").length, out = [];
+  for (var i = 1; i <= n; i++) out.push(i === errLineNo ? "<span class=\"bad-ln\">" + i + "</span>" : String(i));
+  el.gutterPre.innerHTML = out.join("\n");
+  el.gutter.scrollTop = el.code.scrollTop;
+  positionErrLine();
+}
+var errLineNo = null;
+function setErrLine(n) { errLineNo = n || null; el.errLine.hidden = !errLineNo; updateGutter(); }
+function clearErrLine() { if (errLineNo) setErrLine(null); }
+function positionErrLine() { if (errLineNo) el.errLine.style.top = (12 + (errLineNo - 1) * 20 - el.code.scrollTop) + "px"; }
+function onEditorInput() {
+  clearErrLine();
+  updateGutter();
+  if (Q && !Q.won && !Q.revealed) { P.drafts[draftKey(Q.q)] = el.code.value; saveSoon(); }
+}
+function insertText(t) {
+  el.code.focus();
+  var ok = false;
+  try { ok = document.execCommand("insertText", false, t); } catch (e) {}
+  if (!ok) el.code.setRangeText(t, el.code.selectionStart, el.code.selectionEnd, "end");
+  onEditorInput();
+}
+el.code.addEventListener("input", onEditorInput);
+el.code.addEventListener("scroll", function () { el.gutter.scrollTop = el.code.scrollTop; positionErrLine(); });
+el.code.addEventListener("keydown", function (e) {
+  var unit = isPy() ? "    " : "  ";
+  if ((e.ctrlKey || e.metaKey) && e.key === "Enter") { e.preventDefault(); cast("cast"); return; }
+  if (e.key === "Tab" && !e.ctrlKey && !e.metaKey && !e.altKey) {
+    e.preventDefault();
+    var v = el.code.value, s = el.code.selectionStart;
+    if (e.shiftKey) {
+      var ls = v.lastIndexOf("\n", s - 1) + 1;
+      var m = v.slice(ls).match(new RegExp("^ {1," + unit.length + "}"));
+      if (m) {
+        el.code.setRangeText("", ls, ls + m[0].length, "preserve");
+        el.code.selectionStart = el.code.selectionEnd = Math.max(ls, s - m[0].length);
+        onEditorInput();
+      }
+    } else insertText(unit);
+    return;
+  }
+  if (e.key === "Enter" && !e.shiftKey && !e.altKey && !e.ctrlKey && !e.metaKey && !e.isComposing) {
+    e.preventDefault();
+    var val = el.code.value, pos = el.code.selectionStart;
+    var lineStart = val.lastIndexOf("\n", pos - 1) + 1;
+    var line = val.slice(lineStart, pos);
+    var indent = (line.match(/^[ \t]*/) || [""])[0];
+    var trimmed = line.replace(/\s+$/, "");
+    if ((isPy() && /:$/.test(trimmed)) || (!isPy() && /[{[(]$/.test(trimmed))) indent += unit;
+    insertText("\n" + indent);
+  }
+});
+
+// ═══════════════════════ stage effects ═══════════════════════
+function centerOf(node) {
+  var s = el.stage.getBoundingClientRect(), r = node.getBoundingClientRect();
+  return { x: r.left - s.left + r.width / 2, y: r.top - s.top + r.height / 2 };
+}
+function popText(text, x, y, cls) {
+  var d = document.createElement("div");
+  d.className = "pop " + (cls || "");
+  d.textContent = text;
+  d.style.left = x + "px"; d.style.top = y + "px";
+  el.fx.appendChild(d);
+  var a = d.animate ? d.animate([{ transform: "translate(-50%,-50%)", opacity: 1 }, { transform: "translate(-50%,-180%)", opacity: 0 }], { duration: REDUCED ? 600 : 900, easing: "ease-out" }) : null;
+  setTimeout(function () { d.remove(); }, REDUCED ? 600 : 900);
+  return a;
+}
+function shoot(hit) {
+  var a = centerOf(el.playerSprite), b = centerOf(el.enemySprite);
+  if (REDUCED || !document.body.animate) return Promise.resolve({ x: hit ? b.x : (a.x + b.x) / 2, y: b.y });
+  var orb = document.createElement("div");
+  orb.className = "orb" + (hit ? "" : " dud");
+  orb.style.left = (a.x - 12) + "px"; orb.style.top = (a.y - 12) + "px";
+  el.fx.appendChild(orb);
+  var dx = (b.x - a.x) * (hit ? 1 : 0.55), dy = (b.y - a.y) * (hit ? 1 : 0.4) - (hit ? 0 : 12);
+  var anim = orb.animate([
+    { transform: "translate(0,0) scale(.5)", opacity: 1 },
+    { transform: "translate(" + dx + "px," + dy + "px) scale(" + (hit ? 1.15 : 1.6) + ")", opacity: hit ? 1 : 0 }
+  ], { duration: hit ? 240 : 320, easing: "cubic-bezier(.4,0,.8,.6)" });
+  return new Promise(function (res) {
+    anim.onfinish = function () { orb.remove(); res({ x: a.x + dx, y: a.y + dy }); };
+  });
+}
+function hurtEnemy(p) {
+  SFX.hit();
+  loseHp();
+  popText(pick(["-1", "-1", "HIT!", "-1"]), p.x, p.y - 30, "good");
+  if (el.enemySprite.animate && !REDUCED) {
+    el.enemySprite.animate([
+      { transform: "translateX(0)", filter: "brightness(1)" },
+      { transform: "translateX(10px)", filter: "brightness(2.2)" },
+      { transform: "translateX(-6px)", filter: "brightness(1.4)" },
+      { transform: "translateX(0)", filter: "brightness(1)" }
+    ], { duration: 220 });
+  }
+}
+function fizzleFx(p) {
+  SFX.fizzle();
+  popText("💨 fizzle", p.x, p.y, "bad");
+  taunt(pick(TAUNTS));
+}
+var bubbleTimer = null;
+function taunt(text) {
+  el.bubble.textContent = text;
+  el.bubble.classList.add("show");
+  clearTimeout(bubbleTimer);
+  bubbleTimer = setTimeout(function () { el.bubble.classList.remove("show"); }, 1900);
+}
+function defeatEnemy() {
+  if (!el.enemySprite.animate || REDUCED) { el.enemySprite.style.opacity = "0.15"; return sleep(150); }
+  var a = el.enemySprite.animate([
+    { transform: "rotate(0) scale(1)", opacity: 1, filter: "brightness(1)" },
+    { transform: "rotate(-12deg) scale(1.15)", opacity: 1, filter: "brightness(3)" },
+    { transform: "rotate(25deg) scale(.2) translateY(40px)", opacity: 0, filter: "brightness(3)" }
+  ], { duration: 650, easing: "ease-in", fill: "forwards" });
+  return new Promise(function (res) { a.onfinish = res; });
+}
+function enemyEnter() {
+  el.enemySprite.getAnimations && el.enemySprite.getAnimations().forEach(function (a) { if (a.effect && a.effect.getKeyframes && a.playState !== "running") a.cancel(); });
+  el.enemySprite.style.opacity = "";
+  if (el.enemy.animate && !REDUCED) {
+    el.enemy.animate([{ transform: "translateX(60px)", opacity: 0 }, { transform: "translateX(0)", opacity: 1 }], { duration: 450, easing: "ease-out" });
+  }
+  removeBanner();
+}
+function showBanner(text) {
+  removeBanner();
+  var b = document.createElement("div");
+  b.className = "banner"; b.id = "banner";
+  b.innerHTML = "<span>" + esc(text) + "</span>";
+  el.stage.appendChild(b);
+  if (b.animate && !REDUCED) b.animate([{ transform: "scale(.6)", opacity: 0 }, { transform: "scale(1)", opacity: 1 }], { duration: 300, easing: "ease-out" });
+}
+function removeBanner() { var b = $("#banner"); if (b) b.remove(); }
+function healEnemy() {
+  setTimeout(function () {
+    if (!Q || Q.won) return;
+    resetHp();
+    if (el.hpBar.animate && !REDUCED) el.hpBar.animate([{ filter: "brightness(2) hue-rotate(90deg)" }, { filter: "none" }], { duration: 500 });
+  }, 700);
+}
+
+// ═══════════════════════ toasts & modals ═══════════════════════
+function toast(text, cls) {
+  var t = document.createElement("div");
+  t.className = "toast " + (cls || "");
+  t.textContent = text;
+  el.toasts.appendChild(t);
+  setTimeout(function () { t.style.transition = "opacity .3s"; t.style.opacity = "0"; }, 2600);
+  setTimeout(function () { t.remove(); }, 3000);
+}
+var modalQueue = [], modalOpen = false, modalCfg = null;
+function queueModal(html, cfg) {
+  modalQueue.push({ html: html, cfg: cfg || {} });
+  if (!modalOpen) nextModal();
+}
+function nextModal() {
+  var m = modalQueue.shift();
+  if (!m) { modalOpen = false; modalCfg = null; el.overlay.hidden = true; el.overlay.innerHTML = ""; return; }
+  modalOpen = true; modalCfg = m.cfg;
+  el.overlay.hidden = false;
+  el.overlay.innerHTML = "<div class=\"modal " + (m.cfg.cls || "") + "\" role=\"dialog\" aria-modal=\"true\">" + m.html + "</div>";
+  if (m.cfg.onMount) m.cfg.onMount(el.overlay.firstChild);
+  var f = el.overlay.querySelector("[autofocus], .actions .btn");
+  if (f) setTimeout(function () { f.focus(); }, 30);
+}
+function closeModal() { if (modalCfg && modalCfg.onClose) modalCfg.onClose(); nextModal(); }
+el.overlay.addEventListener("click", function (e) {
+  var b = e.target.closest("[data-close]");
+  if (b) closeModal();
+});
+document.addEventListener("keydown", function (e) {
+  if (e.key === "Escape" && modalOpen && modalCfg && modalCfg.closable !== false) closeModal();
+});
+
+// ═══════════════════════ loot ═══════════════════════
+function lootByName(n) { for (var i = 0; i < LOOT.length; i++) if (LOOT[i].name === n) return LOOT[i]; return null; }
+function dropLoot(reason) {
+  var pool = LOOT.filter(function (l) { return P.loot.indexOf(l.name) < 0; });
+  var item = pool.length ? pick(pool) : { icon: "✨", name: "Pile of Shiny Semicolons", flavor: "You already own every relic. Show-off.", dup: true };
+  if (!item.dup) { P.loot.push(item.name); S.loot.push(item.name); }
+  save();
+  return item;
+}
+function lootHtml(item) {
+  return "<div class=\"loot-reveal\"><span class=\"ic\">" + item.icon + "</span><div><div><b>You now carry the " + esc(item.name) + ".</b></div><div class=\"muted small\">" + esc(item.flavor) + "</div></div></div>";
+}
+function equipActions(item) {
+  if (item.dup) return "<button class=\"btn gold\" data-close>Onward</button>";
+  return "<button class=\"btn gold\" data-equip=\"" + esc(item.name) + "\" data-close>Equip it</button><button class=\"btn\" data-close>Stash in satchel</button>";
+}
+el.overlay.addEventListener("click", function (e) {
+  var b = e.target.closest("[data-equip]");
+  if (!b) return;
+  var n = b.getAttribute("data-equip");
+  P.equipped = P.equipped === n && b.hasAttribute("data-toggle") ? null : n;
+  save(); renderHud(); if (Q) renderStage();
+  if (b.hasAttribute("data-toggle")) openSatchel(true);
+});
+
+// ═══════════════════════ quest selection ═══════════════════════
+function regulars() { return QUESTS.filter(function (q) { return !q.boss; }); }
+function choose(pool, targetTier) {
+  if (!pool.length) return null;
+  var recent = P.history.slice(-4).map(function (h) { return h.id; });
+  var last = P.history.length ? P.history[P.history.length - 1].concept : null;
+  var scored = pool.map(function (q) {
+    return { q: q, s: (P.solved[q.id] ? 100 : 0) + Math.abs(q.tier - targetTier) * 10 + (recent.indexOf(q.id) >= 0 ? 50 : 0) + (q.concept === last ? 4 : 0) + Math.random() * 3 };
+  });
+  scored.sort(function (a, b) { return a.s - b.s; });
+  return scored[0].q;
+}
+function pickNext() {
+  P.questNo += 1;
+  var n = P.questNo, tier = P.tier, q = null, kind = "normal";
+  var curId = Q ? Q.q.id : null;
+  if (n % 5 === 0) {
+    q = choose(QUESTS.filter(function (x) { return x.boss && x.id !== curId; }), tier);
+    kind = "boss";
+  } else if (n % 5 === 4 && P.history.length >= 3) {
+    var back = P.history.slice(-4, -2).map(function (h) { return h.concept; });
+    var pool = regulars().filter(function (x) { return back.indexOf(x.concept) >= 0 && x.tier <= tier && x.id !== curId; });
+    q = choose(pool.filter(function (x) { return !P.solved[x.id]; }), tier) || null;
+    if (q) kind = "spiral";
+  }
+  if (!q && P.reinforce) {
+    var rc = P.reinforce;
+    q = choose(regulars().filter(function (x) { return x.concept === rc && x.tier <= tier && x.id !== curId && !P.solved[x.id]; }), tier);
+  }
+  P.reinforce = null;
+  if (!q && n === 1 && tier === 1 && !P.solved.frost) q = QMAP.frost;
+  if (!q) q = choose(regulars().filter(function (x) { return x.id !== curId; }), tier);
+  return { q: q, kind: kind, rematch: !!P.solved[q.id] };
+}
+function sideFor(q) {
+  var pre = PREREQ[q.concept];
+  if (!pre) return null;
+  var pool = regulars().filter(function (x) { return x.concept === pre && x.tier <= q.tier && x.id !== q.id; });
+  return choose(pool, 1);
+}
+
+// ═══════════════════════ quest flow ═══════════════════════
+function makeQ(sel) {
+  return { q: sel.q, kind: sel.kind, rematch: !!sel.rematch, fails: 0, hintsShown: sel.kind === "side" ? 1 : 0,
+    mentorUsed: false, revealed: false, won: false, sideOffered: false };
+}
+function startQuest(qs) {
+  Q = qs;
+  P.current = { id: Q.q.id, kind: Q.kind, rematch: Q.rematch };
+  save();
+  renderAll();
+  loadEditor();
+  enemyEnter();
+  introOracle();
+}
+function oracle(html) { el.oracle.innerHTML = "<div class=\"oracle-title\">THE ORACLE</div>" + html; el.oracle.scrollTop = 0; }
+function oracleAppend(html) { el.oracle.insertAdjacentHTML("beforeend", html); el.oracle.scrollTop = el.oracle.scrollHeight; }
+function introOracle() {
+  var q = Q.q, h;
+  if (Q.kind === "boss") h = "<div class=\"o-head gold\">🐉 BOSS: " + esc(q.name) + " appears!</div><div class=\"o-line\">It has <b>" + q.tests.length + " hit points</b>, one per test. This fight mixes concepts, so take your time and Scry before you Cast.</div>";
+  else if (Q.kind === "spiral") h = "<div class=\"o-head\">🌀 Spiral review</div><div class=\"o-line\"><b>" + esc(conceptName(q.concept)) + "</b> is back from a few quests ago. Show it stuck.</div>";
+  else if (Q.kind === "side") h = "<div class=\"o-head\">🏕️ Side quest: training grounds</div><div class=\"o-line\">Quick <b>" + esc(conceptName(q.concept)) + "</b> practice, then back to " + esc(SUSP ? SUSP.q.name : "the fight") + ". A hint is already on the quest card.</div>";
+  else h = "<div class=\"o-head\">⚔️ " + esc(q.name) + " blocks your path.</div>";
+  if (Q.rematch) h += "<div class=\"o-line muted\">🔁 Rematch: you've beaten this one before, so it's worth half XP.</div>";
+  if (P.questNo <= 2 && Q.kind !== "side") h += "<div class=\"o-line muted\">Write your spell in the spellbook, then press <b>⚡ Cast</b> (Ctrl+Enter). <b>🔮 Scry</b> runs only the examples, with no penalty.</div>";
+  oracle(h);
+}
+function nextHint(force) {
+  var hs = Q.q.hints;
+  if (Q.hintsShown < hs.length) { Q.hintsShown++; renderCard(); renderToolbar(); return T(hs[Q.hintsShown - 1], Q.q); }
+  return force ? T(hs[hs.length - 1], Q.q) : null;
+}
+
+async function cast(mode) {
+  if (busy || !Q || Q.won || Q.revealed || modalOpen) return;
+  busy = true; renderToolbar(); clearErrLine();
+  var code = el.code.value;
+  var tests = mode === "scry" ? Q.q.tests.filter(function (t) { return !t.hidden; }) : Q.q.tests;
+  if (isPy() && Py.state !== "ready") oracle("<div class=\"o-head gold\">🐍 Summoning the Python engine…</div><div class=\"o-line muted\">The first load takes a few seconds while the engine downloads. After that, spells are instant.</div>");
+  else oracle("<div class=\"o-head\">" + (mode === "scry" ? "🔮 Scrying the examples…" : "⚡ Casting…") + "</div>");
+  var run;
+  try { run = await runSpell(code, Q.q, tests); }
+  catch (e) { run = { status: "engine", msg: String((e && e.message) || e) }; }
+  if (run.status === "engine") {
+    oracle("<div class=\"o-head bad\">The spell engine couldn't start.</div><div class=\"o-err\">" + esc(run.msg || "") + "</div>" +
+      "<div class=\"o-tip\">" + (isPy() ? "Python runs on a downloaded engine, which may be blocked on this network. Try again, or switch to JavaScript in ⚙️ Settings: it needs no download." : "Your browser blocked the sandbox.") + "</div><div class=\"o-line muted\">That one doesn't count against you.</div>");
+    busy = false; renderToolbar(); return;
+  }
+  var verdict = judge(run, tests);
+  if (mode === "scry") showScry(run, verdict);
+  else {
+    S.casts++;
+    await animateCast(run, verdict);
+    if (verdict.pass) await victory(run);
+    else fizzle(run, verdict);
+  }
+  busy = false; renderToolbar();
+}
+function logsHtml(run) {
+  var logs = (run.logs || "").replace(/\s+$/, "");
+  if (!logs) return "";
+  return "<details class=\"o-logs\"" + (logs.split("\n").length <= 6 ? " open" : "") + "><summary>📜 Printed output</summary><pre>" + esc(logs.slice(-3000)) + "</pre></details>";
+}
+function showScry(run, v) {
+  var q = Q.q, h = "<div class=\"o-head\">🔮 Scrying the examples <span class=\"muted small\">(free: no XP, no penalty)</span></div>";
+  if (run.status === "error") {
+    h += errorHtml(run.error, q);
+    if (run.error.line) setErrLine(run.error.line);
+  } else {
+    h += "<ul class=\"scry-list\">" + v.items.map(function (it) {
+      var c = callStr(q, it.t.args);
+      if (it.state === "pass") return "<li class=\"ok\">✓ " + esc(c) + " → " + esc(fmt(it.got)) + "</li>";
+      if (it.state === "fail") return "<li class=\"no\">✗ " + esc(c) + " → " + esc(fmt(it.got)) + " <span class=\"muted\">(wanted " + esc(fmt(it.t.want)) + ")</span></li>";
+      if (it.state === "error") { if (it.error.line) setErrLine(it.error.line); return "<li class=\"no\">✗ " + esc(c) + " crashed: " + esc((it.error.line ? "line " + it.error.line + " · " : "") + it.error.name + ": " + it.error.msg) + "</li>"; }
+      if (it.state === "timeout") return "<li class=\"no\">⏳ " + esc(c) + " never finished</li>";
+      return "<li>· " + esc(c) + " (not run)</li>";
+    }).join("") + "</ul>";
+    var passed = v.items.filter(function (x) { return x.state === "pass"; }).length;
+    h += "<div class=\"o-line\">" + (v.pass ? "All examples pass. Hidden tests are waiting, so <b>⚡ Cast</b> when you're ready." : passed + " of " + v.items.length + " examples pass.") + "</div>";
+  }
+  h += logsHtml(run);
+  oracle(h);
+}
+async function animateCast(run, v) {
+  SFX.cast();
+  if (run.status === "error") { fizzleFx(await shoot(false)); return; }
+  for (var i = 0; i < v.items.length; i++) {
+    var it = v.items[i];
+    if (it.state === "pass") { hurtEnemy(await shoot(true)); await sleep(REDUCED ? 0 : 50); }
+    else if (it.state === "skip") break;
+    else { fizzleFx(await shoot(false)); break; }
+  }
+}
+function fizzle(run, v) {
+  var q = Q.q;
+  Q.fails++;
+  P.wrongRow++;
+  P.streak = 0;
+  var h = "<div class=\"o-head bad\">💨 Your spell fizzled. Here's where it broke:</div>";
+  if (run.status === "error") {
+    h += errorHtml(run.error, q);
+    if (run.error.line) setErrLine(run.error.line);
+  } else if (v.bad) {
+    var c = "<code>" + esc(callStr(q, v.bad.t.args)) + "</code>";
+    var tag = v.bad.t.hidden ? " <span class=\"muted small\">(hidden test)</span>" : "";
+    if (v.bad.state === "timeout") {
+      h += "<div class=\"o-line\">" + c + " never finished." + tag + "</div><div class=\"o-tip\">" + (q.slow ? T(q.slow, q) : "An infinite loop? Make sure your loop's condition eventually becomes false.") + "</div>";
+    } else if (v.bad.state === "error") {
+      h += "<div class=\"o-line\">" + c + " crashed." + tag + "</div>" + errorHtml(v.bad.error, q);
+      if (v.bad.error.line) setErrLine(v.bad.error.line);
+    } else {
+      h += "<div class=\"o-line\">" + c + " should return <code>" + esc(fmt(v.bad.t.want)) + "</code>, but your spell returned <code>" + esc(fmt(v.bad.got)) + "</code>." + tag + "</div>";
+      var d = diagnose(v.bad.got, v.bad.t.want);
+      if (d) h += "<div class=\"o-tip\">" + d + "</div>";
+    }
+    var passed = v.items.filter(function (x) { return x.state === "pass"; }).length;
+    if (passed) h += "<div class=\"o-line muted small\">" + passed + " of " + v.items.length + " tests hit before it broke.</div>";
+  }
+  var hint = nextHint(false);
+  if (hint) h += "<div class=\"o-hint\">💡 <b>Hint:</b> " + hint + "</div>";
+  // adaptive difficulty: two misses in a row means step back
+  if (P.wrongRow >= 2) {
+    P.wrongRow = 0;
+    if (P.tier > 1) {
+      P.tier--;
+      h += "<div class=\"o-line\">📉 Two fizzles in a row, so upcoming monsters get easier (" + esc(AREAS[P.tier].name) + ").</div>";
+    }
+    var side = Q.kind !== "side" && !Q.sideOffered ? sideFor(q) : null;
+    if (side) {
+      Q.sideOffered = true;
+      Q.sideId = side.id;
+      h += "<div class=\"o-mentor\">🏕️ A mentor suggests a quick side quest on <b>" + esc(conceptName(side.concept)) + "</b>, the skill this fight builds on. Sharpen it, then come back and finish " + esc(q.name) + ".<div class=\"o-actions\"><button class=\"btn gold\" data-act=\"side\">Take the side quest</button><button class=\"btn\" data-act=\"stay\">Keep fighting</button></div></div>";
+    }
+  }
+  if (Q.fails >= 2 && !Q.mentorUsed) h += "<div class=\"o-line muted\">🧙 Stuck? <b>🧙 Mentor</b> in the toolbar whispers a worked example (half XP).</div>";
+  h += logsHtml(run);
+  oracle(h);
+  healEnemy();
+  save(); renderHud(); renderToolbar();
+}
+async function victory(run) {
+  var q = Q.q;
+  Q.won = true;
+  S.correct++;
+  P.wrongRow = 0;
+  P.streak++;
+  P.bestStreak = Math.max(P.bestStreak, P.streak);
+  S.bestStreak = Math.max(S.bestStreak, P.streak);
+  delete P.drafts[draftKey(q)];
+  P.solved[q.id] = true;
+  if (Q.kind !== "side") P.history.push({ id: q.id, concept: q.concept });
+  if (P.history.length > 30) P.history = P.history.slice(-30);
+  S.concepts[q.concept] = (S.concepts[q.concept] || 0) + 1;
+  if (Q.kind === "side") S.sides++; else S.cleared++;
+  var isBoss = q.boss && Q.kind !== "side";
+  if (isBoss) S.bosses++;
+  SFX.win();
+  await defeatEnemy();
+  showBanner(isBoss ? "BOSS SLAIN!" : "VANQUISHED!");
+  var xp = questXp(), extra = [];
+  var lvBefore = levelOf(P.xp);
+  P.xp += xp;
+  var pp = centerOf(el.playerSprite);
+  popText("+" + xp + " XP", pp.x, pp.y - 40, "xp");
+  if (P.streak > 0 && P.streak % 5 === 0) {
+    P.xp += 25;
+    extra.push("🔥 " + P.streak + "-streak! Bonus 25 XP.");
+    toast("🔥 " + P.streak + "-streak! +25 XP", "fire");
+  }
+  if (P.streak > 0 && P.streak % 3 === 0 && P.tier < 4) {
+    P.tier++;
+    extra.push("📈 " + P.streak + " in a row: the monsters ahead get tougher. Welcome to " + AREAS[P.tier].name + ".");
+  } else if (P.streak > 0 && P.streak % 3 === 0) {
+    extra.push("📈 " + P.streak + " in a row at the hardest tier. The archive's monsters bring their nastiest edge cases.");
+  }
+  var lvAfter = levelOf(P.xp);
+  var h = "<div class=\"o-head good\">✅ " + (isBoss ? "BOSS SLAIN" : "VANQUISHED") + "! +" + xp + " XP</div>" +
+    "<div class=\"o-line\">" + pick(CHEERS) + " " + T(q.win, q) + "</div>";
+  if (Q.mentorUsed) h += "<div class=\"o-line muted small\">Half XP for the mentor's help. Next time, maybe on your own.</div>";
+  extra.forEach(function (x) { h += "<div class=\"extra\">" + esc(x) + "</div>"; });
+  if (Q.kind === "side" && SUSP) h += "<div class=\"o-actions\"><button class=\"btn primary\" data-act=\"next\">⚔️ Return to " + esc(SUSP.q.name) + " →</button></div>";
+  else h += "<div class=\"o-actions\"><button class=\"btn primary\" data-act=\"next\">Next quest →</button><span class=\"muted small\" style=\"align-self:center\">or press Enter</span></div>";
+  h += logsHtml(run);
+  oracle(h);
+  save(); renderHud(); renderToolbar();
+  if (lvAfter > lvBefore) {
+    SFX.level();
+    var item = dropLoot("level");
+    var t = titleOf(lvAfter);
+    queueModal("<div class=\"big\">⚡ LEVEL UP!</div><p>You're now " + article(t) + " <b>" + esc(t) + " of " + esc(langName()) + "</b> (level " + lvAfter + ").</p>" + lootHtml(item) + "<div class=\"actions\">" + equipActions(item) + "</div>");
+  }
+  if (isBoss) {
+    var bossItem = dropLoot("boss");
+    queueModal("<div class=\"big\">🐉 BOSS SLAIN</div><p>" + esc(q.name) + " drops something shiny.</p>" + lootHtml(bossItem) + "<div class=\"actions\">" + equipActions(bossItem) + "</div>", { onMount: function () { SFX.loot(); } });
+  }
+}
+function goNext() {
+  if (busy) return;
+  if (Q && Q.kind === "side" && SUSP) { resumeSuspended(); return; }
+  startQuest(makeQ(pickNext()));
+}
+function takeSide() {
+  var sq = (Q.sideId && QMAP[Q.sideId]) || sideFor(Q.q);
+  if (!sq) return;
+  SUSP = Q;
+  P.suspended = { id: Q.q.id, kind: Q.kind, rematch: Q.rematch };
+  startQuest(makeQ({ q: sq, kind: "side", rematch: !!P.solved[sq.id] }));
+}
+function resumeSuspended() {
+  Q = SUSP; SUSP = null; P.suspended = null;
+  P.current = { id: Q.q.id, kind: Q.kind, rematch: Q.rematch };
+  save();
+  renderAll(); loadEditor(); enemyEnter();
+  var hint = nextHint(true);
+  oracle("<div class=\"o-head\">⚔️ Back at " + esc(Q.q.name) + ".</div><div class=\"o-line\">Retry with what you just practiced.</div>" + (hint ? "<div class=\"o-hint\">💡 <b>Hint:</b> " + hint + "</div>" : ""));
+}
+function askReveal() {
+  if (busy || !Q || Q.won || Q.revealed) return;
+  oracle("<div class=\"o-head\">🏳️ Reveal the answer?</div><div class=\"o-line\">You'll get <b>0 XP</b> for this quest, and your streak resets. Studying a worked answer is still how a lot of wizards learn.</div>" +
+    "<div class=\"o-actions\"><button class=\"btn danger\" data-act=\"reveal\">Show me</button><button class=\"btn\" data-act=\"cancel-reveal\">Keep trying</button></div>");
+}
+function doReveal() {
+  var q = Q.q;
+  Q.revealed = true;
+  P.streak = 0;
+  P.wrongRow++;
+  S.revealed++;
+  S.concepts[q.concept] = (S.concepts[q.concept] || 0) + 1;
+  if (Q.kind !== "side") { P.history.push({ id: q.id, concept: q.concept }); P.reinforce = q.concept; }
+  delete P.drafts[draftKey(q)];
+  save(); renderHud(); renderToolbar();
+  var h = "<div class=\"o-head gold\">📖 The mentor's solution</div><pre><code>" + esc(solution(q)) + "</code></pre>" +
+    "<div class=\"o-line\">Read it line by line. Why does it work on the hidden edge cases? " + (Q.kind !== "side" ? "Your next quest practices the same idea." : "") + "</div>" +
+    "<div class=\"o-actions\"><button class=\"btn\" data-act=\"copy-sol\">Copy into the spellbook</button><button class=\"btn primary\" data-act=\"next\">" + (Q.kind === "side" && SUSP ? "⚔️ Return to " + esc(SUSP.q.name) + " →" : "Next quest →") + "</button></div>";
+  oracle(h);
+}
+function mentor() {
+  if (busy || !Q || Q.fails < 2 || Q.mentorUsed || Q.won || Q.revealed) return;
+  Q.mentorUsed = true;
+  renderCard(); renderToolbar();
+  oracleAppend("<div class=\"o-mentor\">🧙 <b>A mentor whispered a hint:</b><div class=\"o-line\">" + T(Q.q.mentor, Q.q) + "</div><div class=\"muted small\">This quest is now worth " + questXp() + " XP.</div></div>");
+}
+function hint() {
+  if (busy || !Q || Q.won || Q.revealed) return;
+  var h = nextHint(false);
+  if (h) oracleAppend("<div class=\"o-hint\">💡 <b>Hint " + Q.hintsShown + ":</b> " + h + "</div>");
+}
+function resetCode() {
+  if (busy || !Q || Q.won || Q.revealed) return;
+  if (el.code.value !== starter(Q.q) && !confirm("Reset your spell to the starter code?")) return;
+  delete P.drafts[draftKey(Q.q)];
+  save(); loadEditor();
+}
+el.oracle.addEventListener("click", function (e) {
+  var b = e.target.closest("[data-act]");
+  if (!b) return;
+  var a = b.getAttribute("data-act");
+  if (a === "next") goNext();
+  else if (a === "side") takeSide();
+  else if (a === "stay") { b.closest(".o-mentor").remove(); el.code.focus(); }
+  else if (a === "reveal") doReveal();
+  else if (a === "cancel-reveal") introOracle();
+  else if (a === "copy-sol") { el.code.value = solution(Q.q); updateGutter(); }
+});
+el.btnCast.addEventListener("click", function () { cast("cast"); });
+el.btnScry.addEventListener("click", function () { cast("scry"); });
+el.btnHint.addEventListener("click", hint);
+el.btnMentor.addEventListener("click", mentor);
+el.btnReset.addEventListener("click", resetCode);
+el.btnShow.addEventListener("click", askReveal);
+document.addEventListener("keydown", function (e) {
+  if (modalOpen) return;
+  if ((e.ctrlKey || e.metaKey) && e.key === "Enter" && document.activeElement !== el.code) { e.preventDefault(); cast("cast"); return; }
+  var tag = document.activeElement && document.activeElement.tagName;
+  if (e.key === "Enter" && tag !== "TEXTAREA" && tag !== "INPUT" && tag !== "BUTTON" && Q && (Q.won || Q.revealed)) { e.preventDefault(); goNext(); }
+});
+
+// ═══════════════════════ HUD menus ═══════════════════════
+el.btnSound.addEventListener("click", function () { P.sound = !P.sound; save(); renderHud(); if (P.sound) SFX.cast(); });
+function openSatchel(replace) {
+  var items = P.loot.map(lootByName).filter(Boolean);
+  var html = "<h2>🎒 Satchel</h2>" + (items.length
+    ? "<p class=\"muted small\">Equip a relic to carry it into battle. It shows up beside you and in your title.</p><ul class=\"loot-list\">" + items.map(function (it) {
+        var on = P.equipped === it.name;
+        return "<li class=\"" + (on ? "on" : "") + "\"><span class=\"ic\">" + it.icon + "</span><div style=\"flex:1\"><div class=\"nm\">" + esc(it.name) + "</div><div class=\"fl\">" + esc(it.flavor) + "</div></div><button class=\"btn " + (on ? "" : "gold") + "\" data-equip=\"" + esc(it.name) + "\" data-toggle>" + (on ? "Unequip" : "Equip") + "</button></li>";
+      }).join("") + "</ul>"
+    : "<p class=\"muted\">Empty for now. Relics drop when you level up (every 100 XP) and when you slay a boss (every 5th quest).</p>") +
+    "<div class=\"actions\"><button class=\"btn\" data-close>Close</button></div>";
+  if (replace && modalOpen) { el.overlay.firstChild.innerHTML = html; return; }
+  queueModal(html);
+}
+el.btnSatchel.addEventListener("click", function () { openSatchel(false); });
+el.btnSettings.addEventListener("click", function () {
+  var html = "<h2>⚙️ Settings</h2>" +
+    "<div class=\"field\"><span class=\"label\">Spell language</span><div class=\"choices\">" +
+      "<button class=\"choice " + (isPy() ? "on" : "") + "\" data-lang=\"py\">🐍 Python<small>Runs a real Python engine in your browser</small></button>" +
+      "<button class=\"choice " + (!isPy() ? "on" : "") + "\" data-lang=\"js\">⚡ JavaScript<small>Runs instantly, no download</small></button></div></div>" +
+    "<div class=\"field\"><span class=\"label\">Monster difficulty</span><div class=\"choices\">" +
+      [1, 2, 3, 4].map(function (t) { return "<button class=\"choice " + (P.tier === t ? "on" : "") + "\" data-tier=\"" + t + "\">" + esc(AREAS[t].name) + "<small>" + ["Beginner", "Loops & strings", "Collections", "Recursion & DP"][t - 1] + "</small></button>"; }).join("") +
+      "</div><p class=\"muted small\">This changes automatically: 3 correct casts in a row raise it, and 2 fizzles in a row lower it. You can also set it here.</p></div>" +
+    "<div class=\"field\"><span class=\"label\">How it works</span><ul class=\"how\">" + howList() + "</ul></div>" +
+    "<div class=\"actions\"><button class=\"btn\" data-close>Done</button><span class=\"spacer\"></span><button class=\"btn danger\" id=\"btnWipe\">Erase all progress</button></div>";
+  queueModal(html, { cls: "wide", onMount: function (m) {
+    m.addEventListener("click", function (e) {
+      var l = e.target.closest("[data-lang]"), t = e.target.closest("[data-tier]");
+      if (l) { setLang(l.getAttribute("data-lang")); $$("[data-lang]", m).forEach(function (b) { b.classList.toggle("on", b === l); }); }
+      if (t) { P.tier = +t.getAttribute("data-tier"); save(); $$("[data-tier]", m).forEach(function (b) { b.classList.toggle("on", b === t); }); toast("Monsters from " + AREAS[P.tier].name + " from the next quest on."); }
+      if (e.target.id === "btnWipe" && confirm("Erase all XP, loot and progress? This can't be undone.")) {
+        try { localStorage.removeItem(SAVE_KEY); } catch (err) {}
+        location.reload();
+      }
+    });
+  } });
+});
+function setLang(lang) {
+  if (P.lang === lang) return;
+  if (Q && !Q.won && !Q.revealed) P.drafts[draftKey(Q.q)] = el.code.value;
+  P.lang = lang; save();
+  if (isPy()) pyBoot();
+  renderAll(); loadEditor();
+  if (Q && (Q.won || Q.revealed)) return;
+  introOracle();
+}
+function howList() {
+  return ["Every monster is a coding problem. Write the function to beat it.",
+    "Every test is one hit point. Some tests are hidden edge cases.",
+    "<b>⚡ Cast</b> runs every test. <b>🔮 Scry</b> runs only the examples, for free.",
+    "XP: 10–40 per quest by difficulty, 50 per boss. Level up every 100 XP.",
+    "3 correct casts in a row: tougher monsters. 5 in a row: +25 bonus XP.",
+    "2 fizzles in a row: easier monsters, and a mentor may suggest a side quest.",
+    "Every 5th quest is a boss. Every so often an old concept returns for review.",
+    "<b>🏳️ Show me</b> reveals the answer for 0 XP."].map(function (s) { return "<li>" + s + "</li>"; }).join("");
+}
+el.btnEnd.addEventListener("click", showSummary);
+function showSummary() {
+  var lv = levelOf(P.xp), gained = P.xp - S.xpStart;
+  var acc = S.casts ? Math.round(100 * S.correct / S.casts) : 0;
+  var concepts = Object.keys(S.concepts).map(function (c) { return "<span class=\"badge\">" + esc(conceptName(c)) + (S.concepts[c] > 1 ? " ×" + S.concepts[c] : "") + "</span>"; }).join("");
+  var loot = S.loot.map(lootByName).filter(Boolean).map(function (l) { return l.icon + " " + esc(l.name); }).join("<br>");
+  var mins = Math.max(1, Math.round((Date.now() - S.started) / 60000));
+  var html = "<div class=\"big\">📜 ADVENTURE SUMMARY</div>" +
+    "<p><b>" + esc(P.name) + "</b>, " + article(titleOf(lv)) + " " + esc(titleOf(lv)) + " of " + esc(langName()) + " · level " + lv + "</p>" +
+    "<div class=\"stat-grid\">" +
+      stat("XP earned", "+" + gained + " <span class=\"muted small\">(total " + P.xp + ")</span>") +
+      stat("Levels gained", String(lv - S.levelStart)) +
+      stat("Quests cleared", S.cleared + (S.bosses ? " <span class=\"muted small\">(" + S.bosses + " boss" + (S.bosses > 1 ? "es" : "") + ")</span>" : "")) +
+      stat("Streak", P.streak + " <span class=\"muted small\">(best " + S.bestStreak + ")</span>") +
+      stat("Spell accuracy", S.casts ? S.correct + "/" + S.casts + " · " + acc + "%" : "–") +
+      stat("Time", mins + " min") +
+    "</div>" +
+    "<div class=\"field\"><span class=\"label\">Concepts covered</span><div class=\"concept-tags\">" + (concepts || "<span class=\"muted\">None yet. Go fight something!</span>") + "</div></div>" +
+    (S.sides || S.revealed ? "<p class=\"muted small\">" + (S.sides ? S.sides + " side quest" + (S.sides > 1 ? "s" : "") + " completed. " : "") + (S.revealed ? S.revealed + " answer" + (S.revealed > 1 ? "s" : "") + " revealed by the mentor." : "") + "</p>" : "") +
+    (loot ? "<div class=\"field\"><span class=\"label\">Loot found</span><div>" + loot + "</div></div>" : "") +
+    "<div class=\"actions\"><button class=\"btn primary\" data-close>Keep adventuring</button><button class=\"btn\" id=\"btnNewSession\">Start a fresh session</button></div>";
+  queueModal(html, { cls: "wide", onMount: function (m) {
+    $("#btnNewSession", m).addEventListener("click", function () { S = newSession(); toast("New session started. Your XP and loot are saved."); closeModal(); });
+  } });
+}
+function stat(k, v) { return "<div class=\"stat\"><div class=\"k\">" + k + "</div><div class=\"v\">" + v + "</div></div>"; }
+
+// ═══════════════════════ title screen ═══════════════════════
+function titleScreen() {
+  var saved = loadSave();
+  if (saved && saved.questNo > 0) {
+    var lv = levelOf(saved.xp), t = titleOf(lv);
+    queueModal("<div class=\"logo\">SPELLCODE</div><p class=\"tagline\">Code is your magic. Every bug is a monster.</p>" +
+      "<p style=\"text-align:center\">Welcome back, <b>" + esc(saved.name) + "</b>.<br><span class=\"muted\">" + esc(t) + " of " + (saved.lang === "py" ? "Python" : "JavaScript") + " · level " + lv + " · " + saved.xp + " XP</span></p>" +
+      "<div class=\"actions\" style=\"justify-content:center\"><button class=\"btn primary\" id=\"btnContinue\" autofocus>⚔️ Continue adventure</button><button class=\"btn ghost\" id=\"btnFresh\">Start over</button></div>",
+      { closable: false, onMount: function (m) {
+        $("#btnContinue", m).addEventListener("click", function () { P = saved; nextModal(); boot(false); });
+        $("#btnFresh", m).addEventListener("click", function () {
+          if (!confirm("Start a brand-new wizard? Your saved progress will be replaced.")) return;
+          nextModal(); newGameForm();
+        });
+      } });
+  } else newGameForm();
+}
+function newGameForm() {
+  var state = { avatar: "🧙", lang: "py", tier: 1 };
+  var html = "<div class=\"logo\">SPELLCODE</div><p class=\"tagline\">Code is your magic. Every bug is a monster.</p>" +
+    "<div class=\"field\"><label for=\"nameIn\">Wizard name</label><input type=\"text\" id=\"nameIn\" maxlength=\"18\" placeholder=\"Wizard\" autocomplete=\"off\" autofocus></div>" +
+    "<div class=\"field\"><span class=\"label\">Avatar</span><div class=\"choices\">" + AVATARS.map(function (a) { return "<button class=\"choice avatar-choice " + (a === state.avatar ? "on" : "") + "\" data-av=\"" + a + "\" aria-label=\"Avatar " + a + "\">" + a + "</button>"; }).join("") + "</div></div>" +
+    "<div class=\"field\"><span class=\"label\">Spell language</span><div class=\"choices\">" +
+      "<button class=\"choice on\" data-lang=\"py\">🐍 Python<small>Friendly syntax. Real Python, in your browser.</small></button>" +
+      "<button class=\"choice\" data-lang=\"js\">⚡ JavaScript<small>The language of the web. Instant.</small></button></div></div>" +
+    "<div class=\"field\"><span class=\"label\">Your experience</span><div class=\"choices\">" +
+      "<button class=\"choice on\" data-tier=\"1\">I'm a beginner<small>Start with variables and if</small></button>" +
+      "<button class=\"choice\" data-tier=\"2\">I know the basics<small>Start with loops and strings</small></button>" +
+      "<button class=\"choice\" data-tier=\"3\">I'm experienced<small>Start with collections</small></button></div></div>" +
+    "<ul class=\"how\">" + howList() + "</ul>" +
+    "<div class=\"actions\" style=\"justify-content:center\"><button class=\"btn primary\" id=\"btnBegin\">⚔️ Begin adventure</button></div>";
+  queueModal(html, { cls: "wide", closable: false, onMount: function (m) {
+    m.addEventListener("click", function (e) {
+      var av = e.target.closest("[data-av]"), l = e.target.closest("[data-lang]"), t = e.target.closest("[data-tier]");
+      if (av) { state.avatar = av.getAttribute("data-av"); $$("[data-av]", m).forEach(function (b) { b.classList.toggle("on", b === av); }); }
+      if (l) { state.lang = l.getAttribute("data-lang"); $$("[data-lang]", m).forEach(function (b) { b.classList.toggle("on", b === l); }); }
+      if (t) { state.tier = +t.getAttribute("data-tier"); $$("[data-tier]", m).forEach(function (b) { b.classList.toggle("on", b === t); }); }
+    });
+    function begin() {
+      P = defaults();
+      P.name = ($("#nameIn", m).value || "").trim().slice(0, 18) || "Wizard";
+      P.avatar = state.avatar; P.lang = state.lang; P.tier = state.tier;
+      save(); nextModal(); boot(true);
+    }
+    $("#btnBegin", m).addEventListener("click", begin);
+    $("#nameIn", m).addEventListener("keydown", function (e) { if (e.key === "Enter") begin(); });
+  } });
+}
+function boot(fresh) {
+  S = newSession();
+  el.hud.hidden = false; el.game.hidden = false;
+  if (isPy()) pyBoot();
+  var cur = P.current && QMAP[P.current.id];
+  if (!fresh && cur) {
+    if (P.suspended && QMAP[P.suspended.id]) SUSP = makeQ({ q: QMAP[P.suspended.id], kind: P.suspended.kind, rematch: P.suspended.rematch });
+    startQuest(makeQ({ q: cur, kind: P.current.kind, rematch: P.current.rematch }));
+  } else {
+    startQuest(makeQ(pickNext()));
+  }
+  if (fresh) toast("Welcome, " + P.name + ". Your first monster awaits.", "gold");
+}
+
+// test hook for automated checks (no effect on play)
+window.__spellcode = { quests: QUESTS, state: function () { return { P: P, S: S, Q: Q, SUSP: SUSP, busy: busy }; }, solution: function () { return Q ? solution(Q.q) : null; } };
+
+titleScreen();
+})();
+</script>
+</body>
+</html>
