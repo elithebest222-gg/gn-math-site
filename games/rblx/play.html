@@ -20,7 +20,7 @@
       border-radius: 3px; font-size: 12px; font-weight: 700; max-width: 75%;
     }
     #canvas { display: block; width: 100vw; height: 100vh; background: #000; }
-    #loading { position: fixed; inset: 0; background: #000; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 9999; padding: 16px; text-align: center; transition: opacity 0.25s; }
+    #loading { position: fixed; inset: 0; background: #000; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 9999; padding: 16px; text-align: center; }
     #loading img { width: 220px; margin-bottom: 20px; }
     #loading-text { color: #fff; font-size: 17px; margin-bottom: 8px; }
     #sub-text { color: #aaa; font-size: 12px; max-width: 90%; word-break: break-word; }
@@ -49,13 +49,6 @@
       const warn = (msg) => { warnEl.textContent = msg; warnEl.style.display = 'block'; };
       document.addEventListener('contextmenu', e => e.preventDefault());
 
-      const hideLoader = () => {
-        setTimeout(() => {
-          loadDiv.style.opacity = '0';
-          setTimeout(() => { loadDiv.style.display = 'none'; }, 260);
-        }, 350);
-      };
-
       function prepareRbxl(bytes) {
         if (!bytes || bytes.byteLength < 16) return null;
         const head = new TextDecoder().decode(bytes.subarray(0, 32));
@@ -68,7 +61,6 @@
         return bytes;
       }
 
-      // Download map and 12 engine chunks in parallel for faster startup
       const mapPromise = (async () => {
         if (isCustom && sessionStorage.getItem('customPlaceData')) {
           const buf = await (await fetch(sessionStorage.getItem('customPlaceData'))).arrayBuffer();
@@ -88,7 +80,8 @@
       const chunksP = Promise.all(Array.from({ length: 12 }, (_, i) =>
         fetch('rblx.data.' + i).then(r => r.arrayBuffer()).then(b => {
           loaded++;
-          loadTxt.textContent = 'Loading ' + Math.round(loaded / 12 * 100) + '%';
+          const pct = Math.round(loaded / 12 * 100);
+          loadTxt.textContent = pct < 100 ? 'Loading ' + pct + '%' : 'Starting engine...';
           return b;
         })
       )).then(chunks => {
@@ -103,7 +96,6 @@
       });
 
       const customBytes = await mapPromise;
-      const emptyLua = new TextEncoder().encode('-- disabled white loading screen\n');
 
       const origFetch = window.fetch.bind(window);
       window.fetch = (res, init) => /rblx\.data$/.test(typeof res === 'string' ? res : res?.url || '')
@@ -114,24 +106,20 @@
         print: () => {},
         printErr: t => { if (/error|exception|abort/i.test(t)) console.error('[rblx]', t); },
         setStatus: t => {
-          if (!t) { hideLoader(); return; }
+          if (!t) { loadDiv.style.display = 'none'; return; }
           subTxt.textContent = t;
         },
         preRun: [() => {
+          if (!customBytes) return;
           const origCreate = Module.FS_createDataFile;
           Module.FS_createDataFile = function (parent, name, data, canRead, canWrite, canOwn) {
-            // 1. Replace default game map
-            if (customBytes && (parent === '/content/game.rbxl' || name === 'game.rbxl')) {
+            if (parent === '/content/game.rbxl' || name === 'game.rbxl') {
               return origCreate.call(this, parent, name, customBytes.slice(), canRead, canWrite, false);
-            }
-            // 2. Disable the built-in white LoadingScript.lua splash screen
-            if (typeof parent === 'string' && parent.endsWith('LoadingScript.lua')) {
-              return origCreate.call(this, parent, name, emptyLua, canRead, canWrite, false);
             }
             return origCreate.call(this, parent, name, data, canRead, canWrite, canOwn);
           };
         }],
-        onRuntimeInitialized: hideLoader
+        onRuntimeInitialized: () => { loadDiv.style.display = 'none'; }
       };
 
       const s = document.createElement('script');
