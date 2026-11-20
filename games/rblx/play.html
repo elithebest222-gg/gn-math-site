@@ -19,19 +19,26 @@
       background: rgba(180, 30, 30, 0.92); color: #fff; padding: 6px 12px;
       border-radius: 3px; font-size: 12px; font-weight: 700; max-width: 75%;
     }
+    #canvas-wrap { width: 100vw; height: 100vh; background: #000; }
     #canvas { display: block; width: 100vw; height: 100vh; background: #000; }
     #loading { position: fixed; inset: 0; background: #000; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 9999; padding: 16px; text-align: center; }
     #loading img { width: 220px; margin-bottom: 20px; }
     #loading-text { color: #fff; font-size: 17px; margin-bottom: 8px; }
     #sub-text { color: #aaa; font-size: 12px; max-width: 90%; word-break: break-word; }
   </style>
+  <script>
+    // Prevent rblx.js from spawning 64+ pthreads and crashing Chromebook RAM
+    try {
+      Object.defineProperty(navigator, 'hardwareConcurrency', { get: () => 4 });
+    } catch (e) {}
+  </script>
   <script src="./coi-serviceworker.js"></script>
 </head>
 <body>
   <div id="warn-banner"></div>
   <a id="home-btn" href="./index.html" onclick="if(document.exitPointerLock)document.exitPointerLock();">Home</a>
   <div id="loading"><img src="WebBlox.png" alt="" /><span id="loading-text">Loading...</span><span id="sub-text"></span></div>
-  <canvas id="canvas" oncontextmenu="return false"></canvas>
+  <div id="canvas-wrap"><canvas id="canvas" oncontextmenu="return false"></canvas></div>
   <script>
     (async function () {
       const loadDiv = document.getElementById('loading');
@@ -40,12 +47,9 @@
       const warnEl = document.getElementById('warn-banner');
       const warn = (msg) => { warnEl.textContent = msg; warnEl.style.display = 'block'; };
 
-      window.addEventListener('error', e => warn('Error: ' + e.message));
-      window.addEventListener('unhandledrejection', e => warn('Promise Error: ' + (e.reason?.message || e.reason)));
-
-      // Wait for Cross-Origin Isolation so SharedArrayBuffer works
+      // Wait for Cross-Origin Isolation
       if (!window.crossOriginIsolated && 'serviceWorker' in navigator) {
-        loadTxt.textContent = 'Initializing security headers...';
+        loadTxt.textContent = 'Initializing...';
         const reg = await navigator.serviceWorker.register('./coi-serviceworker.js');
         if (reg.installing || reg.waiting) {
           await new Promise(resolve => {
@@ -68,8 +72,7 @@
       function prepareRbxl(bytes) {
         if (!bytes || bytes.byteLength < 16) return null;
         const head = new TextDecoder().decode(bytes.subarray(0, 32));
-        if (!head.includes('<roblox')) return null;
-        if (!head.startsWith('<roblox!')) {
+        if (head.includes('<roblox') && !head.startsWith('<roblox!')) {
           let xml = new TextDecoder().decode(bytes);
           xml = xml.replace(/<float name="FogEnd">0(\.0+)?<\/float>/g, '<float name="FogEnd">100000</float>');
           return new TextEncoder().encode(xml);
@@ -95,7 +98,7 @@
       let loaded = 0;
       const chunksP = Promise.all(Array.from({ length: 12 }, (_, i) =>
         fetch('rblx.data.' + i).then(r => {
-          if (!r.ok) throw new Error('Failed to load rblx.data.' + i);
+          if (!r.ok) throw new Error('Missing rblx.data.' + i);
           return r.arrayBuffer();
         }).then(b => {
           loaded++;
@@ -104,43 +107,35 @@
           return b;
         })
       )).then(chunks => {
-        const out = new Uint8Array(chunks.reduce((s, c) => s + c.byteLength, 0));
+        const totalBytes = chunks.reduce((s, c) => s + c.byteLength, 0);
+        const out = new Uint8Array(totalBytes);
         let off = 0;
         for (let i = 0; i < chunks.length; i++) {
           out.set(new Uint8Array(chunks[i]), off);
           off += chunks[i].byteLength;
           chunks[i] = null;
         }
-        return URL.createObjectURL(new Blob([out], { type: 'application/octet-stream' }));
+        return out.buffer;
       });
 
-      const [customBytes, dataBlobUrl] = await Promise.all([mapPromise, chunksP]);
-
-      // Intercept BOTH fetch() and XMLHttpRequest for rblx.data
-      const origFetch = window.fetch.bind(window);
-      window.fetch = (res, init) => {
-        const url = typeof res === 'string' ? res : res?.url || '';
-        return /rblx\.data(\?.*)?$/.test(url) ? origFetch(dataBlobUrl, init) : origFetch(res, init);
-      };
-
-      const origXhrOpen = XMLHttpRequest.prototype.open;
-      XMLHttpRequest.prototype.open = function (method, url, ...rest) {
-        if (typeof url === 'string' && /rblx\.data(\?.*)?$/.test(url)) {
-          url = dataBlobUrl;
-        }
-        return origXhrOpen.call(this, method, url, ...rest);
-      };
+      const [customBytes, packageBuffer] = await Promise.all([mapPromise, chunksP]);
 
       window.Module = {
         canvas: document.getElementById('canvas'),
         print: () => {},
         printErr: t => { if (/error|exception|abort/i.test(t)) console.error('[rblx]', t); },
+        // Feed the stitched ArrayBuffer directly to rblx.js without Blob URL overhead
+        getPreloadedPackage: (remoteName, remoteSize) => {
+          if (remoteName.endsWith('rblx.data')) return packageBuffer;
+          return null;
+        },
         setStatus: t => {
           if (!t) { loadDiv.style.display = 'none'; return; }
           subTxt.textContent = t;
         },
         preRun: [() => {
           if (!customBytes) return;
+          // Hook FS.createDataFile right when preRun executes (after rblx.js assigns it)
           const origCreate = Module.FS_createDataFile;
           Module.FS_createDataFile = function (parent, name, data, canRead, canWrite, canOwn) {
             if (parent === '/content/game.rbxl' || name === 'game.rbxl') {
@@ -149,7 +144,12 @@
             return origCreate.call(this, parent, name, data, canRead, canWrite, canOwn);
           };
         }],
-        onRuntimeInitialized: () => { loadDiv.style.display = 'none'; }
+        onRuntimeInitialized: () => {
+          if (customBytes && typeof FS !== 'undefined') {
+            try { FS.writeFile('/content/game.rbxl', customBytes); } catch (e) {}
+          }
+          loadDiv.style.display = 'none';
+        }
       };
 
       const s = document.createElement('script');
