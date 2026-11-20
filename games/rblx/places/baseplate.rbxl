@@ -74,62 +74,22 @@
       <string name="TimeOfDay">14:00:00</string>
     </Properties>
   </Item>
-  <Item class="StarterPlayer" referent="RBX5">
+  <Item class="ServerScriptService" referent="RBX5">
     <Properties>
-      <string name="Name">StarterPlayer</string>
+      <string name="Name">ServerScriptService</string>
     </Properties>
-    <Item class="StarterPlayerScripts" referent="RBX6">
+    <Item class="Script" referent="RBX7">
       <Properties>
-        <string name="Name">StarterPlayerScripts</string>
-      </Properties>
-      <Item class="LocalScript" referent="RBX7">
-        <Properties>
-          <bool name="Disabled">false</bool>
-          <string name="Name">PeerMultiplayerSync</string>
-          <ProtectedString name="Source"><![CDATA[
+        <bool name="Disabled">false</bool>
+        <string name="Name">PeerMultiplayerServer</string>
+        <ProtectedString name="Source"><![CDATA[
 local RunService = game:GetService("RunService")
 local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
-local player = Players.LocalPlayer
-local myName = (player and player.Name) or "Player1"
 
-pcall(function() HttpService.HttpEnabled = true end)
+HttpService.HttpEnabled = true
 
--- 1. Build 2016-style Top-Right Leaderboard UI
-local pg = player:WaitForChild("PlayerGui")
-local gui = Instance.new("ScreenGui")
-gui.Name = "PeerLeaderboard"
-gui.ResetOnSpawn = false
-gui.Parent = pg
-
-local board = Instance.new("Frame")
-board.Name = "List"
-board.Size = UDim2.new(0, 170, 0, 32)
-board.Position = UDim2.new(1, -180, 0, 8)
-board.BackgroundColor3 = Color3.new(0.12, 0.13, 0.14)
-board.BackgroundTransparency = 0.35
-board.BorderSizePixel = 0
-board.Parent = gui
-
-local function makeRow(y, text)
-	local lbl = Instance.new("TextLabel")
-	lbl.Size = UDim2.new(1, -16, 0, 24)
-	lbl.Position = UDim2.new(0, 8, 0, y)
-	lbl.BackgroundTransparency = 1
-	lbl.TextColor3 = Color3.new(1, 1, 1)
-	lbl.Font = Enum.Font.SourceSansBold
-	lbl.FontSize = Enum.FontSize.Size18
-	lbl.TextXAlignment = Enum.TextXAlignment.Left
-	lbl.Text = text
-	lbl.Parent = board
-	return lbl
-end
-
-local row1 = makeRow(4, myName)
-local row2 = makeRow(28, "")
-row2.Visible = false
-
--- 2. Build RemotePlayer R6 Model
+-- 1. Build RemotePlayer R6 Model in Workspace
 local rig = Instance.new("Model")
 rig.Name = "Friend"
 rig.Parent = workspace
@@ -175,13 +135,59 @@ nameTag.FontSize = Enum.FontSize.Size18
 nameTag.Text = "Player2"
 nameTag.Parent = bb
 
+-- 2. Build Top-Right Leaderboard UI when the local player joins
+local row1, row2, board
+
+local function setupGui(plr)
+	local pg = plr:WaitForChild("PlayerGui")
+	if pg:FindFirstChild("PeerLeaderboard") then return end
+
+	local gui = Instance.new("ScreenGui")
+	gui.Name = "PeerLeaderboard"
+	gui.ResetOnSpawn = false
+	gui.Parent = pg
+
+	board = Instance.new("Frame")
+	board.Name = "List"
+	board.Size = UDim2.new(0, 170, 0, 32)
+	board.Position = UDim2.new(1, -180, 0, 8)
+	board.BackgroundColor3 = Color3.new(0.12, 0.13, 0.14)
+	board.BackgroundTransparency = 0.35
+	board.BorderSizePixel = 0
+	board.Parent = gui
+
+	local function makeRow(y, text)
+		local lbl = Instance.new("TextLabel")
+		lbl.Size = UDim2.new(1, -16, 0, 24)
+		lbl.Position = UDim2.new(0, 8, 0, y)
+		lbl.BackgroundTransparency = 1
+		lbl.TextColor3 = Color3.new(1, 1, 1)
+		lbl.Font = Enum.Font.SourceSansBold
+		lbl.FontSize = Enum.FontSize.Size18
+		lbl.TextXAlignment = Enum.TextXAlignment.Left
+		lbl.Text = text
+		lbl.Parent = board
+		return lbl
+	end
+
+	row1 = makeRow(4, plr.Name)
+	row2 = makeRow(28, "")
+	row2.Visible = false
+end
+
+Players.PlayerAdded:Connect(setupGui)
+for _, p in ipairs(Players:GetPlayers()) do
+	spawn(function() setupGui(p) end)
+end
+
 local targetCF = CFrame.new(0, -100, 0)
 local currentCF = targetCF
 
--- Background loop so network calls don't block rendering
+-- 3. Server HTTP Sync Loop
 spawn(function()
 	while wait(0.08) do
-		local char = player and player.Character
+		local plr = Players:GetPlayers()[1]
+		local char = plr and plr.Character
 		local root = char and (char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("Torso"))
 		local payload = ""
 		if root then
@@ -194,26 +200,23 @@ spawn(function()
 		local ok, res = pcall(function()
 			return HttpService:GetAsync(url, true)
 		end)
-		if not ok then
-			ok, res = pcall(function()
-				return game:HttpGet(url, true)
-			end)
-		end
 
 		if ok and res and #res > 0 then
 			local connFlag, localName, remote = res:match("^(%d)|([^|]*)|(.*)$")
-			if localName and #localName > 0 then
+			if row1 and localName and #localName > 0 then
 				row1.Text = localName
 			end
 			if connFlag == "1" then
-				row2.Visible = true
-				board.Size = UDim2.new(0, 170, 0, 56)
+				if row2 and board then
+					row2.Visible = true
+					board.Size = UDim2.new(0, 170, 0, 56)
+				end
 				local coords, rName = remote:match("^([^|]+)|?(.*)$")
 				if rName and #rName > 0 then
-					row2.Text = rName
+					if row2 then row2.Text = rName end
 					nameTag.Text = rName
 				else
-					row2.Text = "Player2"
+					if row2 then row2.Text = "Player2" end
 				end
 				if coords then
 					local x, y, z, ry = coords:match("([^,]+),([^,]+),([^,]+),([^,]+)")
@@ -222,15 +225,17 @@ spawn(function()
 					end
 				end
 			else
-				row2.Visible = false
-				board.Size = UDim2.new(0, 170, 0, 32)
+				if row2 and board then
+					row2.Visible = false
+					board.Size = UDim2.new(0, 170, 0, 32)
+				end
 				targetCF = CFrame.new(0, -100, 0)
 			end
 		end
 	end
 end)
 
-RunService.RenderStepped:Connect(function()
+RunService.Heartbeat:Connect(function()
 	currentCF = currentCF:Lerp(targetCF, 0.35)
 	torso.CFrame = currentCF * torsoOff
 	head.CFrame = currentCF * headOff
@@ -240,8 +245,7 @@ RunService.RenderStepped:Connect(function()
 	rLeg.CFrame = currentCF * rLegOff
 end)
 ]]></ProtectedString>
-        </Properties>
-      </Item>
+      </Properties>
     </Item>
   </Item>
 </roblox>
