@@ -3,108 +3,219 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
-  <title>GN-BLOX Player</title>
+  <title>WebBlox</title>
   <link rel="icon" href="favicon.png" />
+  <link rel="stylesheet" crossorigin="anonymous" href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600;700&display=swap" />
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; font-family: Arial, sans-serif; }
-    html, body { width: 100%; height: 100%; background: #000 !important; overflow: hidden; }
-    #home-btn { position: fixed; top: 8px; right: 12px; z-index: 99999; background: #0074bd; color: #fff; text-decoration: none; padding: 5px 12px; border-radius: 3px; font-size: 12px; font-weight: 700; border: 1px solid rgba(255,255,255,0.35); }
-    #canvas { display: block; width: 100vw; height: 100vh; background: #000 !important; visibility: hidden; }
-    #loading { position: fixed; inset: 0; background: #000; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 9999; padding: 16px; text-align: center; }
-    #loading img { width: 220px; margin-bottom: 20px; }
-    #loading-text { color: #fff; font-size: 17px; font-weight: 700; margin-bottom: 8px; }
-    #sub-text { color: #aaa; font-size: 12px; max-width: 90%; word-break: break-word; }
-    #err-box { display: none; margin-top: 12px; padding: 10px; max-width: 520px; background: rgba(180,25,25,0.3); border: 1px solid #ff4d4d; color: #ff8080; font-family: monospace; font-size: 12px; border-radius: 4px; }
+    :root { --panel: #232527; --text: #fff; --muted: #b8b8b8; --blue: #00a2ff; --green: #02b757; --red: #d86868; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; background: #000; overflow: hidden; font-family: "Source Sans Pro", "Source Sans 3", "Helvetica Neue", Helvetica, Arial, sans-serif; color: var(--text); }
+    #canvas { display: block; width: 100vw; height: 100vh; background: #000; }
+    #leave { position: fixed; top: 4px; left: 150px; z-index: 30; display: flex; align-items: center; gap: 6px; height: 28px; padding: 0 12px; border-radius: 3px; background: rgba(0,0,0,.5); color: #fff; text-decoration: none; font-size: 14px; font-weight: 600; border: 1px solid rgba(255,255,255,.25); }
+    #leave:hover { background: rgba(0,0,0,.75); }
+
+    /* 2016-style in-game loading screen */
+    #loading { position: fixed; inset: 0; z-index: 20; background: var(--panel); display: flex; flex-direction: column; justify-content: center; padding: 0 9vw; }
+    #loading .title { font-size: clamp(30px, 5vw, 52px); font-weight: 600; line-height: 1.1; max-width: 900px; word-break: break-word; }
+    #loading .by { margin-top: 6px; font-size: 20px; color: var(--muted); }
+    #loading .bar { margin-top: 34px; width: min(560px, 100%); height: 6px; border-radius: 3px; background: rgba(255,255,255,.14); overflow: hidden; }
+    #loading .bar i { display: block; height: 100%; width: 0; background: var(--blue); transition: width .25s; }
+    #loading .status { margin-top: 10px; font-size: 15px; color: var(--muted); min-height: 20px; }
+    #loading .tip { position: absolute; left: 9vw; bottom: 30px; right: 220px; font-size: 14px; color: #8a8a8a; }
+    #loading .spin { position: absolute; right: 34px; bottom: 26px; display: flex; align-items: center; gap: 12px; font-size: 20px; font-weight: 600; }
+    #loading .spin span { width: 36px; height: 36px; border: 5px solid #fff; border-radius: 4px; transform: rotate(15deg); animation: spin 1.4s cubic-bezier(.6,0,.4,1) infinite; }
+    @keyframes spin { to { transform: rotate(375deg); } }
+
+    #error { display: none; position: fixed; inset: 0; z-index: 40; background: rgba(0,0,0,.7); align-items: center; justify-content: center; padding: 16px; }
+    #error .box { width: min(460px, 100%); background: #fff; color: #191919; border-radius: 4px; overflow: hidden; box-shadow: 0 8px 30px rgba(0,0,0,.5); }
+    #error h2 { font-size: 20px; font-weight: 600; padding: 14px 18px; border-bottom: 1px solid #e3e3e3; }
+    #error p { padding: 16px 18px 6px; font-size: 16px; line-height: 1.35; }
+    #error code { display: block; margin: 6px 18px 0; padding: 8px 10px; background: #f2f2f2; border-radius: 3px; font-size: 12px; color: #555; max-height: 120px; overflow: auto; white-space: pre-wrap; word-break: break-word; }
+    #error .btns { display: flex; gap: 10px; justify-content: center; padding: 18px; }
+    #error button, #error a { min-width: 120px; padding: 8px 14px; border-radius: 3px; border: 1px solid transparent; font: inherit; font-size: 16px; font-weight: 600; cursor: pointer; text-decoration: none; text-align: center; }
+    #error .primary { background: var(--blue); color: #fff; }
+    #error .secondary { background: #fff; color: #191919; border-color: #b8b8b8; }
+    @media (max-width: 600px) { #leave { left: auto; right: 8px; top: auto; bottom: 8px; } #loading .tip { display: none; } }
   </style>
-  <script>
-    try { Object.defineProperty(navigator, 'hardwareConcurrency', { get: () => 32 }); } catch (e) {}
-  </script>
-  <script src="./coi-serviceworker.js"></script>
 </head>
 <body>
-  <a id="home-btn" href="./index.html" onclick="if(document.exitPointerLock)document.exitPointerLock();">Home</a>
+  <a id="leave" href="./index.html" onclick="if (document.exitPointerLock) document.exitPointerLock();">&#8592; Leave</a>
+
   <div id="loading">
-    <img src="WebBlox.png" alt="" />
-    <span id="loading-text">Loading...</span>
-    <span id="sub-text"></span>
-    <div id="err-box"></div>
+    <div class="title" id="game-title">WebBlox</div>
+    <div class="by" id="game-by">Getting ready to play</div>
+    <div class="bar"><i id="bar"></i></div>
+    <div class="status" id="status">Starting&hellip;</div>
+    <div class="tip" id="tip"></div>
+    <div class="spin"><span></span>Loading&hellip;</div>
   </div>
+
+  <div id="error"><div class="box">
+    <h2>Disconnected</h2>
+    <p id="err-msg">The game stopped unexpectedly.</p>
+    <code id="err-detail"></code>
+    <div class="btns"><button class="primary" onclick="location.reload()">Reconnect</button><a class="secondary" href="./index.html">Leave</a></div>
+  </div></div>
+
   <canvas id="canvas" oncontextmenu="return false"></canvas>
+
   <script>
+    try { Object.defineProperty(navigator, 'hardwareConcurrency', { get: () => 32 }); } catch (e) {}
+
     (async function () {
-      const loadDiv = document.getElementById('loading'), loadTxt = document.getElementById('loading-text'), subTxt = document.getElementById('sub-text'), errBox = document.getElementById('err-box'), canvas = document.getElementById('canvas');
-      let failed = false;
-      const fail = (code, msg) => {
-        failed = true; loadDiv.style.display = 'flex'; canvas.style.visibility = 'hidden';
-        loadTxt.style.color = '#ff5555'; loadTxt.textContent = 'Error: ' + code;
-        errBox.style.display = 'block'; errBox.textContent = '[' + code + '] ' + msg;
+      const VERSION = '33';                       // bump when rblx.js / rblx.wasm change
+      const CHUNKS = 12, CHUNK_SIZE = 25165824, DATA_SIZE = 289418733;
+      const $ = id => document.getElementById(id);
+      const canvas = $('canvas'), loading = $('loading');
+      const params = new URLSearchParams(location.search);
+      const title = params.get('title') || 'Natural Disaster Survival';
+      const TIPS = ['Tip: hold right mouse button to turn the camera.', 'Tip: use W A S D to walk and Space to jump.',
+                    'Tip: press / to chat.', 'Tip: scroll or use I / O to zoom in and out.'];
+
+      document.title = title + ' - WebBlox';
+      $('game-title').textContent = title;
+      $('game-by').textContent = params.get('by') ? 'By ' + params.get('by') : 'Getting ready to play';
+      $('tip').textContent = TIPS[Math.floor(Math.random() * TIPS.length)];
+
+      let failed = false, ready = false;
+      const status = (text, pct) => {
+        if (failed || ready) return;
+        $('status').textContent = text;
+        if (pct != null) $('bar').style.width = Math.max(0, Math.min(100, pct)) + '%';
       };
-      window.addEventListener('error', e => fail('JS_ERROR', e.message));
-      window.addEventListener('unhandledrejection', e => fail('PROMISE_ERROR', e.reason?.message || e.reason));
-      canvas.addEventListener('webglcontextlost', e => { e.preventDefault(); fail('WEBGL_LOST', 'Graphics context lost'); });
+      const fail = (msg, detail) => {
+        if (failed) return;
+        failed = true;
+        $('err-msg').textContent = msg;
+        $('err-detail').textContent = detail || '';
+        $('err-detail').style.display = detail ? 'block' : 'none';
+        $('error').style.display = 'flex';
+      };
+      const show = () => {
+        if (ready || failed) return;
+        ready = true;
+        $('bar').style.width = '100%';
+        setTimeout(() => { loading.style.display = 'none'; canvas.focus(); }, 250);
+      };
+      window.addEventListener('error', e => {
+        if (/ResizeObserver/.test(e.message || '')) return;
+        fail('The game stopped unexpectedly.', e.message || String(e.error || ''));
+      });
+      canvas.addEventListener('webglcontextlost', e => { e.preventDefault(); fail('Your graphics card stopped responding (WebGL context lost).'); });
 
+      // SharedArrayBuffer needs cross-origin isolation; GitHub Pages can't send the headers, so a
+      // service worker adds them and we reload once it controls the page.
       if (!window.crossOriginIsolated && 'serviceWorker' in navigator) {
-        const reg = await navigator.serviceWorker.register('./coi-serviceworker.js');
-        if (reg.installing || reg.waiting) await new Promise(r => (reg.installing || reg.waiting).addEventListener('statechange', e => e.target.state === 'activated' && r()));
-        if (!window.crossOriginIsolated) return location.reload();
+        status('Preparing game engine…', 0);
+        try {
+          const reg = await navigator.serviceWorker.register('./coi-serviceworker.js');
+          const sw = reg.installing || reg.waiting;
+          if (sw && sw.state !== 'activated') await new Promise(r => sw.addEventListener('statechange', () => sw.state === 'activated' && r()));
+          if (!sessionStorage.getItem('coiReloaded')) { sessionStorage.setItem('coiReloaded', '1'); return location.reload(); }
+        } catch (e) { /* fall through to the check below */ }
       }
-      if (!window.SharedArrayBuffer) return fail('NO_SAB', 'SharedArrayBuffer unavailable (COI headers missing)');
+      sessionStorage.removeItem('coiReloaded');
+      if (!window.SharedArrayBuffer) {
+        return fail('This browser can\'t run WebBlox here.', 'SharedArrayBuffer is unavailable (the page is not cross-origin isolated). Try reloading, or use a recent Chrome, Edge or Firefox outside private/incognito mode.');
+      }
 
-      const p = new URLSearchParams(location.search), mapFile = p.get('map');
-      if (p.get('title')) document.title = p.get('title') + ' - GN-BLOX';
+      // Warm the HTTP cache for the engine while the game data downloads.
+      fetch('rblx.js?v=' + VERSION).catch(() => {});
+      fetch('rblx.wasm?v=' + VERSION).catch(() => {});
 
-      const mapP = (async () => {
-        if (p.get('custom') === '1' && sessionStorage.getItem('customPlaceData')) return new Uint8Array(await (await fetch(sessionStorage.getItem('customPlaceData'))).arrayBuffer());
-        if (!mapFile) return null;
-        const res = await fetch('places/' + encodeURIComponent(mapFile));
-        if (!res.ok) { fail('MAP_404', 'Missing places/' + mapFile); return null; }
-        let bytes = new Uint8Array(await res.arrayBuffer());
-        const head = new TextDecoder().decode(bytes.subarray(0, 32));
-        if (head.includes('<roblox') && !head.startsWith('<roblox!')) {
+      // The place to load: an uploaded file (IndexedDB) or one of places/.
+      const placeP = (async () => {
+        let bytes = null;
+        if (params.get('custom') === '1') {
+          bytes = await readUpload();
+          if (!bytes) throw new Error('The uploaded place could not be found. Upload it again from the home page.');
+        } else if (params.get('map')) {
+          const res = await fetch('places/' + encodeURIComponent(params.get('map')));
+          if (!res.ok) throw new Error('Missing places/' + params.get('map') + ' (HTTP ' + res.status + ')');
+          bytes = new Uint8Array(await res.arrayBuffer());
+        }
+        if (bytes && !isBinaryPlace(bytes)) {
+          // Very old XML places sometimes have FogEnd = 0, which fogs out the whole world.
           bytes = new TextEncoder().encode(new TextDecoder().decode(bytes).replace(/<float name="FogEnd">0(\.0+)?<\/float>/g, '<float name="FogEnd">100000</float>'));
         }
         return bytes;
       })();
 
-      let loaded = 0;
-      const chunksP = Promise.all(Array.from({ length: 12 }, (_, i) =>
-        fetch('rblx.data.' + i).then(r => { if (!r.ok) throw new Error('HTTP ' + r.status + ' on rblx.data.' + i); return r.arrayBuffer(); }).then(b => {
-          const pct = Math.round(++loaded / 12 * 100);
-          if (!failed) loadTxt.textContent = pct < 100 ? 'Loading ' + pct + '%' : "Hold on, it's loading...";
-          return b;
-        })
-      )).then(chunks => {
-        const out = new Uint8Array(chunks.reduce((s, c) => s + c.byteLength, 0));
-        let off = 0; chunks.forEach(c => { out.set(new Uint8Array(c), off); off += c.byteLength; });
-        return out.buffer;
-      }).catch(e => { fail('DATA_LOAD_FAIL', e.message); throw e; });
+      // Game data: 12 chunks written straight into one buffer (no second 290 MB copy).
+      const data = new Uint8Array(DATA_SIZE);
+      const got = new Array(CHUNKS).fill(0);
+      const dataP = Promise.all(Array.from({ length: CHUNKS }, async (_, i) => {
+        const res = await fetch('rblx.data.' + i);
+        if (!res.ok) throw new Error('HTTP ' + res.status + ' on rblx.data.' + i);
+        const reader = res.body.getReader();
+        let off = i * CHUNK_SIZE;
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          data.set(value, off); off += value.length; got[i] += value.length;
+          const sum = got.reduce((a, b) => a + b, 0);
+          status('Downloading game files… ' + Math.floor(sum / 1048576) + ' / ' + Math.round(DATA_SIZE / 1048576) + ' MB', sum / DATA_SIZE * 80);
+        }
+      }));
 
-      const [customBytes, pkgBuf] = await Promise.all([mapP, chunksP]);
+      let custom, results;
+      try {
+        results = await Promise.all([placeP, dataP]);
+      } catch (e) {
+        return fail('Couldn\'t download the game.', e.message);
+      }
+      custom = results[0];
+      status('Starting game engine…', 84);
+
+      let placeStarted = false;
       window.Module = {
-        canvas, print: () => {},
-        printErr: t => /error|exception|abort|out of memory/i.test(t) && fail('WASM_ERR', t),
-        onAbort: w => fail('WASM_ABORT', w),
-        getPreloadedPackage: name => name.endsWith('rblx.data') ? pkgBuf : null,
-        setStatus: t => { if (!failed) { loadTxt.textContent = "Hold on, it's loading..."; subTxt.textContent = t && t !== 'Running...' ? t : ''; } },
-        preRun: [() => {
-          if (!customBytes) return;
-          const orig = Module.FS_createDataFile;
-          Module.FS_createDataFile = function (parent, name, data, r, w, own) {
-            return orig.call(this, parent, name, (parent === '/content/game.rbxl' || name === 'game.rbxl') ? customBytes.slice() : data, r, w, own);
-          };
-        }],
+        canvas,
+        locateFile: p => p === 'rblx.wasm' ? 'rblx.wasm?v=' + VERSION : p,
+        getPreloadedPackage: name => name.endsWith('rblx.data') ? data.buffer : null,
+        print: t => {
+          if (ready) return;
+          if (t.includes('loading verification place')) { placeStarted = true; status(custom && !isBinaryPlace(custom) ? 'Loading place… (XML places can take a minute)' : 'Loading place…', 92); }
+          else if (t.includes('gameLoaded signaled') || t.includes('verification place loaded')) show();
+        },
+        printErr: t => {
+          // An exception that escapes the engine thread ends the game.
+          if (/sent an error!|uncaught exception|^Aborted|out of memory/i.test(t)) fail('The game stopped unexpectedly.', t.split('\n')[0]);
+        },
+        onAbort: what => fail('The game stopped unexpectedly.', String(what)),
+        setStatus: () => {},
         onRuntimeInitialized: () => {
-          if (customBytes && typeof FS !== 'undefined') try { FS.writeFile('/content/game.rbxl', customBytes); } catch (e) {}
-          const t = setInterval(() => {
-            if (failed) return clearInterval(t);
-            if (Module.ctx && canvas.width > 0 && canvas.height > 0) {
-              clearInterval(t);
-              setTimeout(() => { if (!failed) { canvas.style.visibility = 'visible'; loadDiv.style.display = 'none'; } }, 500);
-            }
-          }, 100);
+          if (custom) {
+            try { FS.writeFile('/content/game.rbxl', custom); }
+            catch (e) { fail('Couldn\'t open the place file.', e.message); }
+          }
+          status('Loading place…', 88);
+          // Safety net: never keep the overlay up forever if the engine is running.
+          setTimeout(show, placeStarted ? 120000 : 90000);
         }
       };
-      const s = document.createElement('script'); s.src = 'rblx.js?v=32'; s.onerror = () => fail('JS_404', 'Failed to load rblx.js'); document.body.appendChild(s);
+      const s = document.createElement('script');
+      s.src = 'rblx.js?v=' + VERSION;
+      s.onerror = () => fail('Couldn\'t download the game engine.', 'rblx.js failed to load');
+      document.body.appendChild(s);
+
+      function isBinaryPlace(b) { return b.length > 8 && String.fromCharCode(...b.subarray(0, 8)) === '<roblox!'; }
+
+      function readUpload() {
+        return new Promise(resolve => {
+          try {
+            const req = indexedDB.open('webblox', 1);
+            req.onupgradeneeded = () => req.result.createObjectStore('files');
+            req.onerror = () => resolve(null);
+            req.onsuccess = () => {
+              try {
+                const get = req.result.transaction('files').objectStore('files').get('upload');
+                get.onsuccess = () => resolve(get.result ? new Uint8Array(get.result) : null);
+                get.onerror = () => resolve(null);
+              } catch (e) { resolve(null); }
+            };
+          } catch (e) { resolve(null); }
+        });
+      }
     })();
   </script>
 </body>
