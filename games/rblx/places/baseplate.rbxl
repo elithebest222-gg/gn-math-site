@@ -185,7 +185,7 @@ RunService.RenderStepped:Connect(function(dt)
 		end
 
 		local ok, res = pcall(function()
-			return game:HttpGet("http://peer.local" .. payload, true)
+			return game:HttpGet("https://gn-math.woodvilleweather.com/games/rblx/peer-sync?d=" .. payload, true)
 		end)
 
 		if ok and res and #res > 0 then
