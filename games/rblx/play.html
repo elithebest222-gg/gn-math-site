@@ -6,6 +6,7 @@
   <title>WebBlox</title>
   <link rel="icon" href="favicon.png" />
   <link rel="stylesheet" crossorigin="anonymous" href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600;700&display=swap" />
+  <script src="peerjs.min.js"></script>
   <style>
     :root { --panel: #232527; --text: #fff; --muted: #b8b8b8; --blue: #00a2ff; --green: #02b757; --red: #d86868; }
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -40,7 +41,7 @@
 </head>
 <body>
   <a id="leave" href="./index.html" onclick="if (document.exitPointerLock) document.exitPointerLock();">&#8592; Leave</a>
-
+  <div id="mp-badge" style="position:fixed;top:4px;left:235px;z-index:30;display:flex;align-items:center;height:28px;padding:0 10px;border-radius:3px;background:rgba(0,0,0,.5);color:#b8b8b8;font-size:13px;font-weight:600;border:1px solid rgba(255,255,255,.25);">Solo</div>
   <div id="loading">
     <div class="title" id="game-title">WebBlox</div>
     <div class="by" id="game-by">Getting ready to play</div>
@@ -99,7 +100,7 @@
         setTimeout(() => { loading.style.display = 'none'; canvas.focus(); }, 250);
       };
       window.addEventListener('error', e => {
-        if (/ResizeObserver/.test(e.message || '')) return;
+        if (/ResizeObserver|PeerJS/i.test(e.message || '')) return;
         fail('The game stopped unexpectedly.', e.message || String(e.error || ''));
       });
       canvas.addEventListener('webglcontextlost', e => { e.preventDefault(); fail('Your graphics card stopped responding (WebGL context lost).'); });
@@ -168,6 +169,44 @@
       custom = results[0];
       status('Starting game engine…', 84);
 
+      function startPeerMultiplayer() {
+        if (!window.Peer) return;
+        const badge = $('mp-badge');
+        const room = (params.get('room') || prompt('Enter a Room Name for multiplayer (leave blank for Solo):') || '').trim();
+        if (!room) return;
+
+        const isHost = params.get('host') === '1' || confirm('Room "' + room + '": Click OK to HOST, or Cancel to JOIN.');
+        const roomId = 'webblox-' + room.replace(/[^a-zA-Z0-9_-]/g, '');
+        badge.textContent = isHost ? 'Hosting: ' + room : 'Joining: ' + room;
+
+        const peer = isHost ? new Peer(roomId) : new Peer();
+        let conn = null;
+
+        const bindConn = c => {
+          conn = c;
+          c.on('open', () => { badge.textContent = 'Connected: ' + room; badge.style.color = '#02b757'; });
+          c.on('data', msg => {
+            try { FS.writeFile('/content/remote_player.txt', String(msg)); } catch (e) {}
+          });
+          c.on('close', () => { badge.textContent = 'Peer Left: ' + room; badge.style.color = '#d86868'; });
+        };
+
+        peer.on('open', () => {
+          if (!isHost) bindConn(peer.connect(roomId, { reliable: false }));
+        });
+        peer.on('connection', incoming => bindConn(incoming));
+        peer.on('error', err => { badge.textContent = 'MP Error: ' + err.type; badge.style.color = '#d86868'; });
+
+        setInterval(() => {
+          if (!conn || !conn.open) return;
+          try {
+            const mine = FS.readFile('/content/local_player.txt', { encoding: 'utf8' });
+            if (mine) conn.send(mine);
+          } catch (e) {}
+        }, 66);
+      }
+
+      
       let placeStarted = false;
       window.Module = {
         canvas,
@@ -192,8 +231,8 @@
             try { FS.writeFile('/content/game.rbxl', custom); }
             catch (e) { fail('Couldn\'t open the place file.', e.message); }
           }
+          startPeerMultiplayer();
           status('Loading place…', 88);
-          // Safety net: never keep the overlay up forever if the engine is running.
           setTimeout(show, placeStarted ? 120000 : 90000);
         }
       };
