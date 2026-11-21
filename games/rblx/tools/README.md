@@ -36,6 +36,22 @@ square thumbnail plus a `<id>-wide.jpg` 16:9 one).
 
 Places that are already binary (`<roblox!` at the top) can go straight into `places/`.
 
+## Uploaded places
+
+Places uploaded on the site (Upload a Place / Develop) don't need any of this: `../rbxfile.js` converts
+them in the browser when the game starts. It reads any Roblox place or model, XML or binary, from
+2008-era files to ones saved by today's Studio (LZ4 or Zstd chunks), and writes the binary format the
+2016 engine expects:
+
+- property types are made to match `typemap.json` (64-bit numbers, shared strings and so on),
+- exact part colors (`Color3uint8`) become the nearest 2016 BrickColor (the engine's own 208-color palette),
+- WeldConstraints become ManualWelds that hold the parts where they are, font faces become fonts,
+- properties and objects the 2016 engine doesn't have are left out, linked scripts are cleared,
+- a model file gets put in a new place with a baseplate.
+
+If the engine still rejects the place, `../play.html` reloads it once in safe mode, which also leaves
+out terrain and union data and any property the engine isn't known to read.
+
 The converter also:
 
 - clears `Script.LinkedSource` links (they point at an asset server that no longer exists),
@@ -44,6 +60,14 @@ The converter also:
 
 `typemap.json` lists the property types the engine expects. It was read out of the
 engine's own binary places, and the engine refuses a place whose property types don't match.
+
+## Studio
+
+`../studio.html` (Develop on the site) is a place editor in the style of 2016 Roblox Studio: Explorer,
+Properties, Move/Scale/Rotate handles with snapping, Insert Object, a Lua script editor, undo/redo,
+copy/paste/duplicate/group, and Play, which hands the place to `../play.html`. It opens any .rbxl/.rbxlx/.rbxm
+(through `../rbxfile.js`), saves binary .rbxl files, and keeps the place you're working on in the browser.
+New objects get the property types in `typemap.json`, so what you build loads in the 2016 engine.
 
 ## Engine patch
 
@@ -60,6 +84,9 @@ this folder). The main ones:
 6. Game scripts can signal the page: a request to `https://webblox.signal/<message>` is answered
    at once and `<message>` goes to `../play.html` on a BroadcastChannel. Leave Game in the in-game
    menu uses it to go home, and the game reports its frame rate for Auto graphics.
+7. Shift lock keeps the mouse locked. The engine let go of the pointer lock after any frame slower
+   than 50 ms and only took it back after eight quick calls, so on slower computers the lock flickered
+   on and off and the shift lock icon and camera jumped around.
 5. Game sound starts right away. The audio bridge used to wait for your first click to even set up,
    and dropped any sound loaded before it; now it's set up at once and starts on your first click
    or key press (`../play.html` shows a "Click for sound" button until then).

@@ -1,0 +1,328 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>WebBlox Studio</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='2' y='2' width='12' height='12' rx='2' fill='%2300a2ff' transform='rotate(12 8 8)'/%3E%3C/svg%3E" />
+  <style>
+    :root {
+      --bg: #f0f0f0; --panel: #fff; --line: #c8c8c8; --line2: #e1e1e1; --text: #1b1b1b; --muted: #6d6d6d;
+      --blue: #1a73d9; --file: #1e6fd0; --sel: #cce4fb; --sel-line: #6fb2f2; --hover: #eaf3fc; --ribbon: #fafafa;
+      --head: linear-gradient(#f7f7f7, #e8e8e8); --code-bg: #fff;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); color: var(--text); font: 12px/1.35 "Segoe UI", "Source Sans Pro", Tahoma, Arial, sans-serif; }
+    button { font: inherit; color: inherit; }
+    .app { display: grid; grid-template-rows: auto auto 1fr 22px; height: 100%; }
+
+    /* ribbon */
+    .tabs { display: flex; align-items: stretch; background: #fff; border-bottom: 1px solid var(--line); height: 26px; }
+    .tabs button { border: 0; background: none; padding: 0 14px; cursor: pointer; letter-spacing: .4px; font-size: 11.5px; }
+    .tabs button.on { background: var(--ribbon); border: 1px solid var(--line); border-bottom-color: var(--ribbon); margin-bottom: -1px; }
+    .tabs .file { background: var(--file); color: #fff; font-weight: 600; }
+    .tabs .file:hover { background: #2a7fe0; }
+    .tabs .title { margin-left: auto; align-self: center; padding-right: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .ribbon { display: flex; background: var(--ribbon); border-bottom: 1px solid var(--line); height: 86px; overflow-x: auto; overflow-y: hidden; }
+    .ribbon .page { display: none; align-items: stretch; }
+    .ribbon .page.on { display: flex; }
+    .group { display: flex; flex-direction: column; border-right: 1px solid var(--line2); padding: 4px 6px 0; }
+    .group .row { display: flex; gap: 2px; flex: 1; align-items: flex-start; }
+    .group .cap { text-align: center; color: var(--muted); font-size: 11px; padding: 2px 0 3px; white-space: nowrap; }
+    .big { display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 2px; min-width: 46px; height: 60px; padding: 3px 4px; border: 1px solid transparent; border-radius: 2px; background: none; cursor: pointer; white-space: nowrap; font-size: 11.5px; }
+    .big svg { width: 28px; height: 28px; }
+    .big:hover, .small:hover { background: #e3effb; border-color: #a9cdf2; }
+    .big.on, .small.on { background: #cfe3f8; border-color: #79b1ea; }
+    .big:disabled, .small:disabled { opacity: .45; cursor: default; background: none; border-color: transparent; }
+    .stack { display: flex; flex-direction: column; gap: 1px; }
+    .small { display: flex; align-items: center; gap: 5px; height: 20px; padding: 0 6px 0 3px; border: 1px solid transparent; border-radius: 2px; background: none; cursor: pointer; white-space: nowrap; font-size: 11.5px; text-align: left; }
+    .small svg { width: 16px; height: 16px; flex: none; }
+    .field { display: flex; align-items: center; gap: 4px; height: 21px; white-space: nowrap; font-size: 11.5px; }
+    .field input[type=text] { width: 46px; height: 18px; border: 1px solid var(--line); padding: 0 3px; font: inherit; }
+    .play svg { color: #0b9a3c; }
+    .dd { position: relative; }
+    .caret::after { content: '▾'; font-size: 9px; margin-left: 1px; color: var(--muted); }
+
+    /* main area */
+    .main { display: grid; grid-template-columns: 1fr 5px 290px; min-height: 0; }
+    .center { display: grid; grid-template-rows: 24px 1fr 5px 130px; min-height: 0; min-width: 0; }
+    .doctabs { display: flex; background: var(--bg); border-bottom: 1px solid var(--line); overflow-x: auto; }
+    .doctab { display: flex; align-items: center; gap: 6px; padding: 0 6px 0 10px; border-right: 1px solid var(--line); background: #e6e6e6; cursor: pointer; white-space: nowrap; }
+    .doctab.on { background: #fff; box-shadow: inset 0 2px 0 var(--blue); }
+    .doctab .x { border: 0; background: none; cursor: pointer; color: var(--muted); padding: 0 3px; font-size: 13px; line-height: 1; }
+    .doctab .x:hover { color: #000; background: #ddd; }
+    .view { position: relative; min-height: 0; overflow: hidden; background: linear-gradient(#78a9de, #b8d3ef 55%, #dfeaf5); }
+    .view canvas { display: block; width: 100%; height: 100%; outline: none; touch-action: none; }
+    .view .hint { position: absolute; left: 8px; bottom: 6px; color: rgba(0,0,0,.55); font-size: 11px; pointer-events: none; text-shadow: 0 1px 0 rgba(255,255,255,.5); }
+    .code { position: absolute; inset: 0; display: none; background: var(--code-bg); }
+    .code.on { display: block; }
+    .code .gutter { position: absolute; left: 0; top: 0; bottom: 0; width: 44px; background: #f4f4f4; border-right: 1px solid var(--line2); color: #9a9a9a; text-align: right; padding: 6px 6px 0 0; overflow: hidden; white-space: pre; }
+    .code pre, .code textarea { position: absolute; left: 44px; top: 0; right: 0; bottom: 0; margin: 0; padding: 6px 8px; border: 0; font: 13px/18px Consolas, "Courier New", monospace; tab-size: 4; white-space: pre; overflow: auto; }
+    .code pre { pointer-events: none; color: #000; }
+    .code textarea { background: transparent; color: transparent; caret-color: #000; resize: none; outline: none; }
+    .code .kw { color: #00007f; font-weight: 700; }
+    .code .str { color: #7f007f; }
+    .code .com { color: #007f00; }
+    .code .num { color: #007f7f; }
+    .code .glob { color: #00007f; }
+    .gutter-h, .gutter-v { background: var(--bg); }
+    .gutter-v { cursor: col-resize; border-left: 1px solid var(--line); }
+    .gutter-h { cursor: row-resize; border-top: 1px solid var(--line); }
+
+    .panel { display: flex; flex-direction: column; min-height: 0; background: var(--panel); border-left: 1px solid var(--line); }
+    .panel h3 { margin: 0; height: 22px; display: flex; align-items: center; padding: 0 8px; font-size: 12px; font-weight: 600; background: var(--head); border-bottom: 1px solid var(--line); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .side { display: grid; grid-template-rows: 1fr 5px 1fr; min-height: 0; }
+    .filter { margin: 3px; height: 21px; border: 1px solid var(--line); padding: 0 6px; font: inherit; }
+    .tree { flex: 1; overflow: auto; outline: none; padding-bottom: 20px; }
+    .node { display: flex; align-items: center; height: 19px; padding-right: 6px; white-space: nowrap; cursor: default; user-select: none; }
+    .node:hover { background: var(--hover); }
+    .node.sel { background: var(--sel); box-shadow: inset 0 0 0 1px var(--sel-line); }
+    .node.drop { box-shadow: inset 0 0 0 2px var(--blue); }
+    .node .tw { width: 14px; flex: none; text-align: center; color: #555; font-size: 9px; cursor: pointer; }
+    .node svg { width: 16px; height: 16px; flex: none; margin-right: 4px; }
+    .node .nm { overflow: hidden; text-overflow: ellipsis; }
+    .node input { font: inherit; height: 17px; padding: 0 2px; border: 1px solid var(--blue); width: 150px; }
+    .props { flex: 1; overflow: auto; }
+    .props .cat { height: 19px; display: flex; align-items: center; padding-left: 4px; background: #ececec; border-bottom: 1px solid var(--line2); font-weight: 600; cursor: pointer; user-select: none; }
+    .props .cat::before { content: '▾'; width: 14px; font-size: 9px; color: #555; }
+    .props .cat.shut::before { content: '▸'; }
+    .props .p { display: grid; grid-template-columns: 44% 56%; border-bottom: 1px solid var(--line2); min-height: 19px; }
+    .props .p > label { padding: 1px 4px 0 18px; border-right: 1px solid var(--line2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .props .p > div { display: flex; align-items: center; min-width: 0; padding: 0 2px; }
+    .props input[type=text], .props select { width: 100%; height: 18px; border: 1px solid transparent; background: transparent; font: inherit; padding: 0 2px; min-width: 0; }
+    .props input[type=text]:hover, .props select:hover { border-color: var(--line); }
+    .props input[type=text]:focus { border-color: var(--blue); background: #fff; outline: none; }
+    .props input[readonly] { color: var(--muted); }
+    .props .sw { width: 14px; height: 12px; flex: none; border: 1px solid #555; margin: 0 4px 0 2px; cursor: pointer; }
+    .props .btnlink { border: 0; background: none; color: var(--blue); cursor: pointer; padding: 0 2px; text-decoration: underline; }
+    .props .empty { padding: 10px; color: var(--muted); }
+    .output { display: flex; flex-direction: column; min-height: 0; background: #fff; }
+    .output h3 { margin: 0; height: 20px; display: flex; align-items: center; padding: 0 8px; font-size: 12px; font-weight: 600; background: var(--head); border-bottom: 1px solid var(--line); }
+    .log { flex: 1; overflow: auto; padding: 2px 6px; font: 12px/16px Consolas, "Courier New", monospace; white-space: pre-wrap; }
+    .log .warn { color: #c46a00; } .log .err { color: #d00; } .log .info { color: #1a5fb4; }
+    .status { display: flex; align-items: center; gap: 14px; padding: 0 8px; background: var(--file); color: #fff; font-size: 11px; white-space: nowrap; overflow: hidden; }
+    .status a { color: #fff; }
+
+    /* menus and dialogs */
+    .menu { position: fixed; z-index: 50; min-width: 190px; background: #fff; border: 1px solid #a7a7a7; box-shadow: 2px 3px 8px rgba(0,0,0,.25); padding: 3px 0; }
+    .menu button { display: flex; width: 100%; align-items: center; gap: 8px; border: 0; background: none; padding: 4px 22px 4px 10px; text-align: left; cursor: pointer; white-space: nowrap; }
+    .menu button:hover { background: #dcebfb; }
+    .menu button:disabled { color: #aaa; background: none; cursor: default; }
+    .menu button kbd { margin-left: auto; padding-left: 20px; color: var(--muted); font: inherit; }
+    .menu hr { border: 0; border-top: 1px solid var(--line2); margin: 3px 0; }
+    .menu .lbl { padding: 3px 10px; color: var(--muted); font-size: 11px; }
+    .filemenu { width: 300px; padding: 6px 0; }
+    .filemenu button { padding: 7px 16px; }
+    .palette { display: grid; grid-template-columns: repeat(16, 16px); gap: 2px; padding: 6px; }
+    .palette button { width: 16px; height: 16px; border: 1px solid rgba(0,0,0,.35); padding: 0; cursor: pointer; }
+    .palette button:hover { outline: 2px solid var(--blue); }
+    .palette .name { grid-column: 1 / -1; height: 16px; color: var(--muted); }
+    .dialog { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; background: rgba(0,0,0,.25); }
+    .dialog .box { width: min(420px, calc(100vw - 32px)); max-height: calc(100vh - 40px); display: flex; flex-direction: column; background: #fff; border: 1px solid #888; box-shadow: 0 8px 30px rgba(0,0,0,.35); }
+    .dialog h4 { margin: 0; padding: 8px 12px; background: var(--head); border-bottom: 1px solid var(--line); font-size: 13px; }
+    .dialog .body { padding: 10px 12px; overflow: auto; }
+    .dialog .list { height: 300px; overflow: auto; border: 1px solid var(--line); margin-top: 6px; }
+    .dialog .list .node { padding-left: 6px; }
+    .dialog .btns { display: flex; justify-content: flex-end; gap: 6px; padding: 8px 12px; border-top: 1px solid var(--line2); }
+    .dialog .btns button, .dialog input[type=text] { height: 24px; padding: 0 12px; border: 1px solid #adadad; background: #f2f2f2; border-radius: 2px; cursor: pointer; }
+    .dialog input[type=text] { width: 100%; background: #fff; cursor: text; padding: 0 6px; }
+    .dialog .btns .primary { background: var(--blue); border-color: var(--blue); color: #fff; }
+    .dialog p { margin: 0 0 8px; }
+    .start { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 10px; }
+    .start button { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 6px; border: 1px solid var(--line); background: #fafafa; cursor: pointer; border-radius: 3px; }
+    .start button:hover { border-color: var(--blue); background: #eef5fd; }
+    .start .thumb { width: 92px; height: 60px; border-radius: 2px; }
+    .start small { color: var(--muted); }
+
+    @media (max-width: 760px) {
+      .main { grid-template-columns: 1fr; grid-template-rows: 1fr 0 300px; }
+      .gutter-v { display: none; }
+      .center { grid-template-rows: 24px 1fr 0 70px; }
+      .gutter-h { display: none; }
+      .side { grid-template-rows: 1fr 0 1fr; }
+      .side .gutter-h { display: none; }
+      .panel { border-left: 0; border-top: 1px solid var(--line); }
+      .ribbon { height: 78px; }
+      .big { min-width: 40px; height: 54px; }
+      .tabs button { padding: 0 9px; }
+      .tabs .title { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <symbol id="ic-part" viewBox="0 0 16 16"><path d="M8 1.5 14 4.6v6.8L8 14.5 2 11.4V4.6z" fill="#a3a2a5" stroke="#555" stroke-width=".8"/><path d="M2 4.6 8 7.7l6-3.1M8 7.7v6.8" fill="none" stroke="#555" stroke-width=".8"/><path d="M8 1.5 14 4.6 8 7.7 2 4.6z" fill="#c9c9cb"/></symbol>
+      <symbol id="ic-model" viewBox="0 0 16 16"><g stroke="#555" stroke-width=".7"><path d="M4.5 1.5 8 3.2v3.6L4.5 8.5 1 6.8V3.2z" fill="#9ec5ef"/><path d="M11.5 1.5 15 3.2v3.6l-3.5 1.7L8 6.8V3.2z" fill="#f2c66d"/><path d="M8 7.5l3.5 1.7v3.6L8 14.5l-3.5-1.7V9.2z" fill="#9fd39b"/></g></symbol>
+      <symbol id="ic-script" viewBox="0 0 16 16"><path d="M3.5 1.5h7l2.5 2.5v10.5h-9.5z" fill="#fff" stroke="#666"/><path d="M5.5 5h5M5.5 7.5h5M5.5 10h3.5" stroke="#5a7fc0"/></symbol>
+      <symbol id="ic-localscript" viewBox="0 0 16 16"><path d="M3.5 1.5h7l2.5 2.5v10.5h-9.5z" fill="#fff" stroke="#666"/><path d="M5.5 5h5M5.5 7.5h3" stroke="#5a7fc0"/><circle cx="10.5" cy="10.5" r="2" fill="#2a8ad4"/><path d="M7.8 14.5a2.7 2.7 0 0 1 5.4 0z" fill="#2a8ad4"/></symbol>
+      <symbol id="ic-modulescript" viewBox="0 0 16 16"><path d="M3.5 1.5h7l2.5 2.5v10.5h-9.5z" fill="#fff" stroke="#666"/><path d="M5.5 5h5M5.5 7.5h5" stroke="#8a5ac0"/><rect x="8" y="9" width="4.5" height="4.5" fill="#8a5ac0"/></symbol>
+      <symbol id="ic-folder" viewBox="0 0 16 16"><path d="M1.5 3.5h5l1.5 1.5h6.5v8.5h-13z" fill="#f4c95d" stroke="#b58a1e" stroke-width=".8"/></symbol>
+      <symbol id="ic-workspace" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.3" fill="#79b8ef" stroke="#2b6fb3"/><path d="M3 6.5c2 1 3 .2 4-1s3-1 4.5.3M4.5 11.5c1.5-1.4 3-.7 4.5-1.5s2.5-.3 3.8.6" fill="none" stroke="#3a9a46" stroke-width="1.6"/></symbol>
+      <symbol id="ic-lighting" viewBox="0 0 16 16"><circle cx="8" cy="8" r="3.2" fill="#ffd23f" stroke="#c99400"/><path d="M8 .8v2.4M8 12.8v2.4M.8 8h2.4M12.8 8h2.4M2.9 2.9l1.7 1.7M11.4 11.4l1.7 1.7M2.9 13.1l1.7-1.7M11.4 4.6l1.7-1.7" stroke="#e0a800" stroke-width="1.2"/></symbol>
+      <symbol id="ic-players" viewBox="0 0 16 16"><circle cx="8" cy="4.5" r="2.7" fill="#f5d07a" stroke="#9a7a2a" stroke-width=".7"/><path d="M3 15c0-3.6 2.2-6 5-6s5 2.4 5 6z" fill="#3c8fd8"/></symbol>
+      <symbol id="ic-service" viewBox="0 0 16 16"><path d="M7 1h2l.4 2 1.4.6 1.7-1.2 1.4 1.4-1.2 1.7.6 1.4 2 .4v2l-2 .4-.6 1.4 1.2 1.7-1.4 1.4-1.7-1.2-1.4.6L9 15H7l-.4-2-1.4-.6-1.7 1.2-1.4-1.4 1.2-1.7-.6-1.4L1 9V7l2-.4.6-1.4-1.2-1.7 1.4-1.4 1.7 1.2 1.4-.6z" fill="#8d9aa8"/><circle cx="8" cy="8" r="2.3" fill="#fff"/></symbol>
+      <symbol id="ic-light" viewBox="0 0 16 16"><path d="M8 1.5a4.5 4.5 0 0 0-2.6 8.2V12h5.2V9.7A4.5 4.5 0 0 0 8 1.5z" fill="#ffe680" stroke="#b39200"/><path d="M5.6 13.5h4.8" stroke="#777" stroke-width="1.5"/></symbol>
+      <symbol id="ic-sound" viewBox="0 0 16 16"><path d="M2 6h3l4-3.5v11L5 10H2z" fill="#6c7a89"/><path d="M11 5.5c1.3 1.4 1.3 3.6 0 5M12.8 3.6c2.3 2.5 2.3 6.3 0 8.8" fill="none" stroke="#6c7a89" stroke-width="1.2"/></symbol>
+      <symbol id="ic-value" viewBox="0 0 16 16"><path d="M1.5 8 6 3h8.5v10H6z" fill="#e7eef7" stroke="#5b7a99"/><circle cx="5.5" cy="8" r="1.2" fill="#5b7a99"/></symbol>
+      <symbol id="ic-gui" viewBox="0 0 16 16"><rect x="1.5" y="2.5" width="13" height="11" fill="#fff" stroke="#3f7cc2"/><rect x="1.5" y="2.5" width="13" height="2.5" fill="#3f7cc2"/><rect x="4" y="7.5" width="8" height="3" fill="#cfe1f5"/></symbol>
+      <symbol id="ic-camera" viewBox="0 0 16 16"><rect x="1.5" y="4.5" width="9" height="7.5" rx="1" fill="#5d6d7e"/><path d="M10.5 7l4-2.5v7l-4-2.5z" fill="#5d6d7e"/></symbol>
+      <symbol id="ic-humanoid" viewBox="0 0 16 16"><rect x="5.5" y="1" width="5" height="4" rx="1.6" fill="#f5d07a"/><rect x="4.5" y="5.5" width="7" height="5" fill="#3c8fd8"/><rect x="2.3" y="5.5" width="2" height="5" fill="#f5d07a"/><rect x="11.7" y="5.5" width="2" height="5" fill="#f5d07a"/><rect x="4.5" y="10.5" width="3.3" height="4.5" fill="#3a8f3a"/><rect x="8.2" y="10.5" width="3.3" height="4.5" fill="#3a8f3a"/></symbol>
+      <symbol id="ic-mesh" viewBox="0 0 16 16"><path d="M8 1.5 14 4.6v6.8L8 14.5 2 11.4V4.6z" fill="#8ec0f0" stroke="#2c6aa8" stroke-width=".8"/><path d="M2 4.6 8 7.7l6-3.1M8 7.7v6.8M5 3 11 6.2M11 3 5 6.2" fill="none" stroke="#2c6aa8" stroke-width=".6"/></symbol>
+      <symbol id="ic-weld" viewBox="0 0 16 16"><rect x="1.5" y="5.5" width="7" height="5" rx="2.5" fill="none" stroke="#7a7a7a" stroke-width="1.6"/><rect x="7.5" y="5.5" width="7" height="5" rx="2.5" fill="none" stroke="#7a7a7a" stroke-width="1.6"/></symbol>
+      <symbol id="ic-spawn" viewBox="0 0 16 16"><rect x="1.5" y="9.5" width="13" height="4" fill="#a3a2a5" stroke="#555" stroke-width=".8"/><path d="M8 1.5v7M5 5.5l3 3 3-3" fill="none" stroke="#2a9a3a" stroke-width="1.8"/></symbol>
+      <symbol id="ic-seat" viewBox="0 0 16 16"><path d="M3 2v8h9v4M3 10v4M3 8h9" fill="none" stroke="#8a5a2a" stroke-width="2"/></symbol>
+      <symbol id="ic-tool" viewBox="0 0 16 16"><path d="M9.5 2.5 13.5 6.5 11 7 5 13l-2-2 6-6z" fill="#9aa5b1" stroke="#555" stroke-width=".7"/></symbol>
+      <symbol id="ic-remote" viewBox="0 0 16 16"><path d="M9 1 3.5 9H8l-1 6 5.5-8H8z" fill="#f0a52a" stroke="#a86b00" stroke-width=".6"/></symbol>
+      <symbol id="ic-effect" viewBox="0 0 16 16"><path d="M8 1.5c1 3 4 4 4 8a4 4 0 0 1-8 0c0-2 1-3 2-4 0 2 1 3 2 3-1-3 0-5 0-7z" fill="#ff8a2a" stroke="#c4520a" stroke-width=".6"/></symbol>
+      <symbol id="ic-decal" viewBox="0 0 16 16"><rect x="1.5" y="2.5" width="13" height="11" fill="#fff" stroke="#777"/><circle cx="5.5" cy="6" r="1.6" fill="#f2b02a"/><path d="M2 13l4.5-4.5 3 3 2-2 3 3.5z" fill="#4c9a4c"/></symbol>
+      <symbol id="ic-team" viewBox="0 0 16 16"><path d="M3 1.5v13" stroke="#555" stroke-width="1.3"/><path d="M3.6 2h9.4l-2.4 3 2.4 3H3.6z" fill="#e04848"/></symbol>
+      <symbol id="ic-sky" viewBox="0 0 16 16"><rect x="1.5" y="2.5" width="13" height="11" rx="1" fill="#8cc3f2"/><path d="M4 10.5a2 2 0 0 1 .5-3.9 3 3 0 0 1 5.6-.4 2.2 2.2 0 0 1 2 4.3z" fill="#fff"/></symbol>
+      <symbol id="ic-click" viewBox="0 0 16 16"><path d="M5 2v9.5l2.3-2.3 1.8 4.3 1.7-.7-1.8-4.3h3.2z" fill="#fff" stroke="#333" stroke-width=".9" stroke-linejoin="round"/></symbol>
+      <symbol id="ic-body" viewBox="0 0 16 16"><path d="M2 8h9M8 4.5 11.5 8 8 11.5" fill="none" stroke="#7a4ad0" stroke-width="2"/><circle cx="13" cy="8" r="1.6" fill="#7a4ad0"/></symbol>
+      <!-- ribbon -->
+      <symbol id="ib-select" viewBox="0 0 28 28"><path d="M8 3v19l4.6-4.4 3.4 7.4 3.2-1.5-3.4-7.3H22z" fill="#fff" stroke="#222" stroke-width="1.3" stroke-linejoin="round"/></symbol>
+      <symbol id="ib-move" viewBox="0 0 28 28"><path d="M14 2.5l4 4.5h-2.7v5.7H21V10l4.5 4L21 18v-2.7h-5.7V21H18l-4 4.5-4-4.5h2.7v-5.7H7V18l-4.5-4L7 10v2.7h5.7V7H10z" fill="#3a8ee6" stroke="#1d5fa8" stroke-linejoin="round"/></symbol>
+      <symbol id="ib-scale" viewBox="0 0 28 28"><rect x="3.5" y="10.5" width="14" height="14" fill="#c7ddf5" stroke="#1d5fa8"/><path d="M13 15 24 4m0 0h-6.5M24 4v6.5" fill="none" stroke="#1d5fa8" stroke-width="2"/></symbol>
+      <symbol id="ib-rotate" viewBox="0 0 28 28"><path d="M22.5 14a8.5 8.5 0 1 1-2.7-6.2" fill="none" stroke="#1d5fa8" stroke-width="2.4"/><path d="M23.5 3.5v7h-7z" fill="#1d5fa8"/></symbol>
+      <symbol id="ib-part" viewBox="0 0 28 28"><path d="M14 3 25 8.5v11L14 25 3 19.5v-11z" fill="#a3a2a5" stroke="#444"/><path d="M3 8.5 14 14l11-5.5M14 14v11" fill="none" stroke="#444"/><path d="M14 3 25 8.5 14 14 3 8.5z" fill="#cfcfd1"/></symbol>
+      <symbol id="ib-play" viewBox="0 0 28 28"><path d="M8 4.5v19l15.5-9.5z" fill="currentColor"/></symbol>
+      <symbol id="ib-paste" viewBox="0 0 28 28"><rect x="5" y="5" width="15" height="19" rx="1.5" fill="#d8b27a" stroke="#7a5a2a"/><rect x="9" y="3" width="7" height="4" rx="1" fill="#888"/><rect x="11" y="11" width="13" height="15" fill="#fff" stroke="#555"/></symbol>
+      <symbol id="ib-group" viewBox="0 0 28 28"><rect x="2.5" y="2.5" width="23" height="23" fill="none" stroke="#1d5fa8" stroke-dasharray="3 2"/><rect x="6" y="6" width="8" height="8" fill="#9ec5ef" stroke="#555"/><rect x="13" y="13" width="9" height="9" fill="#f2c66d" stroke="#555"/></symbol>
+      <symbol id="ib-anchor" viewBox="0 0 28 28"><circle cx="14" cy="5.5" r="2.6" fill="none" stroke="#334" stroke-width="2"/><path d="M14 8v16M8.5 12.5h11M4.5 15.5c0 5 4.5 8.5 9.5 8.5s9.5-3.5 9.5-8.5" fill="none" stroke="#334" stroke-width="2.2"/></symbol>
+      <symbol id="ib-lock" viewBox="0 0 28 28"><rect x="6" y="12.5" width="16" height="12" rx="1.5" fill="#e3b341" stroke="#7a5a00"/><path d="M9.5 12.5V9a4.5 4.5 0 0 1 9 0v3.5" fill="none" stroke="#555" stroke-width="2.2"/></symbol>
+      <symbol id="ib-color" viewBox="0 0 28 28"><path d="M5 22 18 9l3 3L8 25H5z" fill="#ddd" stroke="#555"/><path d="M17 4.5l6.5 6.5-3 3-6.5-6.5z" fill="#d2463c"/><rect x="3" y="24.5" width="22" height="2.5" fill="currentColor"/></symbol>
+      <symbol id="ib-material" viewBox="0 0 28 28"><rect x="3" y="3" width="10" height="10" fill="#b08655"/><rect x="15" y="3" width="10" height="10" fill="#8a8f96"/><rect x="3" y="15" width="10" height="10" fill="#5fa04a"/><rect x="15" y="15" width="10" height="10" fill="#c9c3b0"/></symbol>
+      <symbol id="ib-insert" viewBox="0 0 28 28"><rect x="3.5" y="3.5" width="21" height="21" rx="2" fill="#fff" stroke="#555"/><path d="M14 8v12M8 14h12" stroke="#2a9a3a" stroke-width="3"/></symbol>
+      <symbol id="ib-script" viewBox="0 0 28 28"><path d="M6 2.5h12l4.5 4.5v18.5H6z" fill="#fff" stroke="#555"/><path d="M9.5 9h9M9.5 13h9M9.5 17h6" stroke="#5a7fc0" stroke-width="1.6"/></symbol>
+      <symbol id="ib-light" viewBox="0 0 28 28"><path d="M14 2.5a8 8 0 0 0-4.7 14.5V21h9.4v-4A8 8 0 0 0 14 2.5z" fill="#ffe680" stroke="#b39200"/><path d="M9.5 24h9" stroke="#777" stroke-width="2.4"/></symbol>
+      <symbol id="ib-spawn" viewBox="0 0 28 28"><rect x="2.5" y="17.5" width="23" height="7" fill="#a3a2a5" stroke="#444"/><path d="M14 2.5v12.5M9 10l5 5 5-5" fill="none" stroke="#2a9a3a" stroke-width="3"/></symbol>
+      <symbol id="ib-undo" viewBox="0 0 16 16"><path d="M5.5 3 2 6.5 5.5 10M2.5 6.5H10a4 4 0 0 1 0 8H7" fill="none" stroke="#1d5fa8" stroke-width="1.7"/></symbol>
+      <symbol id="ib-redo" viewBox="0 0 16 16"><path d="M10.5 3 14 6.5 10.5 10M13.5 6.5H6a4 4 0 0 0 0 8h3" fill="none" stroke="#1d5fa8" stroke-width="1.7"/></symbol>
+      <symbol id="ib-copy" viewBox="0 0 16 16"><rect x="2" y="1.5" width="8.5" height="10" fill="#fff" stroke="#555"/><rect x="5.5" y="4.5" width="8.5" height="10" fill="#fff" stroke="#555"/></symbol>
+      <symbol id="ib-cut" viewBox="0 0 16 16"><circle cx="4.5" cy="12" r="2.3" fill="none" stroke="#333" stroke-width="1.2"/><circle cx="11.5" cy="12" r="2.3" fill="none" stroke="#333" stroke-width="1.2"/><path d="M5.8 10 12 1.5M10.2 10 4 1.5" stroke="#555" stroke-width="1.2"/></symbol>
+      <symbol id="ib-dup" viewBox="0 0 16 16"><rect x="1.5" y="1.5" width="8.5" height="8.5" fill="#cfe1f5" stroke="#1d5fa8"/><rect x="6" y="6" width="8.5" height="8.5" fill="#fff" stroke="#1d5fa8"/></symbol>
+      <symbol id="ib-delete" viewBox="0 0 16 16"><path d="M3 3l10 10M13 3 3 13" stroke="#d33" stroke-width="2.2"/></symbol>
+      <symbol id="ib-ungroup" viewBox="0 0 16 16"><rect x="1.5" y="1.5" width="6" height="6" fill="#9ec5ef" stroke="#555"/><rect x="8.5" y="8.5" width="6" height="6" fill="#f2c66d" stroke="#555"/></symbol>
+      <symbol id="ib-focus" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5" fill="none" stroke="#1d5fa8" stroke-width="1.4"/><circle cx="8" cy="8" r="1.6" fill="#1d5fa8"/></symbol>
+    </defs>
+  </svg>
+
+  <div class="app">
+    <div class="tabs" role="tablist">
+      <button class="file" id="file-btn">FILE</button>
+      <button data-page="home" class="on">HOME</button>
+      <button data-page="model">MODEL</button>
+      <button data-page="test">TEST</button>
+      <button data-page="view">VIEW</button>
+      <span class="title" id="title">WebBlox Studio</span>
+    </div>
+    <div class="ribbon">
+      <div class="page on" data-page="home">
+        <div class="group"><div class="row">
+          <button class="big" data-cmd="paste" title="Paste (Ctrl+V)"><svg><use href="#ib-paste"/></svg>Paste</button>
+          <div class="stack">
+            <button class="small" data-cmd="copy" title="Copy (Ctrl+C)"><svg><use href="#ib-copy"/></svg>Copy</button>
+            <button class="small" data-cmd="cut" title="Cut (Ctrl+X)"><svg><use href="#ib-cut"/></svg>Cut</button>
+            <button class="small" data-cmd="duplicate" title="Duplicate (Ctrl+D)"><svg><use href="#ib-dup"/></svg>Duplicate</button>
+          </div></div><div class="cap">Clipboard</div></div>
+        <div class="group"><div class="row">
+          <button class="big on" data-tool="select" title="Select (Ctrl+1)"><svg><use href="#ib-select"/></svg>Select</button>
+          <button class="big" data-tool="move" title="Move (Ctrl+2)"><svg><use href="#ib-move"/></svg>Move</button>
+          <button class="big" data-tool="scale" title="Scale (Ctrl+3)"><svg><use href="#ib-scale"/></svg>Scale</button>
+          <button class="big" data-tool="rotate" title="Rotate (Ctrl+4)"><svg><use href="#ib-rotate"/></svg>Rotate</button>
+        </div><div class="cap">Tools</div></div>
+        <div class="group"><div class="row">
+          <button class="big caret" data-menu="part" title="Insert a part"><svg><use href="#ib-part"/></svg>Part</button>
+          <button class="big" data-cmd="insert" title="Insert Object (Ctrl+I)"><svg><use href="#ib-insert"/></svg>Object</button>
+        </div><div class="cap">Insert</div></div>
+        <div class="group"><div class="row">
+          <button class="big caret" data-menu="color" title="Color"><svg style="color:#a3a2a5" id="color-ic"><use href="#ib-color"/></svg>Color</button>
+          <button class="big caret" data-menu="material" title="Material"><svg><use href="#ib-material"/></svg>Material</button>
+          <div class="stack">
+            <button class="small" data-cmd="group" title="Group (Ctrl+G)"><svg><use href="#ic-model"/></svg>Group</button>
+            <button class="small" data-cmd="ungroup" title="Ungroup (Ctrl+U)"><svg><use href="#ib-ungroup"/></svg>Ungroup</button>
+            <button class="small" data-cmd="lock" title="Lock / unlock"><svg><use href="#ib-lock"/></svg>Lock</button>
+          </div>
+          <button class="big" data-cmd="anchor" title="Anchor / unanchor"><svg><use href="#ib-anchor"/></svg>Anchor</button>
+        </div><div class="cap">Edit</div></div>
+        <div class="group"><div class="row">
+          <button class="big play" data-cmd="play" title="Play your place in WebBlox (F5)"><svg><use href="#ib-play"/></svg>Play</button>
+        </div><div class="cap">Test</div></div>
+      </div>
+      <div class="page" data-page="model">
+        <div class="group"><div class="row">
+          <button class="big" data-tool="select"><svg><use href="#ib-select"/></svg>Select</button>
+          <button class="big" data-tool="move"><svg><use href="#ib-move"/></svg>Move</button>
+          <button class="big" data-tool="scale"><svg><use href="#ib-scale"/></svg>Scale</button>
+          <button class="big" data-tool="rotate"><svg><use href="#ib-rotate"/></svg>Rotate</button>
+        </div><div class="cap">Tools</div></div>
+        <div class="group"><div class="row"><div class="stack">
+          <label class="field"><input type="checkbox" id="snap-rot" checked /> Rotate <input type="text" id="rot-inc" value="15" /> °</label>
+          <label class="field"><input type="checkbox" id="snap-move" checked /> Move <input type="text" id="move-inc" value="1" /> studs</label>
+          <label class="field"><input type="checkbox" id="local-space" checked /> Local space (Ctrl+L)</label>
+        </div></div><div class="cap">Snap to Grid</div></div>
+        <div class="group"><div class="row">
+          <button class="big caret" data-menu="part"><svg><use href="#ib-part"/></svg>Part</button>
+          <button class="big" data-cmd="spawn"><svg><use href="#ib-spawn"/></svg>Spawn</button>
+          <button class="big" data-cmd="script"><svg><use href="#ib-script"/></svg>Script</button>
+          <button class="big" data-cmd="light"><svg><use href="#ib-light"/></svg>Light</button>
+          <button class="big" data-cmd="insert"><svg><use href="#ib-insert"/></svg>Object</button>
+        </div><div class="cap">Insert</div></div>
+        <div class="group"><div class="row">
+          <button class="big" data-cmd="group"><svg><use href="#ib-group"/></svg>Group</button>
+          <div class="stack">
+            <button class="small" data-cmd="ungroup"><svg><use href="#ib-ungroup"/></svg>Ungroup</button>
+            <button class="small" data-cmd="anchor"><svg><use href="#ib-anchor"/></svg>Anchor</button>
+            <button class="small" data-cmd="lock"><svg><use href="#ib-lock"/></svg>Lock</button>
+          </div>
+        </div><div class="cap">Edit</div></div>
+      </div>
+      <div class="page" data-page="test">
+        <div class="group"><div class="row">
+          <button class="big play" data-cmd="play" title="Play (F5)"><svg><use href="#ib-play"/></svg>Play</button>
+        </div><div class="cap">Test</div></div>
+        <div class="group"><div class="row"><div class="stack" style="padding-top:4px;max-width:330px;white-space:normal;color:var(--muted)">
+          Play opens your place in the WebBlox game engine in a new tab, the way it will run for players. Scripts run there.
+        </div></div><div class="cap">How it works</div></div>
+      </div>
+      <div class="page" data-page="view">
+        <div class="group"><div class="row">
+          <div class="stack">
+            <button class="small" data-cmd="toggle-explorer"><svg><use href="#ic-folder"/></svg>Explorer</button>
+            <button class="small" data-cmd="toggle-props"><svg><use href="#ic-value"/></svg>Properties</button>
+            <button class="small" data-cmd="toggle-output"><svg><use href="#ib-script"/></svg>Output</button>
+          </div>
+          <button class="big" data-cmd="focus" title="Look at the selection (F)"><svg><use href="#ib-focus"/></svg>Focus</button>
+        </div><div class="cap">Show</div></div>
+      </div>
+    </div>
+
+    <div class="main">
+      <div class="center">
+        <div class="doctabs" id="doctabs"></div>
+        <div class="view" id="view">
+          <canvas id="canvas" tabindex="0"></canvas>
+          <div class="hint" id="hint">Right-drag to look around · W A S D Q E to fly · F to focus · Ctrl+2/3/4 move, scale, rotate</div>
+          <div class="code" id="code"><div class="gutter" id="gutter"></div><pre id="code-hl"></pre><textarea id="code-ta" spellcheck="false" wrap="off" aria-label="Script source"></textarea></div>
+        </div>
+        <div class="gutter-h" data-resize="output"></div>
+        <div class="output" id="output-panel"><h3>Output</h3><div class="log" id="log"></div></div>
+      </div>
+      <div class="gutter-v" data-resize="side"></div>
+      <div class="side" id="side">
+        <div class="panel" id="explorer-panel"><h3>Explorer</h3><input class="filter" id="filter" placeholder="Filter workspace (Ctrl+Shift+X)" /><div class="tree" id="tree" tabindex="0"></div></div>
+        <div class="gutter-h" data-resize="props"></div>
+        <div class="panel" id="props-panel"><h3 id="props-title">Properties</h3><div class="props" id="props"></div></div>
+      </div>
+    </div>
+    <div class="status"><span id="st-sel">Nothing selected</span><span id="st-pos"></span><span style="margin-left:auto"><a href="index.html">Back to WebBlox</a></span></div>
+  </div>
+  <input type="file" id="open-file" accept=".rbxl,.rbxlx,.rbxm,.rbxmx" hidden />
+
+  <script src="three.min.js"></script>
+  <script src="vendor/fzstd.js"></script>
+  <script src="rbxfile.js"></script>
+  <script src="studio.js"></script>
+</body>
+</html>

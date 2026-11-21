@@ -245,7 +245,7 @@
       <nav class="hnav">
         <a href="index.html#games">Games</a>
         <a href="catalog.html"${on('catalog')}>Catalog</a>
-        <button type="button" onclick="WB.pickPlace()">Develop</button>
+        <a href="studio.html">Develop</a>
         <a href="catalog.html#robux">ROBUX</a>
       </nav>
       <label class="search"><input id="q" type="search" placeholder="${esc(searchPlaceholder || 'Search')}" autocomplete="off" aria-label="Search" /><svg class="i"><use href="#i-search"/></svg></label>
@@ -270,13 +270,14 @@
         <li><a href="index.html#news"><svg class="i"><use href="#i-blog"/></svg>Blog</a></li>
         <li><a href="catalog.html"${on('catalog')}><svg class="i"><use href="#i-shop"/></svg>Shop</a></li>
       </ul>
-      <a class="upgrade" href="#" onclick="WB.pickPlace(); return false;">Upload a Place</a>
+      <a class="upgrade" href="studio.html">Create in Studio</a>
+      <a class="upgrade alt" href="#" onclick="WB.pickPlace(); return false;">Upload a Place</a>
       <h4>Events</h4>
       <a class="event" href="index.html#game=nds">Disaster Weekend<small>Survive every disaster!</small></a>
     </aside>
     <div class="scrim" onclick="document.body.classList.remove('nav-open')"></div>
     <div class="confirm launch" id="launch"><div class="box"><div class="spinner"></div><h3>WebBlox is now loading.</h3><p>Get ready to play!</p></div></div>
-    <input type="file" id="rbxl" accept=".rbxl,.rbxlx" hidden />`;
+    <input type="file" id="rbxl" accept=".rbxl,.rbxlx,.rbxm,.rbxmx" hidden />`;
     document.body.insertAdjacentHTML('afterbegin', html);
     document.getElementById('who').textContent = WB.displayName();
     WB.updateRobux();
@@ -371,7 +372,7 @@
       alert('Could not open that file in this browser (storage is blocked or full).');
       return;
     }
-    WB.launch('play.html?custom=1&title=' + encodeURIComponent(f.name.replace(/\.rbxlx?$/i, '')));
+    WB.launch('play.html?custom=1&title=' + encodeURIComponent(f.name.replace(/\.rbx[lm]x?$/i, '')));
   }
 
   window.WB = WB;

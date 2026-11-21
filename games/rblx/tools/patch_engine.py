@@ -47,6 +47,15 @@ repeatable on a fresh copy of the original files).
    "webblox-page", which play.html listens to (leaving from the in-game menu, the
    frame rate for Auto graphics).
 
+10. Shift lock keeps the mouse locked. The engine asked for pointer lock only after
+   eight centerCursor calls inside 300 ms (never, below about 27 FPS) and let go of it
+   whenever 50 ms passed without one -- any slow frame. On a Chromebook the lock went on
+   and off many times a second, the cursor came loose between locks, and the shift lock
+   icon and camera jumped around. Now three calls lock it and it is kept until 250 ms
+   pass without one (shift lock was turned off). The camera also ignores the mouse
+   move that comes with the lock turning on or off and impossible jumps, and a refused
+   lock no longer leaves an unhandled promise error.
+
 usage: python3 patch_engine.py ../rblx.wasm ../rblx.js
 """
 import sys
@@ -224,6 +233,21 @@ def patch_join(d):
     return bytes(out)
 
 
+# 10. Shift lock: BrowserUserInput::centerCursor asks for the lock once its call count in the
+#    current 300 ms window reaches 7 (`local.get 2; i32.const 7; i32.lt_s; br_if 0`) -> 2, and
+#    mainLoop lets go after 50.0 ms without a centerCursor call (`f64.sub; f64.const 50;
+#    f64.gt; if; call emscripten_exit_pointerlock`) -> 250.0 ms. Same-size edits.
+LOCK_COUNT_OLD = bytes.fromhex('20024107480d00')
+LOCK_COUNT_NEW = bytes.fromhex('20024102480d00')
+LOCK_HOLD_OLD = bytes.fromhex('a1' '440000000000004940' '64044010')
+LOCK_HOLD_NEW = bytes.fromhex('a1' '440000000000406f40' '64044010')
+
+
+def patch_mouselock(d):
+    assert d.count(LOCK_COUNT_OLD) == 1 and d.count(LOCK_HOLD_OLD) == 1, 'pointer lock code not found'
+    return d.replace(LOCK_COUNT_OLD, LOCK_COUNT_NEW).replace(LOCK_HOLD_OLD, LOCK_HOLD_NEW)
+
+
 def patch_js(s, PUSHSTRING_TABLE_INDEX):
     old_vii = 'function invoke_vii(index,a1,a2){var sp=stackSave();try{getWasmTableEntry(index)(a1,a2)}catch(e){stackRestore(sp);if(!(e instanceof EmscriptenEH))throw e;_setThrew(1,0)}}'
     old_iiii = 'function invoke_iiii(index,a1,a2,a3){var sp=stackSave();try{return getWasmTableEntry(index)(a1,a2,a3)}catch(e){stackRestore(sp);if(!(e instanceof EmscriptenEH))throw e;_setThrew(1,0)}}'
@@ -290,7 +314,27 @@ def patch_js(s, PUSHSTRING_TABLE_INDEX):
     old_xhr = 'var xhr=new XMLHttpRequest;xhr.withCredentials=!!'
     assert s.count(old_xhr) == 1
     s = s.replace(old_xhr, 'if(url_.indexOf("https://webblox.signal/")===0){try{(globalThis.__wbSignal||(globalThis.__wbSignal=new BroadcastChannel("webblox-page"))).postMessage(url_.slice(23))}catch(e){}url_="data:text/plain,ok"}' + old_xhr)
+    s = patch_js_mouselock(s)
     return s
+
+
+def patch_js_mouselock(s):
+    # 10. requestPointerLock returns a promise in current browsers; don't leave a refusal unhandled
+    old = 'try{canvas.requestPointerLock();return 1}'
+    assert s.count(old) == 1
+    s = s.replace(old, 'try{var lockPromise=canvas.requestPointerLock();if(lockPromise&&lockPromise.catch)lockPromise.catch(function(){});return 1}')
+    #     and the camera ignores the mouse move that comes with the lock turning on or off, and
+    #     impossible jumps (over 600 px in one event) that browsers sometimes send while locked
+    mx = 'HEAP32),idx+8,"storing")]=e["movementX"];'
+    my = 'HEAP32),idx+9,"storing")]=e["movementY"];'
+    fill = 'var fillMouseEventData=(eventStruct,e,target)=>{'
+    assert s.count(mx) == 1 and s.count(my) == 1 and s.count(fill) == 1
+    s = s.replace(mx, 'HEAP32),idx+8,"storing")]=wbMovement(e,0);').replace(my, 'HEAP32),idx+9,"storing")]=wbMovement(e,1);')
+    guard = ('var wbMove={locked:false,dy:0};function wbMovement(e,axis){if(axis)return wbMove.dy;'
+             'var dx=e.movementX|0,dy=e.movementY|0,locked=!!document.pointerLockElement;'
+             'if(locked!==wbMove.locked){wbMove.locked=locked;dx=dy=0}else if(Math.abs(dx)>600||Math.abs(dy)>600){dx=dy=0}'
+             'wbMove.dy=dy;return dx}')
+    return s.replace(fill, guard + fill)
 
 
 if __name__ == '__main__':
@@ -299,6 +343,7 @@ if __name__ == '__main__':
     wasm_path, js_path = sys.argv[1], sys.argv[2]
     wasm, idx = patch(open(wasm_path, 'rb').read())
     wasm = patch_join(wasm)
+    wasm = patch_mouselock(wasm)
     js = patch_js(open(js_path).read(), idx[2])
     open(wasm_path, 'wb').write(wasm)
     open(js_path, 'w').write(js)
