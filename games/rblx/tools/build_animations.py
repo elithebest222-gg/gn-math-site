@@ -245,7 +245,9 @@ def animate_logic(read):
     assert not re.search(r'\bscript\b', re.sub(r'--.*', '', body))
     # swap default roblox.com animation ids for the animations registered below
     for old, new in [('animTable[name][idx].anim = childPart', 'animTable[name][idx].anim = remapAnimation(childPart)'),
-                     ('animTable[name][idx].anim.AnimationId = anim.id', 'animTable[name][idx].anim.AnimationId = remapId(anim.id)')]:
+                     ('animTable[name][idx].anim.AnimationId = anim.id', 'animTable[name][idx].anim.AnimationId = remapId(anim.id)'),
+                     # tell WebBloxPlayers.lua what we're playing, so other players see it too
+                     ('\t\tcurrentAnim = animName\n', '\t\tcurrentAnim = animName\n\t\tif WEBBLOX then WEBBLOX.anim = animName end\n')]:
         assert body.count(old) == 1, old
         body = body.replace(old, new)
     return names, '\n'.join('\t' + line for line in body.splitlines())
@@ -295,6 +297,7 @@ for name, data in pairs(ANIMATIONS) do
 	end)
 	if ok and id then registered[name] = id end
 end
+if WEBBLOX then WEBBLOX.anims = registered end   -- shared with WebBloxPlayers.lua (other players' avatars)
 
 local function remapId(id)
 	local s = tostring(id)

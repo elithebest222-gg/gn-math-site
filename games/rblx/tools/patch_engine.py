@@ -17,8 +17,12 @@ repeatable on a fresh copy of the original files).
 
 3. A malformed request URL no longer kills a worker thread.
 
-4. Multiplayer groundwork for ?replication=1 (see relay/): fixes a message-length
+4. Lite-multiplayer sync requests skip the engine's custom headers (no CORS
+   preflight per request).
+
+5. Groundwork for the engine's own ?replication=1 mode: fixes a message-length
    bug in Emscripten's socket bridge and lets the page set Module.bridgeUrl.
+   (That mode still can't work: the build is missing RakNet's reliable-send code.)
 
 usage: python3 patch_engine.py ../rblx.wasm ../rblx.js
 """
@@ -194,6 +198,12 @@ def patch_js(s, PUSHSTRING_TABLE_INDEX):
     old_open = 'xhr.open(requestMethod,url_,!fetchAttrSynchronous,userNameStr,passwordStr);'
     assert s.count(old_open) == 1
     s = s.replace(old_open, 'try{xhr.open(requestMethod,url_,!fetchAttrSynchronous,userNameStr,passwordStr)}catch(e){onerror(fetch,"invalid url");return}')
+
+    # WebBlox lite-multiplayer sync requests (scripts/WebBloxPlayers.lua -> /sync?room=...) skip the
+    # engine's custom headers: they'd force a CORS preflight before every request.
+    old_hdr = 'var keyStr=UTF8ToString(key);var valueStr=UTF8ToString(value);xhr.setRequestHeader(keyStr,valueStr)'
+    assert s.count(old_hdr) == 1
+    s = s.replace(old_hdr, 'var keyStr=UTF8ToString(key);var valueStr=UTF8ToString(value);if(!/\\/sync\\?room=/.test(url_))xhr.setRequestHeader(keyStr,valueStr)')
 
     # Multiplayer groundwork (only used with ?replication=1):
     # - Emscripten's socket bridge sends getsockname/getpeername with a negative length

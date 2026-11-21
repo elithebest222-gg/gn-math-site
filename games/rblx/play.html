@@ -6,6 +6,7 @@
   <title>WebBlox</title>
   <link rel="icon" href="favicon.png" />
   <link rel="stylesheet" crossorigin="anonymous" href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600;700&display=swap" />
+  <script src="config.js"></script>
   <style>
     :root { --panel: #232527; --text: #fff; --muted: #b8b8b8; --blue: #00a2ff; --green: #02b757; --red: #d86868; }
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -63,7 +64,7 @@
     try { Object.defineProperty(navigator, 'hardwareConcurrency', { get: () => 32 }); } catch (e) {}
 
     (async function () {
-      const VERSION = '35';                       // bump when rblx.js / rblx.wasm change
+      const VERSION = '36';                       // bump when rblx.js / rblx.wasm change
       const CHUNKS = 12, CHUNK_SIZE = 25165824, DATA_SIZE = 289418733;
       const $ = id => document.getElementById(id);
       const canvas = $('canvas'), loading = $('loading');
@@ -123,8 +124,10 @@
       // Warm the HTTP cache for the engine while the game data downloads.
       fetch('rblx.js?v=' + VERSION).catch(() => {});
       fetch('rblx.wasm?v=' + VERSION).catch(() => {});
-      // Core script that plays the default character animations (the engine never adds Animate).
-      const animateP = fetch('scripts/WebBloxAnimate.lua?v=' + VERSION).then(r => r.ok ? r.text() : null).catch(() => null);
+      // Client scripts: default character animations (the engine never runs Animate), and the
+      // Catalog outfit + lite multiplayer.
+      const luaP = Promise.all(['WebBloxAnimate', 'WebBloxPlayers'].map(n =>
+        fetch('scripts/' + n + '.lua?v=' + VERSION).then(r => r.ok ? r.text() : null).catch(() => null)));
 
       // The place to load: an uploaded file (IndexedDB) or one of places/.
       const placeP = (async () => {
@@ -163,19 +166,18 @@
 
       let custom, results;
       try {
-        results = await Promise.all([placeP, dataP, animateP]);
+        results = await Promise.all([placeP, dataP, luaP]);
       } catch (e) {
         return fail('Couldn\'t download the game.', e.message);
       }
       custom = results[0];
-      const animateSource = results[2];
+      const [animateSource, playersSource] = results[2];
       status('Starting game engine…', 84);
 
       let placeStarted = false;
       window.Module = {
         canvas,
         locateFile: p => p === 'rblx.wasm' ? 'rblx.wasm?v=' + VERSION : p,
-        bridgeUrl: params.get('relay') || undefined,   // experimental multiplayer (with ?replication=1)
         getPreloadedPackage: name => name.endsWith('rblx.data') ? data.buffer : null,
         print: t => {
           if (DEBUG) console.log(t);
@@ -195,16 +197,15 @@
             try { FS.writeFile('/content/game.rbxl', custom); }
             catch (e) { fail('Couldn\'t open the place file.', e.message); }
           }
-          if (animateSource) {
-            // Run it inside the client's StarterScript, which always runs.
-            try {
-              const starter = '/content/scripts/StarterScript.lua';
-              const marker = 'local RobloxGui = game:GetService("CoreGui"):WaitForChild("RobloxGui")';
-              const src = FS.readFile(starter, { encoding: 'utf8' });
-              const inject = '\n-- WebBlox: default character animations\nspawn(function()\n' + animateSource + '\nend)\n';
-              FS.writeFile(starter, src.includes(marker) ? src.replace(marker, marker + inject) : src + inject);
-            } catch (e) { console.warn('Animations unavailable:', e); }
-          }
+          // Run the client scripts inside the engine's StarterScript, which always runs on the client.
+          try {
+            const starter = '/content/scripts/StarterScript.lua';
+            const marker = 'local RobloxGui = game:GetService("CoreGui"):WaitForChild("RobloxGui")';
+            const src = FS.readFile(starter, { encoding: 'utf8' });
+            let inject = '\n-- WebBlox client scripts\n' + webbloxLua() + '\n';
+            for (const code of [animateSource, playersSource]) if (code) inject += 'spawn(function()\n' + code + '\nend)\n';
+            FS.writeFile(starter, src.includes(marker) ? src.replace(marker, marker + inject) : src + inject);
+          } catch (e) { console.warn('WebBlox client scripts unavailable:', e); }
           status('Loading place…', 88);
           // Safety net: never keep the overlay up forever if the engine is running.
           setTimeout(show, placeStarted ? 120000 : 90000);
@@ -216,6 +217,29 @@
       document.body.appendChild(s);
 
       function isBinaryPlace(b) { return b.length > 8 && String.fromCharCode(...b.subarray(0, 8)) === '<roblox!'; }
+
+      // Settings handed to the client scripts as a Lua table (WEBBLOX): multiplayer server and room,
+      // your name, and the outfit you wear from the Catalog. Everything is sanitized to plain chars.
+      function webbloxLua() {
+        const str = (s, re) => '"' + String(s == null ? '' : s).replace(re || /[^A-Za-z0-9 _.\-]/g, '') + '"';
+        const int = n => (Number.isInteger(+n) && +n > 0 && +n < 100000) ? String(+n) : 'nil';
+        const store = k => { try { return localStorage.getItem(k); } catch (e) { return null; } };
+        let outfit = {};
+        try { outfit = JSON.parse(store('webblox-outfit')) || {}; } catch (e) {}
+        const cfg = window.WEBBLOX_CONFIG || {};
+        const server = String(params.get('server') || cfg.multiplayerServer || '').replace(/\/+$/, '');
+        const okServer = /^https?:\/\/[A-Za-z0-9.\-]+(:\d+)?(\/[A-Za-z0-9._\-\/]*)?$/.test(server) ? server : '';
+        const code = String(params.get('room') || '').toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 12);
+        const slug = String(params.get('map') || (params.get('custom') ? 'custom-' + title : 'natural-disaster-survival'))
+          .toLowerCase().replace(/\.rbxlx?$/, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'game';
+        const room = code ? 'priv-' + code + '-' + slug : 'pub-' + slug;
+        const name = (store('webblox-name') || '').replace(/[^A-Za-z0-9_ ]/g, '').slice(0, 20) || 'Guest ' + (1000 + Math.floor(Math.random() * 9000));
+        const id = Array.from(crypto.getRandomValues(new Uint8Array(10)), b => 'abcdefghijklmnopqrstuvwxyz0123456789'[b % 36]).join('');
+        return 'local WEBBLOX = {\n' +
+          '  mp = { url = ' + str(okServer, /[^A-Za-z0-9.:\/_\-]/g) + ', room = ' + str(room) + ', name = ' + str(name) + ', id = ' + str(id) + ', private = ' + (code ? 'true' : 'false') + ' },\n' +
+          '  look = { skin = ' + int(outfit.skin) + ', shirt = ' + int(outfit.shirt) + ', pants = ' + int(outfit.pants) + ', hat = ' + (outfit.hat ? str(outfit.hat, /[^a-z]/g) : 'nil') + ' },\n' +
+          '}';
+      }
 
       function readUpload() {
         return new Promise(resolve => {

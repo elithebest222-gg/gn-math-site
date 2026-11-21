@@ -1,0 +1,9 @@
+{
+  "name": "webblox-multiplayer-server",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Lite multiplayer server for WebBlox: shares avatar positions and chat between players",
+  "main": "server.js",
+  "scripts": { "start": "node server.js" },
+  "engines": { "node": ">=18" }
+}

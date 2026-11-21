@@ -195,6 +195,7 @@ for name, data in pairs(ANIMATIONS) do
 	end)
 	if ok and id then registered[name] = id end
 end
+if WEBBLOX then WEBBLOX.anims = registered end   -- shared with WebBloxPlayers.lua (other players' avatars)
 
 local function remapId(id)
 	local s = tostring(id)
@@ -476,6 +477,7 @@ local function run(Figure)
 			-- play the animation
 			currentAnimTrack:Play(transitionTime)
 			currentAnim = animName
+			if WEBBLOX then WEBBLOX.anim = animName end
 			currentAnimInstance = anim
 	
 			-- set up keyframe name triggers
