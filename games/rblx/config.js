@@ -10,5 +10,12 @@ window.WEBBLOX_CONFIG = {
   // peer-to-peer, e.g. 'https://webblox-multiplayer.onrender.com'. Leave empty for peer-to-peer.
   multiplayerServer: '',
   // Set to false to turn multiplayer off.
-  multiplayer: true
+  multiplayer: true,
+
+  // The site's owner and moderators, by GN-BLOX account ID (the Admin page and the logged-in
+  // Log In page show yours). They get admin commands in games (:kick, :ban, :m ... type :cmds in
+  // chat) and an [Owner] / [Mod] tag. An ID is made from the account's username and password, so
+  // only someone who knows that password can use it. Example: owners: ['AbC...43 characters'].
+  owners: [],
+  mods: []
 };

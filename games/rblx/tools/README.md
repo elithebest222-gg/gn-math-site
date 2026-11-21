@@ -72,6 +72,21 @@ page (the engine sends them to `wb-api/`, `../coi-serviceworker.js` passes them 
 OrderedDataStores work and are saved on the device per game; nobody owns passes or assets, nobody is in
 a group, and products have plain info, so scripts carry on.
 
+## Accounts, owner and moderators
+
+There's no server behind the site, so accounts work like this: your account ID is a signing key made
+from your username and password (PBKDF2, then Ed25519, in `../site.js`). The same username and password
+give the same ID on any device; nobody without the password can make it. ROBUX, items and outfits stay on
+the device you use.
+
+`../config.js` lists the owner's and moderators' account IDs (`owners`, `mods`); `../admin.html` shows
+yours and writes the lines to paste. Owners and moderators get admin commands in chat (`:kick`, `:ban`,
+`:m`, `:h`, `:kill`, `:respawn`, `:tp`, `:bring`, `:to`, `:speed`, `:god`, `:freeze`... `:cmds` lists them)
+and an [Owner] / [Mod] tag. A command is signed with the account's key; `../p2p.js` passes it to everyone
+through the server's host, and each player's game checks the signature against `config.js` before doing
+anything. Moderators can't act on the owner or each other. Bans keep the player out of that game for a day
+(kept on their device and by the server's host).
+
 ## Studio
 
 `../studio.html` (Develop on the site) is a place editor in the style of 2016 Roblox Studio: Explorer,

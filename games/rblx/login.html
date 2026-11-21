@@ -7,6 +7,7 @@
   <link rel="icon" type="image/png" href="favicon.png" />
   <link rel="stylesheet" crossorigin="anonymous" href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@300;400;600;700&display=swap" />
   <link rel="stylesheet" href="site.css" />
+  <script src="config.js"></script>
   <script src="site.js"></script>
   <style>
     .auth { max-width: 420px; margin: 20px auto 40px; }
@@ -38,14 +39,15 @@
   </main>
   <script>
     const esc = WB.esc;
-    const NOTE = 'GN-BLOX accounts are saved in this browser, on this device only. They are not Roblox accounts: never type your Roblox password here.';
+    const NOTE = 'Your GN-BLOX account ID comes from your username and password, so it\'s the same on every device (on a new device, Sign Up with the same username and password). Your ROBUX, items and outfit stay on the device you use. These are not Roblox accounts: never type your Roblox password here.';
     let mode = location.hash === '#signup' ? 'signup' : 'login';
     function render() {
       const box = document.getElementById('auth');
       if (WB.session()) {
         box.innerHTML = `<div class="who"><div class="av">${WB.avatarImg(WB.look(), 'head', '#e3e3e3')}</div>
           <h2 style="margin-top:12px">${esc(WB.displayName())}</h2>
-          <p>You're logged in as <b>${esc(WB.accountName())}</b>.</p>
+          <p>You're logged in as <b>${esc(WB.accountName())}</b>${WB.role() === 'owner' ? ' <b style="color:#7b1ae2">(Owner)</b>' : WB.role() === 'mod' ? ' <b style="color:#0f8a3c">(Moderator)</b>' : ''}.</p>
+          ${WB.accountId() ? `<p style="font-size:13px;color:var(--muted);word-break:break-all">Account ID: <code>${esc(WB.accountId())}</code> &middot; <a href="admin.html">Admin page</a></p>` : ''}
           <div style="display:flex;gap:8px;justify-content:center"><a class="btn-green" href="index.html">Play</a>
           <button class="btn-white" onclick="WB.logOut(); location.reload()">Log Out</button></div></div>`;
         return;
@@ -63,8 +65,9 @@
       box.querySelectorAll('.tabs button').forEach(b => b.addEventListener('click', () => { mode = b.dataset.m; history.replaceState(null, '', mode === 'signup' ? '#signup' : '#login'); render(); }));
       document.getElementById('f').addEventListener('submit', async e => {
         e.preventDefault();
-        const f = e.target, msg = document.getElementById('msg');
+        const f = e.target, msg = document.getElementById('msg'), go = f.querySelector('.go');
         msg.textContent = '';
+        go.disabled = true; go.textContent = signup ? 'Making your account…' : 'Logging in…';
         try {
           if (signup) {
             if (f.pass.value !== f.pass2.value) throw new Error('The passwords don\'t match.');
@@ -75,6 +78,7 @@
           location.href = 'index.html';
         } catch (err) {
           msg.textContent = err.message;
+          go.disabled = false; go.textContent = signup ? 'Sign Up' : 'Log In';
         }
       });
       setTimeout(() => { const u = document.querySelector('#f input'); if (u) u.focus(); }, 0);

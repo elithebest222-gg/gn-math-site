@@ -75,7 +75,7 @@
     try { Object.defineProperty(navigator, 'hardwareConcurrency', { get: () => 32 }); } catch (e) {}
 
     (async function () {
-      const VERSION = '44';                       // bump when rblx.js / rblx.wasm change
+      const VERSION = '45';                       // bump when rblx.js / rblx.wasm change
       const CHUNKS = 12, CHUNK_SIZE = 25165824, DATA_SIZE = 289418733;
       const $ = id => document.getElementById(id);
       const canvas = $('canvas'), loading = $('loading');
@@ -181,6 +181,7 @@
           detail = (detail || '') + ' (if it keeps happening, send this message to whoever runs this site)';
         }
         failed = true;
+        try { if (document.pointerLockElement) document.exitPointerLock(); } catch (e) {}
         $('err-msg').textContent = msg;
         $('err-detail').textContent = detail || '';
         $('err-detail').style.display = detail ? 'block' : 'none';
@@ -242,7 +243,17 @@
       // peer-to-peer over PeerJS (p2p.js), started now so it connects while the game downloads.
       const mp = multiplayerSettings();
       if (mp.mode === 'p2p') {
-        try { WebBloxP2P.start({ room: mp.room, sid: mp.sid, peer: mp.peer, server: +params.get('ps') || 1 }); }
+        // your account ID (if you're logged in) for owner / moderator commands and tags
+        const W = window.WB || {};
+        const me = W.identity && W.identity();
+        const identity = me ? { pub: me.pub, sign: W.sign } : null;
+        const onKick = info => {
+          const by = info.by ? ' by ' + info.by : '';
+          const why = info.reason ? 'Reason: ' + info.reason : '';
+          if (info.ban) fail('You are banned from this game' + by + '.', [why, 'You can play it again ' + (info.until ? new Date(info.until).toLocaleString() : 'tomorrow') + '.'].filter(Boolean).join(' '));
+          else fail('You were kicked from this server' + by + '.', why);
+        };
+        try { WebBloxP2P.start({ room: mp.room, sid: mp.sid, peer: mp.peer, server: +params.get('ps') || 1, identity, verify: W.verify, roleOf: W.roleOf, onKick }); }
         catch (e) { console.warn('Multiplayer unavailable:', e); mp.url = ''; }
       }
 

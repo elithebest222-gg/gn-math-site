@@ -66,6 +66,9 @@ repeatable on a fresh copy of the original files).
    worker hands them to the game page (webapi.js), which answers them. A failed request used to
    leave the waiting script asleep forever.
 
+13. Shifted symbols can be typed (":" "!" "?" "@" "(" ...) in chat and TextBoxes: the engine dropped
+   any key whose DOM name was a shifted symbol. It now gets the unshifted key with Shift held.
+
 usage: python3 patch_engine.py ../rblx.wasm ../rblx.js
 """
 import sys
@@ -338,6 +341,7 @@ def patch_js(s, PUSHSTRING_TABLE_INDEX):
     s = s.replace(old_xhr, 'if(url_.indexOf("https://webblox.signal/")===0){try{(globalThis.__wbSignal||(globalThis.__wbSignal=new BroadcastChannel("webblox-page"))).postMessage(url_.slice(23))}catch(e){}url_="data:text/plain,ok"}' + old_xhr)
     s = patch_js_mouselock(s)
     s = patch_js_webapi(s)
+    s = patch_js_keys(s)
     return s
 
 
@@ -352,6 +356,24 @@ def patch_js_webapi(s):
     old = 'if(url_.indexOf("https://webblox.signal/")===0)'
     assert s.count(old) == 1
     return s.replace(old, API_JS + old)
+
+
+# 13. Typing shifted symbols. BrowserApp's keyboardCallback picks the key from the DOM `key`
+#     string, which for Shift+; is already ":" -- not a key it knows, so the press was dropped
+#     (":", "!", "?", "@", "#", "(", ")", "_", "+", '"', ...). Its own US shift table turns
+#     Shift+; into ":" just fine, so the page now hands it the unshifted key with Shift set (also
+#     what Caps Lock capitals need).
+KEY_JS = ('var WB_SHIFTED={"!":"1","@":"2","#":"3","$":"4","%":"5","^":"6","&":"7","*":"8","(":"9",")":"0","_":"-","+":"=",'
+          '"{":"[","}":"]","|":"\\\\",":":";","\\"":"\'","<":",",">":".","?":"/","~":"`"};'
+          'function wbKey(e,p){var k=e.key||"";if(k.length===1){var b=WB_SHIFTED[k];if(!b&&k>="A"&&k<="Z")b=k.toLowerCase();'
+          'if(b){(growMemViews(),HEAP8)[p+13]=1;return b}}return k}')
+
+
+def patch_js_keys(s):
+    old = 'stringToUTF8(e.key||"",keyEventData+32,32)'
+    anchor = 'var registerKeyEventCallback='
+    assert s.count(old) == 1 and s.count(anchor) == 1
+    return s.replace(old, 'stringToUTF8(wbKey(e,keyEventData),keyEventData+32,32)').replace(anchor, KEY_JS + anchor)
 
 
 def patch_js_mouselock(s):

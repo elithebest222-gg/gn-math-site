@@ -517,6 +517,39 @@ local function bubble(id, name, text)
 	if head then speechBubble(head, text) end
 end
 
+-- Admin commands from the site's owner / moderators (p2p.js checks they're signed by one; X| lines)
+local function adminAction(line)
+	local f = {}
+	for v in string.gmatch(line .. "|", "([^|]*)|") do f[#f + 1] = v end
+	local what = f[1]
+	local char = player.Character
+	local hum = char and char:FindFirstChild("Humanoid")
+	local root = char and (char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("Torso"))
+	if what == "say" then
+		chatEvent:Fire("GN-BLOX", f[2] or "")
+	elseif what == "msg" or what == "hint" then
+		local m = Instance.new(what == "msg" and "Message" or "Hint")
+		m.Text = ((f[2] or "") ~= "" and (f[2] .. ": ") or "") .. (f[3] or "")
+		m.Parent = workspace
+		delay(what == "msg" and 6 or 8, function() pcall(function() m:Destroy() end) end)
+	elseif what == "kill" then
+		if hum then hum.Health = 0 end
+	elseif what == "respawn" then
+		pcall(function() player:LoadCharacter() end)
+	elseif what == "speed" then
+		if hum then hum.WalkSpeed = tonumber(f[2]) or 16 end
+	elseif what == "god" then
+		if hum then hum.MaxHealth = math.huge hum.Health = math.huge end
+	elseif what == "ungod" then
+		if hum then hum.MaxHealth = 100 hum.Health = 100 end
+	elseif what == "freeze" or what == "thaw" then
+		if root then root.Anchored = (what == "freeze") end
+	elseif what == "tpto" then
+		local o = others[f[2] or ""]
+		if root and o and o.root and o.root.Parent then root.CFrame = o.root.CFrame * CFrame.new(0, 0, 4) end
+	end
+end
+
 RunService.RenderStepped:connect(function(dt)
 	local a = math.min(1, (dt or 0.03) * 12)
 	for _, o in pairs(others) do
@@ -563,6 +596,8 @@ while true do
 					seenChat[seq] = true
 					bubble(oid, name, text)
 				end
+			elseif kind == "X|" then
+				pcall(adminAction, string.sub(line, 3))
 			elseif kind == "S|" then
 				local seq = tonumber(string.sub(line, 3))
 				if seq and seq > lastSeq then lastSeq = seq end
