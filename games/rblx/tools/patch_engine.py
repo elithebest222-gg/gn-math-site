@@ -51,8 +51,8 @@ repeatable on a fresh copy of the original files).
    eight centerCursor calls inside 300 ms (never, below about 27 FPS) and let go of it
    whenever 50 ms passed without one -- any slow frame. On a Chromebook the lock went on
    and off many times a second, the cursor came loose between locks, and the shift lock
-   icon and camera jumped around. Now three calls lock it and it is kept until 250 ms
-   pass without one (shift lock was turned off). The camera also ignores the mouse
+   icon and camera jumped around. Now three calls lock it and it is kept until a second
+   passes without one (shift lock was turned off). The camera also ignores the mouse
    move that comes with the lock turning on or off and impossible jumps, and a refused
    lock no longer leaves an unhandled promise error.
 
@@ -69,9 +69,16 @@ repeatable on a fresh copy of the original files).
 13. Shifted symbols can be typed (":" "!" "?" "@" "(" ...) in chat and TextBoxes: the engine dropped
    any key whose DOM name was a shifted symbol. It now gets the unshifted key with Shift held.
 
+14. Faster: the engine is a debug build that checked every memory access (SAFE_HEAP). The checks are
+   gone (the accesses themselves are unchanged), in the wasm and in the JS glue.
+
+15. Up to twice the frame rate: each frame used to take two screen refreshes (the render job's
+   "prepare" and "perform" steps were picked up one refresh apart), so games topped out at 30 fps
+   on a 60 Hz screen. The main loop now runs a few extra quick iterations until the frame is drawn.
+
 usage: python3 patch_engine.py ../rblx.wasm ../rblx.js
 """
-import sys
+import sys, re
 
 FLAG = 0x40000000
 IMPORTED_FUNCS = 408
@@ -249,11 +256,11 @@ def patch_join(d):
 # 10. Shift lock: BrowserUserInput::centerCursor asks for the lock once its call count in the
 #    current 300 ms window reaches 7 (`local.get 2; i32.const 7; i32.lt_s; br_if 0`) -> 2, and
 #    mainLoop lets go after 50.0 ms without a centerCursor call (`f64.sub; f64.const 50;
-#    f64.gt; if; call emscripten_exit_pointerlock`) -> 250.0 ms. Same-size edits.
+#    f64.gt; if; call emscripten_exit_pointerlock`) -> 1000.0 ms. Same-size edits.
 LOCK_COUNT_OLD = bytes.fromhex('20024107480d00')
 LOCK_COUNT_NEW = bytes.fromhex('20024102480d00')
 LOCK_HOLD_OLD = bytes.fromhex('a1' '440000000000004940' '64044010')
-LOCK_HOLD_NEW = bytes.fromhex('a1' '440000000000406f40' '64044010')
+LOCK_HOLD_NEW = bytes.fromhex('a1' '440000000000408f40' '64044010')
 
 
 # 11. DataStoreService::getDataStoreInternal: `if (getPlaceID() == 0)` is inlined as
@@ -342,6 +349,8 @@ def patch_js(s, PUSHSTRING_TABLE_INDEX):
     s = patch_js_mouselock(s)
     s = patch_js_webapi(s)
     s = patch_js_keys(s)
+    s = patch_js_safeheap(s)
+    s = patch_js_pump(s)
     return s
 
 
@@ -356,6 +365,79 @@ def patch_js_webapi(s):
     old = 'if(url_.indexOf("https://webblox.signal/")===0)'
     assert s.count(old) == 1
     return s.replace(old, API_JS + old)
+
+
+# 14. Speed: the build is a debug build with SAFE_HEAP. Every load and store in the engine calls a
+#     helper (`ptr, offset -> value`) that reads the heap top and checks bounds and alignment first.
+#     Those helpers now just add the offset and do the access (same results, no checks), and V8 can
+#     inline them. The helpers are recognised by their shape: `i32.const <heap top>; i32.load;
+#     local.get 0; local.get 1; i32.add; local.tee 1; ...checks...; local.get 1 [local.get 2]; <access>`.
+SAFEHEAP_RE = re.compile(rb'^\x41[\x80-\xff]*[\x00-\x7f]\x28\x02\x00\x20\x00\x20\x01\x6a\x22\x01')
+
+
+def patch_safeheap(d):
+    out = bytearray(d[:8])
+    done = 0
+    for sid, h, p, e in sections(d):
+        if sid != 10:
+            out += d[h:e]
+            continue
+        code = d[p:e]
+        n, q = rleb(code, 0)
+        body = bytearray(uleb(n))
+        for _ in range(n):
+            sz, q2 = rleb(code, q)
+            b = code[q2:q2 + sz]
+            q = q2 + sz
+            nl, r = rleb(b, 0)
+            for _ in range(nl):
+                _, r = rleb(b, r)
+                r += 1
+            ins = b[r:]
+            if SAFEHEAP_RE.match(ins) and len(ins) < 120:
+                k = ins.rfind(b'\x0b\x20\x01')
+                tail = ins[k + 1:]
+                assert k > 0 and tail.endswith(b'\x0b') and len(tail) <= 16, ins.hex()
+                b = b[:r] + b'\x20\x00\x20\x01\x6a\x21\x01' + tail
+                done += 1
+            body += uleb(len(b)) + b
+        out += bytes([10]) + uleb(len(body)) + body
+    assert done >= 40, 'SAFE_HEAP helpers not found (%d)' % done
+    return bytes(out)
+
+
+# 15. The JS side's SAFE_HEAP_INDEX (every heap access in the graphics and input glue) called back
+#     into the engine for the heap top each time; it just returns the index now.
+def patch_js_safeheap(s):
+    old = 'function SAFE_HEAP_INDEX(arr,idx,action){'
+    assert s.count(old) == 1
+    return s.replace(old, old + 'return idx;')
+
+
+# 16. Smooth frame rate. The render job (a worker thread) hands two steps to the main thread each
+#     frame, "prepare" then "perform", and the main loop only picks such work up once per screen
+#     refresh, so each frame took two refreshes: never more than 30 fps on a 60 Hz screen, about 25
+#     on a slower laptop. After a refresh's iteration, if nothing was drawn yet, the main loop now
+#     runs a few more quick iterations (yielding to the browser in between, for up to 15 ms) until
+#     the frame is drawn, so prepare and perform land in the same refresh.
+PUMP_JS = ('var wbDrew=false,wbPumpChan=null,wbPumpFunc=null,wbPumpUntil=0;'
+           'function wbAfterTick(f){if(wbDrew){wbDrew=false;return}wbPumpFunc=f;wbPumpUntil=performance.now()+(Module["wbPumpMs"]||15);'
+           'if(!wbPumpChan){wbPumpChan=new MessageChannel;wbPumpChan.port1.onmessage=wbPumpStep}wbPumpChan.port2.postMessage(0)}'
+           'function wbPumpStep(){if(wbDrew||ABORT||!wbPumpFunc||performance.now()>wbPumpUntil){wbDrew=false;return}'
+           'MainLoop.runIter(wbPumpFunc);if(wbDrew){wbDrew=false;return}wbPumpChan.port2.postMessage(0)}')
+
+
+def patch_js_pump(s):
+    tick = 'MainLoop.runIter(iterFunc);if(!checkIsRunning())return;MainLoop.scheduler()'
+    anchor = 'var MainLoop={'
+    assert s.count(tick) == 1 and s.count(anchor) == 1
+    s = s.replace(tick, 'wbDrew=false;MainLoop.runIter(iterFunc);if(!checkIsRunning())return;wbAfterTick(iterFunc);MainLoop.scheduler()')
+    s = s.replace(anchor, PUMP_JS + anchor)
+    for name in ('_emscripten_glDrawElements=(mode,count,type,indices)=>{', '_emscripten_glDrawArrays=(mode,first,count)=>{',
+                 '_emscripten_glDrawArraysInstanced=(mode,first,count,primcount)=>{', '_emscripten_glDrawElementsInstanced=(mode,count,type,indices,primcount)=>{'):
+        assert s.count(name) == 1, name
+        s = s.replace(name, name + 'wbDrew=true;')
+    return s
 
 
 # 13. Typing shifted symbols. BrowserApp's keyboardCallback picks the key from the DOM `key`
@@ -403,6 +485,7 @@ if __name__ == '__main__':
     wasm = patch_join(wasm)
     wasm = patch_mouselock(wasm)
     wasm = patch_datastore(wasm)
+    wasm = patch_safeheap(wasm)
     js = patch_js(open(js_path).read(), idx[2])
     open(wasm_path, 'wb').write(wasm)
     open(js_path, 'w').write(js)

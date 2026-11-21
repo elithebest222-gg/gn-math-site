@@ -75,7 +75,7 @@
     try { Object.defineProperty(navigator, 'hardwareConcurrency', { get: () => 32 }); } catch (e) {}
 
     (async function () {
-      const VERSION = '45';                       // bump when rblx.js / rblx.wasm change
+      const VERSION = '47';                       // bump when rblx.js / rblx.wasm change
       const CHUNKS = 12, CHUNK_SIZE = 25165824, DATA_SIZE = 289418733;
       const $ = id => document.getElementById(id);
       const canvas = $('canvas'), loading = $('loading');
@@ -262,8 +262,11 @@
       fetch('rblx.wasm?v=' + VERSION).catch(() => {});
       // Client scripts: default character animations (the engine never runs the character's
       // Animate script), and the Catalog outfit + lite multiplayer.
+      const roleIcons = {};
+      const iconsP = Promise.all([['gn-owner.png', 'gn-icon.png'], ['gn-mod.png', 'gn-mod-icon.png']].map(([file, src]) =>
+        fetch(src).then(r => r.ok ? r.arrayBuffer() : null).then(b => { if (b) roleIcons[file] = new Uint8Array(b); }).catch(() => {})));
       const luaP = Promise.all(['WebBloxAnimate', 'WebBloxPlayers'].map(n =>
-        fetch('scripts/' + n + '.lua?v=' + VERSION).then(r => r.ok ? r.text() : null).catch(() => null)));
+        fetch('scripts/' + n + '.lua?v=' + VERSION).then(r => r.ok ? r.text() : null).catch(() => null))).then(r => iconsP.then(() => r));
 
       // The place to load: an uploaded file (IndexedDB) or one of places/. Without either it's the
       // built-in Natural Disaster Survival, from places/ too: that copy runs its rounds on the room's
@@ -365,7 +368,12 @@
             for (const code of [animateSource, playersSource]) if (code) inject += 'spawn(function()\n' + code + '\nend)\n';
             FS.writeFile(starter, src.includes(marker) ? src.replace(marker, marker + inject) : src + inject);
           } catch (e) { console.warn('GN-BLOX client scripts unavailable:', e); }
-          const holders = { __WEBBLOX_NAME__: '"' + playerName() + '"', __WEBBLOX_GFX__: String(gfxLevel()), __WEBBLOX_FULLSCREEN__: document.fullscreenElement ? 'true' : 'false' };
+          const role = myRole();
+          const holders = { __WEBBLOX_NAME__: '"' + playerName() + '"', __WEBBLOX_GFX__: String(gfxLevel()), __WEBBLOX_FULLSCREEN__: document.fullscreenElement ? 'true' : 'false',
+            __WEBBLOX_TAG__: role === 'owner' ? '"[Owner] "' : role === 'mod' ? '"[Mod] "' : '""',
+            __WEBBLOX_ROLEICON__: role === 'owner' ? '"rbxasset://textures/ui/gn-owner.png"' : role === 'mod' ? '"rbxasset://textures/ui/gn-mod.png"' : '""' };
+          // the GN logo for owner / moderator tags
+          for (const [file, bytes] of Object.entries(roleIcons)) if (bytes) { try { FS.writeFile('/content/textures/ui/' + file, bytes); } catch (e) {} }
           for (const [file, list] of Object.entries(CORE_EDITS)) {
             try {
               let src = FS.readFile(file, { encoding: 'utf8' });
@@ -393,7 +401,7 @@
       const CORE_EDITS = {
         '/content/scripts/Modules/PlayerlistModule.lua': [
           ["local function getMembershipIcon(player)\n\tif isTenFootInterface then",
-           "local function getMembershipIcon(player)\n\tif not player:IsA(\"Player\") then return \"\" end\n\tif isTenFootInterface then"],
+           "local function getMembershipIcon(player)\n\t-- GN-BLOX: the owner and moderators get the GN logo (other players are Folders named \"[Owner] Name\")\n\tif not player:IsA(\"Player\") then\n\t\tlocal role = string.match(player.Name, \"^%[(%a+)%] \")\n\t\treturn (role == \"Owner\" and \"rbxasset://textures/ui/gn-owner.png\") or (role == \"Mod\" and \"rbxasset://textures/ui/gn-mod.png\") or \"\"\n\tend\n\tif player == Player and __WEBBLOX_ROLEICON__ ~= \"\" then return __WEBBLOX_ROLEICON__ end\n\tif isTenFootInterface then"],
           ["\tspawn(function()\n\t\tlocal success, result = pcall(function()\n\t\t\treturn player:GetRankInGroup(game.CreatorId) == 255",
            "\tspawn(function()\n\t\tif not player:IsA(\"Player\") then return end\n\t\tlocal success, result = pcall(function()\n\t\t\treturn player:GetRankInGroup(game.CreatorId) == 255"],
           ["if selectedPlayer ~= Player and selectedPlayer.userId > 1 and Player.userId > 1 then",
@@ -405,7 +413,7 @@
           ["\t\tlocal userId = tostring(player.userId)\n\n\t\t-- don't update icon if already friends",
            "\t\tlocal userId = player:IsA(\"Player\") and tostring(player.userId) or \"\"\n\n\t\t-- don't update icon if already friends"],
           ["local function createPlayerEntry(player, isTopStat)\n\tlocal playerEntry = {}\n\tlocal name = player.Name",
-           "local function createPlayerEntry(player, isTopStat)\n\tlocal playerEntry = {}\n\tlocal name = (player == Player and __WEBBLOX_NAME__) or player.Name"],
+           "local function createPlayerEntry(player, isTopStat)\n\tlocal playerEntry = {}\n\tlocal name = (player == Player and __WEBBLOX_NAME__) or string.gsub(player.Name, \"^%[%a+%] \", \"\")"],
           ["for _,player in pairs(Players:GetPlayers()) do\n\tinsertPlayerEntry(player)\nend\n",
            "for _,player in pairs(Players:GetPlayers()) do\n\tinsertPlayerEntry(player)\nend\n-- GN-BLOX: the other players in this multiplayer room (Folders with their leaderstats, kept up\n-- to date by WebBloxPlayers.lua in ReplicatedStorage.WebBlox.Players)\nspawn(function()\n\tlocal remote = game:GetService(\"ReplicatedStorage\"):WaitForChild(\"WebBlox\"):WaitForChild(\"Players\")\n\tlocal function add(child) if child:IsA(\"Folder\") then insertPlayerEntry(child) end end\n\tremote.ChildAdded:connect(add)\n\tremote.ChildRemoved:connect(function(child) removePlayerEntry(child) end)\n\tfor _, child in pairs(remote:GetChildren()) do add(child) end\nend)\n"]
         ],
@@ -414,6 +422,8 @@
            "\t-- GN-BLOX: leaving goes back to the GN-BLOX home page (play.html listens for this signal)\n\tthis.LeaveGameButton.MouseButton1Click:connect(function()\n\t\tspawn(function() pcall(function() game:HttpGetAsync(\"https://webblox.signal/leave\") end) end)\n\tend)\n"]
         ],
         '/content/scripts/Modules/Chat.lua': [
+          ["\t\t\tplayerName = (this.SendingPlayer and this.SendingPlayer.Name or \"\")\n\t\tend\n\t\treturn \"[\" ..  playerName .. \"]:\"",
+           "\t\t\tplayerName = (this.SendingPlayer and this.SendingPlayer.Name or \"\")\n\t\t\tif this.SendingPlayer == Player then playerName = __WEBBLOX_TAG__ .. __WEBBLOX_NAME__ end\n\t\tend\n\t\t-- GN-BLOX: \"[Owner] Name\" shows as [Owner] [Name]:\n\t\tlocal tag, rest = string.match(playerName, \"^(%[%a+%]) (.*)$\")\n\t\tif tag then return tag .. \" [\" .. rest .. \"]:\" end\n\t\treturn \"[\" ..  playerName .. \"]:\""],
           ["\tlocal ChatInstance = CreateChat()\n\tChatInstance:Initialize()\n",
            "\tlocal ChatInstance = CreateChat()\n\tChatInstance:Initialize()\n\t-- GN-BLOX: your chat and other players' chat (from WebBloxPlayers.lua) go in this window\n\tspawn(function()\n\t\tlocal ev = game:GetService(\"ReplicatedStorage\"):WaitForChild(\"WebBlox\"):WaitForChild(\"ChatMessage\")\n\t\tev.Event:connect(function(name, text)\n\t\t\tif ChatInstance.ChatWindowWidget then\n\t\t\t\tpcall(function()\n\t\t\t\t\tChatInstance.ChatWindowWidget:AddChatMessage(Enum.PlayerChatType.All, { Name = tostring(name), Neutral = true, TeamColor = BrickColor.new(\"White\") }, tostring(text), nil)\n\t\t\t\tend)\n\t\t\tend\n\t\tend)\n\tend)\n"]
         ],
@@ -480,6 +490,10 @@
         return { mode: 'p2p', url: /^[A-Za-z0-9.:\/_\-]+$/.test(base) ? base + 'peer-sync/' + sid : '', room, code, sid, peer };
       }
 
+      // Your site role (config.js owners / mods), for your own [Owner] / [Mod] tag and icon. Other
+      // players only see a tag once your account's signature checks out (p2p.js).
+      function myRole() { try { return (window.WB && WB.role && WB.role()) || null; } catch (e) { return null; } }
+
       // Your name in games: the one set on the home page, or a random Guest name for this visit.
       let nameCache = null;
       function playerName() {
@@ -510,6 +524,7 @@
         const carried = (Array.isArray(outfit.gear) ? outfit.gear : []).filter(g => gear[g]);
         return 'local WEBBLOX = {\n' +
           '  mp = { url = ' + str(mp.url, /[^A-Za-z0-9.:\/_\-]/g) + ', room = ' + str(mp.room) + ', name = ' + str(name) + ', id = ' + str(id) + ', private = ' + (mp.code ? 'true' : 'false') + ' },\n' +
+          '  role = ' + (myRole() ? str(myRole(), /[^a-z]/g) : 'nil') + ',\n' +
           '  look = { skin = ' + int(outfit.skin) + ', shirt = ' + int(outfit.shirt) + ', pants = ' + int(outfit.pants) + ', hat = ' + (outfit.hat ? str(outfit.hat, /[^a-z]/g) : 'nil') + ', gear = ' + lua(carried) + ' },\n' +
           '  hats = ' + lua(W.HATS || {}) + ',\n' +
           '  gear = ' + lua(gear) + ',\n' +
