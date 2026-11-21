@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Catalog - WebBlox</title>
+  <link rel="icon" type="image/png" href="favicon.png" />
+  <link rel="stylesheet" crossorigin="anonymous" href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@300;400;600;700&display=swap" />
+  <link rel="stylesheet" href="site.css" />
+  <script src="site.js"></script>
+  <style>
+    .cat { display: grid; grid-template-columns: 190px 1fr; gap: 20px; align-items: start; }
+    .side { position: sticky; top: calc(var(--header-h) + 16px); }
+    .side h3 { font-size: 14px; font-weight: 600; color: var(--muted); padding: 10px 12px 4px; }
+    .side a { display: flex; justify-content: space-between; padding: 7px 12px; font-size: 16px; }
+    .side a:hover { background: #f2f2f2; }
+    .side a.on { box-shadow: inset 4px 0 0 var(--blue); background: #f2f2f2; font-weight: 600; }
+    .side a span { color: var(--muted); font-size: 14px; }
+    .stipend { margin-top: 14px; padding: 12px; }
+    .stipend b { display: block; font-weight: 600; margin-bottom: 4px; }
+    .stipend p { font-size: 14px; color: var(--muted); margin-bottom: 8px; }
+    .stipend button { width: 100%; }
+
+    .bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
+    .bar h2 { font-size: 24px; font-weight: 400; }
+    .bar select { border: 1px solid var(--border); border-radius: 3px; padding: 4px 8px; background: #fff; }
+    .cards { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+    .item .thumb { background: #ebebeb; }
+    .item .meta { padding: 6px 8px 8px; }
+    .item .nm { font-weight: 600; line-height: 20px; height: 40px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+    .item .by { font-size: 13px; color: var(--muted); }
+    .item .price { margin-top: 4px; font-size: 15px; }
+    .tag { position: absolute; top: 6px; left: 6px; padding: 1px 6px; border-radius: 2px; font-size: 12px; font-weight: 700; color: #fff; background: var(--green); }
+    .tag.limited { background: #191919; }
+    .tag.wear { background: var(--blue); }
+    .free { color: var(--muted); font-weight: 600; }
+
+    .wearing { display: grid; grid-template-columns: 220px 1fr; gap: 20px; padding: 16px; margin-bottom: 18px; }
+    .wearing .fig { aspect-ratio: 112 / 148; background: #ebebeb; border-radius: 3px; }
+    .wearing h3 { font-size: 20px; font-weight: 400; margin-bottom: 8px; }
+    .worn { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+    .worn .t { width: 48px; height: 48px; border-radius: 3px; overflow: hidden; flex-shrink: 0; }
+    .worn span { flex: 1; }
+    .wearing p { color: var(--muted); font-size: 14px; margin-top: 10px; }
+
+    .ip { padding: 24px; display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+    .ip .big { aspect-ratio: 1; border-radius: 3px; overflow: hidden; }
+    .ip h2 { font-size: 32px; font-weight: 400; line-height: 1.1; padding-right: 30px; }
+    .ip .by { color: var(--muted); margin-top: 4px; }
+    .ip .by b { color: var(--blue); font-weight: 600; }
+    .pricebox { display: flex; align-items: center; gap: 14px; margin-top: 18px; padding: 14px; border: 1px solid var(--line); border-radius: 3px; }
+    .pricebox .p { flex: 1; font-size: 15px; color: var(--muted); }
+    .pricebox .p .robux, .pricebox .p .free { font-size: 22px; }
+    .pricebox button { min-width: 110px; padding: 10px 16px; font-size: 18px; }
+    .ip .desc { margin-top: 16px; color: #393b3d; }
+    .ip dl { display: grid; grid-template-columns: auto 1fr; gap: 6px 16px; margin-top: 16px; font-size: 15px; }
+    .ip dt { color: var(--muted); }
+    .tryon { display: flex; gap: 14px; align-items: center; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); }
+    .tryon .fig { width: 84px; aspect-ratio: 112 / 148; background: #ebebeb; border-radius: 3px; }
+    .tryon p { color: var(--muted); font-size: 14px; }
+
+    @media (max-width: 960px) { .cat { grid-template-columns: 1fr; } .side { position: static; } .cards { grid-template-columns: repeat(4, minmax(0, 1fr)); } .ip { grid-template-columns: 1fr; } }
+    @media (max-width: 760px) { .cards { grid-template-columns: repeat(3, minmax(0, 1fr)); } .wearing { grid-template-columns: 120px 1fr; } }
+    @media (max-width: 480px) { .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } .ip { padding: 16px; } .ip h2 { font-size: 26px; } .pricebox { flex-wrap: wrap; } }
+  </style>
+</head>
+<body>
+  <script>WB.chrome(new URLSearchParams(location.search).get('cat') === 'inventory' ? 'inventory' : new URLSearchParams(location.search).get('cat') === 'wearing' ? 'avatar' : 'catalog', 'Search the catalog');</script>
+
+  <main class="main" id="top">
+    <div class="wrap">
+      <h1 class="page">Catalog</h1>
+      <div class="cat">
+        <div class="side">
+          <div class="panel" id="cats"></div>
+          <div class="panel stipend" id="robux">
+            <b>Builders Club stipend</b>
+            <p id="stipend-text"></p>
+            <button class="btn-green" id="stipend-btn" onclick="collect()">Collect R$ 100</button>
+          </div>
+        </div>
+        <div>
+          <div id="wearing"></div>
+          <div class="bar"><h2 id="cat-title"></h2>
+            <select id="sort" aria-label="Sort"><option value="rel">Relevance</option><option value="low">Price (Low to High)</option><option value="high">Price (High to Low)</option></select>
+          </div>
+          <div class="cards" id="grid"></div>
+        </div>
+      </div>
+    </div>
+    <footer class="ftr">
+      <nav><a href="index.html">Home</a><a href="index.html#games">Games</a><a href="catalog.html">Catalog</a></nav>
+      <p>WebBlox is a fan-made, unofficial classic-era game player. It is not affiliated with, endorsed by or sponsored by Roblox Corporation. ROBUX here are pretend and free.</p>
+    </footer>
+  </main>
+
+  <div class="modal" id="item-modal" onclick="if (event.target === this) closeItem()">
+    <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="ip-name">
+      <button class="x" aria-label="Close" onclick="closeItem()">&times;</button>
+      <div class="ip" id="ip"></div>
+    </div>
+  </div>
+
+  <div class="confirm" id="confirm"><div class="box">
+    <h3 id="cf-title"></h3>
+    <p id="cf-text"></p>
+    <div class="row" id="cf-buttons"></div>
+  </div></div>
+
+  <script>
+    const esc = WB.esc;
+    const params = new URLSearchParams(location.search);
+    let cat = params.get('cat') || 'featured';
+    const CATS = [['featured', 'Featured'], ['all', 'All Items'], ['hat', 'Hats'], ['shirt', 'Shirts'], ['pants', 'Pants'], ['skin', 'Body Colors'], ['wearing', 'Currently Wearing'], ['inventory', 'Inventory']];
+    const TYPE_NAME = { hat: 'Hat', shirt: 'Shirt', pants: 'Pants', skin: 'Body Color' };
+    const priceHTML = item => item.price ? `<span class="robux"><svg class="i"><use href="#i-robux"/></svg>${item.price.toLocaleString('en-US')}</span>` : '<span class="free">Free</span>';
+
+    function itemsFor(c) {
+      const o = WB.outfit();
+      if (c === 'featured') return WB.ITEMS.filter(i => i.featured);
+      if (c === 'all') return WB.ITEMS.slice();
+      if (c === 'inventory') return WB.ITEMS.filter(i => WB.owns(i.id));
+      if (c === 'wearing') return WB.ITEMS.filter(i => o[i.type] === i.value && WB.owns(i.id));
+      return WB.ITEMS.filter(i => i.type === c);
+    }
+
+    function render() {
+      document.getElementById('cats').innerHTML = '<h3>Category</h3>' + CATS.map(([k, n]) =>
+        `<a href="?cat=${k}" data-cat="${k}" class="${k === cat ? 'on' : ''}">${n}<span>${itemsFor(k).length}</span></a>`).join('');
+      document.querySelectorAll('#cats a').forEach(a => a.addEventListener('click', e => {
+        e.preventDefault(); cat = a.dataset.cat; history.replaceState(null, '', '?cat=' + cat); render();
+      }));
+      const q = document.getElementById('q').value.trim().toLowerCase();
+      let list = itemsFor(cat).filter(i => !q || i.name.toLowerCase().includes(q) || (TYPE_NAME[i.type] || '').toLowerCase().includes(q));
+      const sort = document.getElementById('sort').value;
+      if (sort === 'low') list.sort((a, b) => a.price - b.price);
+      if (sort === 'high') list.sort((a, b) => b.price - a.price);
+      document.getElementById('cat-title').textContent = (CATS.find(c => c[0] === cat) || ['', 'Catalog'])[1];
+      document.getElementById('grid').innerHTML = list.length ? list.map(i => {
+        const tag = WB.wearing(i) && WB.owns(i.id) ? '<span class="tag wear">Wearing</span>' : WB.owns(i.id) && i.price ? '<span class="tag">Owned</span>' : i.collectible ? '<span class="tag limited">Collectible</span>' : '';
+        return `<button class="card item" onclick="openItem('${i.id}')">${tag}<span class="thumb">${WB.itemThumb(i)}</span>
+          <span class="meta"><span class="nm">${esc(i.name)}</span><span class="by">By <b style="color:var(--blue);font-weight:600">WebBlox</b></span><span class="price">${priceHTML(i)}</span></span></button>`;
+      }).join('') : `<div class="empty">${cat === 'inventory' ? 'You don\'t own anything yet.' : q ? 'No items match "' + esc(q) + '".' : 'Nothing here yet.'}</div>`;
+      renderWearing();
+      renderStipend();
+    }
+
+    function renderWearing() {
+      const box = document.getElementById('wearing');
+      if (cat !== 'wearing') { box.innerHTML = ''; return; }
+      const worn = itemsFor('wearing');
+      box.innerHTML = `<div class="panel wearing"><div class="fig">${WB.avatarSVG(WB.look(), 'full')}</div><div>
+        <h3>My Avatar</h3>
+        ${worn.length ? worn.map(i => `<div class="worn"><span class="t">${WB.itemThumb(i)}</span><span>${esc(i.name)}</span><button class="btn-white" onclick="takeOff('${i.id}')">Take Off</button></div>`).join('')
+          : '<p>You\'re wearing the classic look. Pick something below to change it.</p>'}
+        <p>Your outfit shows up in every game, and other players see it in multiplayer.</p></div></div>`;
+    }
+
+    function openItem(id) {
+      const i = WB.item(id); if (!i) return;
+      const owned = WB.owns(i.id), wearing = owned && WB.wearing(i);
+      const preview = Object.assign({}, WB.look(), { [i.type]: i.value });
+      let action;
+      if (!owned) action = `<button class="btn-green" onclick="buy('${i.id}')">${i.price ? 'Buy' : 'Get'}</button>`;
+      else if (wearing) action = `<button class="btn-white" onclick="takeOff('${i.id}', true)">Take Off</button>`;
+      else action = `<button class="btn-blue" onclick="wear('${i.id}', true)">Wear</button>`;
+      document.getElementById('ip').innerHTML = `
+        <div class="big">${WB.itemThumb(i)}</div>
+        <div>
+          <h2 id="ip-name">${esc(i.name)}</h2>
+          <div class="by">By <b>WebBlox</b></div>
+          <div class="pricebox"><div class="p">${owned ? 'You own this item' : 'Price<br>' + priceHTML(i)}</div>${action}</div>
+          <div class="desc">${esc(i.desc)}</div>
+          <dl><dt>Type</dt><dd>${TYPE_NAME[i.type]}${i.collectible ? ' (Collectible)' : ''}</dd><dt>Updated</dt><dd>Nov 21, 2026</dd></dl>
+          <div class="tryon"><div class="fig">${WB.avatarSVG(preview, 'full')}</div><p>${wearing ? 'You\'re wearing this.' : 'How it looks on you.'}</p></div>
+        </div>`;
+      document.getElementById('item-modal').classList.add('open');
+    }
+    function closeItem() { document.getElementById('item-modal').classList.remove('open'); }
+
+    function dialog(title, text, buttons) {
+      document.getElementById('cf-title').textContent = title;
+      document.getElementById('cf-text').innerHTML = text;
+      const row = document.getElementById('cf-buttons');
+      row.innerHTML = '';
+      for (const [label, cls, fn] of buttons) {
+        const b = document.createElement('button');
+        b.className = cls; b.textContent = label;
+        b.onclick = () => { document.getElementById('confirm').classList.remove('open'); if (fn) fn(); };
+        row.appendChild(b);
+      }
+      document.getElementById('confirm').classList.add('open');
+    }
+
+    function buy(id) {
+      const i = WB.item(id);
+      if (!i.price) { WB.addItem(id); wear(id, true); return; }
+      const balance = WB.robux();
+      if (balance < i.price) {
+        dialog('Insufficient Funds', `You need <b>R$ ${(i.price - balance).toLocaleString('en-US')}</b> more to buy this item. Collect your Builders Club stipend to get more ROBUX.`, [['OK', 'btn-blue']]);
+        return;
+      }
+      dialog('Buy Item', `Would you like to buy the ${TYPE_NAME[i.type]} <b>${esc(i.name)}</b> from WebBlox for <b>R$ ${i.price.toLocaleString('en-US')}</b>?<br><br><span style="color:var(--muted)">Your balance after this transaction will be R$ ${(balance - i.price).toLocaleString('en-US')}</span>`, [
+        ['Buy Now', 'btn-green', () => {
+          WB.setRobux(WB.robux() - i.price);
+          WB.addItem(id);
+          render(); openItem(id);
+          dialog('Purchase Completed', `You have successfully bought <b>${esc(i.name)}</b>.`, [['Wear It', 'btn-blue', () => wear(id, true)], ['Continue Shopping', 'btn-white']]);
+        }],
+        ['Cancel', 'btn-white']]);
+    }
+    function wear(id, reopen) { WB.wear(WB.item(id)); render(); if (reopen) openItem(id); }
+    function takeOff(id, reopen) { WB.takeOff(WB.item(id)); render(); if (reopen) openItem(id); }
+
+    // Builders Club daily stipend (pretend ROBUX)
+    const today = () => new Date().toISOString().slice(0, 10);
+    function renderStipend() {
+      let last = null; try { last = localStorage.getItem('webblox-stipend'); } catch (e) {}
+      const done = last === today();
+      document.getElementById('stipend-text').textContent = done ? 'Collected today. Come back tomorrow for more!' : 'Builders Club members get free ROBUX every day.';
+      const btn = document.getElementById('stipend-btn');
+      btn.disabled = done;
+      btn.textContent = done ? 'Collected' : 'Collect R$ 100';
+    }
+    function collect() {
+      try { if (localStorage.getItem('webblox-stipend') === today()) return; localStorage.setItem('webblox-stipend', today()); } catch (e) {}
+      WB.setRobux(WB.robux() + 100);
+      renderStipend();
+    }
+
+    document.getElementById('q').addEventListener('input', render);
+    document.getElementById('sort').addEventListener('change', render);
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeItem(); document.getElementById('confirm').classList.remove('open'); } });
+    render();
+  </script>
+</body>
+</html>

@@ -6,95 +6,22 @@
   <title>Home - WebBlox</title>
   <link rel="icon" type="image/png" href="favicon.png" />
   <link rel="stylesheet" crossorigin="anonymous" href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@300;400;600;700&display=swap" />
+  <link rel="stylesheet" href="site.css" />
+  <script src="config.js"></script>
+  <script src="site.js"></script>
   <style>
-    /* 2016-era palette */
-    :root {
-      --header: #00a2ff; --header-dark: #0089d6; --bg: #e3e3e3; --panel: #fff; --text: #191919; --muted: #757575;
-      --line: #e3e3e3; --border: #b8b8b8; --blue: #00a2ff; --green: #02b757; --green-dark: #3fc679; --red: #d86868;
-      --nav-w: 175px; --header-h: 40px;
-    }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    html { scroll-padding-top: 56px; }
-    body { background: var(--bg); color: var(--text); font: 16px/1.3 "Source Sans Pro", "Source Sans 3", "Helvetica Neue", Helvetica, Arial, sans-serif; }
-    a { color: inherit; text-decoration: none; }
-    button, input { font: inherit; color: inherit; }
-    svg.i { width: 1em; height: 1em; fill: currentColor; flex-shrink: 0; }
-
-    /* ---------- header ---------- */
-    .hdr { position: fixed; inset: 0 0 auto; height: var(--header-h); background: var(--header); color: #fff; display: flex; align-items: center; gap: 4px; padding: 0 12px; z-index: 100; }
-    .burger { display: none; background: none; border: 0; color: #fff; width: 36px; height: 36px; font-size: 22px; cursor: pointer; align-items: center; justify-content: center; }
-    .logo { display: flex; align-items: center; height: 100%; padding-right: 14px; }
-    .logo img { height: 30px; filter: drop-shadow(0 1px 0 rgba(0,0,0,.15)); }
-    .hnav { display: flex; height: 100%; }
-    .hnav a, .hnav button { display: flex; align-items: center; padding: 0 12px; height: 100%; font-size: 16px; font-weight: 600; color: #fff; background: none; border: 0; cursor: pointer; }
-    .hnav a:hover, .hnav button:hover { background: var(--header-dark); }
-    .search { flex: 1; max-width: 380px; margin-left: 8px; display: flex; align-items: center; background: #fff; border-radius: 3px; height: 28px; color: var(--muted); }
-    .search input { flex: 1; min-width: 0; border: 0; outline: 0; background: none; padding: 0 8px; font-size: 15px; color: var(--text); }
-    .search svg { margin-right: 8px; font-size: 15px; }
-    .hright { margin-left: auto; display: flex; align-items: center; gap: 6px; height: 100%; }
-    .hright > * { display: flex; align-items: center; gap: 5px; height: 100%; padding: 0 8px; font-weight: 600; font-size: 15px; }
-    .hright svg { font-size: 22px; }
-
-    /* ---------- left nav ---------- */
-    .lnav { position: fixed; top: var(--header-h); bottom: 0; left: 0; width: var(--nav-w); background: var(--panel); box-shadow: 1px 0 0 rgba(0,0,0,.08); overflow-y: auto; z-index: 90; padding-bottom: 16px; }
-    .lnav .who { display: block; padding: 12px 12px 10px; font-size: 16px; font-weight: 600; border-bottom: 1px solid var(--line); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .lnav ul { list-style: none; padding: 6px 0; }
-    .lnav li a { display: flex; align-items: center; gap: 10px; padding: 7px 12px; font-size: 16px; color: var(--text); }
-    .lnav li a svg { font-size: 20px; color: var(--muted); }
-    .lnav li a:hover { background: #f2f2f2; }
-    .lnav li a.on { box-shadow: inset 4px 0 0 var(--blue); background: #f2f2f2; }
-    .lnav .count { margin-left: auto; min-width: 22px; padding: 0 6px; height: 18px; border-radius: 9px; background: var(--blue); color: #fff; font-size: 12px; font-weight: 700; display: grid; place-items: center; }
-    .lnav .upgrade { display: block; margin: 8px 12px 14px; padding: 7px 0; text-align: center; border-radius: 3px; background: var(--green); color: #fff; font-weight: 600; }
-    .lnav .upgrade:hover { background: var(--green-dark); }
-    .lnav h4 { padding: 4px 12px 6px; font-size: 14px; font-weight: 600; color: var(--muted); border-top: 1px solid var(--line); padding-top: 12px; }
-    .event { display: block; margin: 0 12px; height: 72px; border-radius: 3px; background: linear-gradient(135deg, #ff8a00, #e52e71); color: #fff; padding: 9px 10px; font-weight: 700; font-size: 15px; line-height: 1.15; position: relative; overflow: hidden; }
-    .event small { display: block; font-weight: 400; font-size: 12px; opacity: .9; margin-top: 3px; }
-    .event::after { content: ""; position: absolute; right: -14px; bottom: -14px; width: 54px; height: 54px; border: 7px solid rgba(255,255,255,.35); border-radius: 6px; transform: rotate(18deg); }
-    .scrim { display: none; }
-
-    /* ---------- page ---------- */
-    .main { margin-left: var(--nav-w); padding: calc(var(--header-h) + 18px) 24px 0; }
-    .wrap { max-width: 970px; margin: 0 auto; }
     .hello { display: flex; align-items: center; gap: 18px; margin-bottom: 22px; }
     .hello .av { width: 128px; height: 128px; border-radius: 50%; background: #fff; overflow: hidden; flex-shrink: 0; box-shadow: 0 1px 4px rgba(25,25,25,.15); }
     .hello h1 { font-size: 32px; font-weight: 400; line-height: 1.1; }
-    .hello .bc { display: inline-flex; align-items: center; gap: 6px; margin-top: 6px; font-size: 14px; color: var(--muted); }
+    .hello .sub { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; margin-top: 6px; font-size: 14px; color: var(--muted); }
+    .hello .bc { display: inline-flex; align-items: center; gap: 6px; }
     .hello .bc b { background: var(--text); color: #fff; font-size: 11px; padding: 1px 5px; border-radius: 2px; letter-spacing: .5px; }
-
-    .sec { margin-bottom: 24px; }
-    .sec-h { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
-    .sec-h h2 { font-size: 24px; font-weight: 400; }
-    .btn-see { padding: 2px 10px; font-size: 14px; font-weight: 600; border: 1px solid var(--border); border-radius: 3px; background: #fff; color: var(--text); cursor: pointer; }
-    .btn-see:hover { border-color: var(--text); }
-
-    .friends { background: var(--panel); border-radius: 3px; padding: 12px; display: flex; gap: 6px; overflow-x: auto; box-shadow: 0 1px 4px rgba(25,25,25,.15); }
-    .friend { width: 92px; flex-shrink: 0; text-align: center; font-size: 14px; }
-    .friend .av { position: relative; width: 84px; height: 84px; margin: 0 auto 4px; border-radius: 50%; background: #e3e3e3; }
-    .friend .av svg { border-radius: 50%; }
-    .friend .dot { position: absolute; right: 3px; bottom: 3px; width: 16px; height: 16px; border-radius: 50%; border: 3px solid #fff; background: var(--green); }
-    .friend .dot.game { background: var(--blue); }
-    .friend span { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-
-    .cards { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; }
-    .card { position: relative; background: var(--panel); border-radius: 3px; box-shadow: 0 1px 4px rgba(25,25,25,.15); overflow: hidden; cursor: pointer; display: flex; flex-direction: column; text-align: left; border: 0; transition: box-shadow .12s; }
-    .card:hover, .card:focus-visible { box-shadow: 0 2px 10px rgba(25,25,25,.3); outline: none; }
-    .thumb { width: 100%; aspect-ratio: 1; background: #d4d4d4 center/cover no-repeat; display: block; }
-    .card .name { margin: 6px 8px 0; font-size: 16px; font-weight: 600; line-height: 20px; height: 40px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-    .card .playing { padding: 2px 8px 0; font-size: 13px; color: var(--muted); }
-    .votes { display: flex; align-items: center; gap: 6px; padding: 6px 8px 8px; font-size: 13px; color: var(--muted); }
-    .vbar { flex: 1; height: 4px; border-radius: 2px; background: var(--red); overflow: hidden; }
-    .vbar i { display: block; height: 100%; background: var(--green); }
-    .card .creator { position: absolute; left: 0; right: 0; bottom: 0; padding: 6px 8px; background: #fff; border-top: 1px solid var(--line); font-size: 13px; color: var(--muted); transform: translateY(100%); transition: transform .12s; }
-    .card:hover .creator { transform: none; }
-    .card .creator b { color: var(--blue); font-weight: 600; }
+    .hello .sub a { color: var(--blue); font-weight: 600; }
 
     .cols { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; }
-    .panel { background: var(--panel); border-radius: 3px; box-shadow: 0 1px 4px rgba(25,25,25,.15); }
     .status { display: flex; gap: 8px; padding: 12px; border-bottom: 1px solid var(--line); }
     .status input { flex: 1; min-width: 0; border: 1px solid var(--border); border-radius: 3px; padding: 6px 9px; font-size: 15px; outline: none; }
     .status input:focus { border-color: var(--blue); }
-    .btn-blue { background: var(--blue); color: #fff; border: 0; border-radius: 3px; padding: 6px 14px; font-weight: 600; cursor: pointer; }
-    .btn-blue:hover { background: #32b5ff; }
     .post { display: flex; gap: 10px; padding: 12px; border-bottom: 1px solid var(--line); }
     .post:last-child { border-bottom: 0; }
     .post .av { width: 48px; height: 48px; border-radius: 50%; background: #e3e3e3; flex-shrink: 0; overflow: hidden; }
@@ -107,146 +34,54 @@
     .news h3 { font-size: 16px; font-weight: 600; color: var(--blue); }
     .news p { font-size: 14px; color: var(--muted); margin-top: 2px; }
 
-    .ftr { margin-top: 30px; background: var(--panel); border-top: 1px solid #d4d4d4; padding: 22px 24px 26px; margin-left: calc(-24px); margin-right: calc(-24px); text-align: center; }
-    .ftr nav { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 26px; font-size: 18px; font-weight: 600; color: var(--muted); }
-    .ftr p { margin-top: 12px; font-size: 13px; color: #a4a4a4; max-width: 760px; margin-left: auto; margin-right: auto; }
-
-    .empty { grid-column: 1 / -1; padding: 18px; text-align: center; color: var(--muted); background: var(--panel); border-radius: 3px; }
-
-    /* ---------- game page modal (2016 game details) ---------- */
-    .modal { position: fixed; inset: 0; z-index: 200; background: rgba(0,0,0,.6); display: none; align-items: flex-start; justify-content: center; padding: 60px 16px 16px; overflow-y: auto; }
-    .modal.open { display: flex; }
-    .gp { position: relative; width: min(970px, 100%); background: var(--panel); border-radius: 3px; box-shadow: 0 6px 30px rgba(0,0,0,.4); }
-    .gp .x { position: absolute; top: 6px; right: 8px; width: 34px; height: 34px; border: 0; background: none; font-size: 26px; color: var(--muted); cursor: pointer; }
+    /* game page (2016 game details) */
     .gp .top { display: grid; grid-template-columns: 576px 1fr; gap: 24px; padding: 24px; }
     .gp .shot { width: 100%; aspect-ratio: 16 / 9; border-radius: 3px; background: #d4d4d4 center/cover no-repeat; }
     .gp h2 { font-size: 32px; font-weight: 400; line-height: 1.1; padding-right: 30px; }
     .gp .by { margin-top: 4px; color: var(--muted); }
     .gp .by b { color: var(--blue); font-weight: 600; }
-    .gp .play { margin-top: 18px; width: 100%; height: 66px; border: 0; border-radius: 3px; background: var(--green); color: #fff; font-size: 30px; cursor: pointer; display: grid; place-items: center; }
+    .gp .play { margin-top: 18px; width: 100%; height: 66px; border: 0; border-radius: 3px; background: var(--green); color: #fff; cursor: pointer; display: grid; place-items: center; }
     .gp .play:hover { background: var(--green-dark); }
     .gp .play svg { width: 34px; height: 34px; }
     .gp .rate { display: flex; align-items: center; gap: 10px; margin-top: 18px; color: var(--muted); font-size: 15px; }
     .gp .rate .vbar { height: 6px; }
     .gp .tabs { display: flex; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
-    .gp .tabs span { flex: 1; text-align: center; padding: 10px 0; font-weight: 600; color: var(--muted); }
-    .gp .tabs span.on { color: var(--text); box-shadow: inset 0 -4px 0 var(--blue); }
-    .gp .about { padding: 18px 24px 24px; }
-    .gp .about h3 { font-size: 20px; font-weight: 400; margin-bottom: 6px; }
+    .gp .tabs button { flex: 1; padding: 10px 0; font-weight: 600; color: var(--muted); background: none; border: 0; cursor: pointer; }
+    .gp .tabs button.on { color: var(--text); box-shadow: inset 0 -4px 0 var(--blue); }
+    .gp .pane { padding: 18px 24px 24px; }
+    .gp .pane h3 { font-size: 20px; font-weight: 400; margin-bottom: 6px; }
     .gp .desc { white-space: pre-line; font-size: 16px; color: #393b3d; }
     .gp .stats { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line); text-align: center; }
     .gp .stats dt { font-size: 14px; color: var(--muted); }
     .gp .stats dd { font-size: 18px; margin-top: 2px; }
+    .server { display: flex; align-items: center; gap: 14px; padding: 14px; border: 1px solid var(--line); border-radius: 3px; margin-bottom: 10px; }
+    .server .info { flex: 1; min-width: 0; }
+    .server .info b { display: block; font-weight: 600; }
+    .server .info span { color: var(--muted); font-size: 14px; }
+    .server .slots { display: flex; gap: 2px; margin-top: 6px; }
+    .server .slots i { width: 10px; height: 10px; border-radius: 2px; background: var(--line); }
+    .server .slots i.f { background: var(--green); }
+    .invite { display: flex; gap: 8px; margin-top: 10px; }
+    .invite input { flex: 1; min-width: 0; border: 1px solid var(--border); border-radius: 3px; padding: 6px 8px; font-size: 14px; }
+    .note { color: var(--muted); font-size: 14px; }
 
-    .launch { position: fixed; inset: 0; z-index: 300; background: rgba(0,0,0,.6); display: none; align-items: center; justify-content: center; padding: 16px; }
-    .launch.open { display: flex; }
-    .launch .box { width: min(400px, 100%); background: #fff; border-radius: 3px; padding: 28px 24px 26px; text-align: center; box-shadow: 0 6px 30px rgba(0,0,0,.4); }
-    .launch .spinner { width: 44px; height: 44px; margin: 0 auto 16px; border: 6px solid var(--blue); border-radius: 5px; animation: tilt 1.3s cubic-bezier(.6,0,.4,1) infinite; }
-    @keyframes tilt { from { transform: rotate(15deg); } to { transform: rotate(375deg); } }
-    .launch h3 { font-size: 20px; font-weight: 400; }
-    .launch p { margin-top: 4px; color: var(--muted); }
-
-    /* ---------- responsive ---------- */
-    @media (max-width: 1159px) {
-      .burger { display: flex; }
-      .lnav { transform: translateX(-100%); transition: transform .18s; }
-      body.nav-open .lnav { transform: none; }
-      body.nav-open .scrim { display: block; position: fixed; inset: var(--header-h) 0 0; background: rgba(0,0,0,.35); z-index: 80; }
-      .main { margin-left: 0; }
-    }
-    @media (max-width: 960px) { .cards { grid-template-columns: repeat(4, minmax(0, 1fr)); } .cols { grid-template-columns: 1fr; } .gp .top { grid-template-columns: 1fr; } }
-    @media (max-width: 760px) {
-      .hnav, .hright .gear { display: none; }
-      .logo { padding-right: 6px; }
-      .main { padding-left: 16px; padding-right: 16px; }
-      .ftr { margin-left: -16px; margin-right: -16px; }
-      .cards { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
-      .hello .av { width: 84px; height: 84px; }
-      .hello h1 { font-size: 26px; }
-      .gp .stats { grid-template-columns: repeat(3, 1fr); }
-    }
-    @media (max-width: 480px) {
-      .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-      .hright .rbx-count { display: none; }
-      .search { margin-left: 2px; }
-      .gp .top { padding: 16px; } .gp .about { padding: 14px 16px 18px; } .gp h2 { font-size: 26px; }
-    }
+    @media (max-width: 960px) { .cols { grid-template-columns: 1fr; } .gp .top { grid-template-columns: 1fr; } }
+    @media (max-width: 760px) { .hello .av { width: 84px; height: 84px; } .hello h1 { font-size: 26px; } .gp .stats { grid-template-columns: repeat(3, 1fr); } .server { flex-wrap: wrap; } }
+    @media (max-width: 480px) { .gp .top { padding: 16px; } .gp .pane { padding: 14px 16px 18px; } .gp h2 { font-size: 26px; } }
   </style>
 </head>
 <body>
-  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
-    <symbol id="i-menu" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></symbol>
-    <symbol id="i-home" viewBox="0 0 24 24"><path d="M12 3 2 11.5h3V21h5.5v-6h3v6H19v-9.5h3z"/></symbol>
-    <symbol id="i-user" viewBox="0 0 24 24"><path d="M12 12a4.5 4.5 0 1 0 0-9 4.5 4.5 0 0 0 0 9zm0 2c-4.4 0-8 2.2-8 5v2h16v-2c0-2.8-3.6-5-8-5z"/></symbol>
-    <symbol id="i-msg" viewBox="0 0 24 24"><path d="M3 5h18v14H3zm2 2v.5l7 4.5 7-4.5V7l-7 4.4z"/></symbol>
-    <symbol id="i-friends" viewBox="0 0 24 24"><path d="M9 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zm7.5 0a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM9 13c-3.6 0-6.5 1.8-6.5 4v2h13v-2c0-2.2-2.9-4-6.5-4zm7.5 0c-.5 0-1 0-1.4.1 1.4.9 2.4 2.2 2.4 3.9v2h4v-2c0-2.2-2.2-4-5-4z"/></symbol>
-    <symbol id="i-avatar" viewBox="0 0 24 24"><path d="M8 2h8v6H8zM5 9h14v7h-3v6h-3v-6h-2v6H8v-6H5z"/></symbol>
-    <symbol id="i-inv" viewBox="0 0 24 24"><path d="M9 3h6v3h5v14H4V6h5zm2 3h2V5h-2zM6 10v2h12v-2z"/></symbol>
-    <symbol id="i-trade" viewBox="0 0 24 24"><path d="M7 4 3 8l4 4V9h10V7H7zm10 8v3H7v2h10v3l4-4z"/></symbol>
-    <symbol id="i-groups" viewBox="0 0 24 24"><path d="M12 3 4 6v5c0 5 3.4 9.4 8 10.5 4.6-1.1 8-5.5 8-10.5V6z"/></symbol>
-    <symbol id="i-forum" viewBox="0 0 24 24"><path d="M3 4h13v9H7l-4 4zm15 4h3v12l-4-4H8v-1h10z"/></symbol>
-    <symbol id="i-blog" viewBox="0 0 24 24"><path d="M4 4h16v16H4zm2 2v4h5V6zm7 0v1h5V6zm0 3v1h5V9zM6 12v1h12v-1zm0 3v1h12v-1z"/></symbol>
-    <symbol id="i-shop" viewBox="0 0 24 24"><path d="M3 4h2.6l.8 2H21l-2.5 8H8.2l-.6 2H19v2H5l1.5-4.6L4.2 6H3zm5 16a1.5 1.5 0 1 0 0 .1zm9 0a1.5 1.5 0 1 0 0 .1z"/></symbol>
-    <symbol id="i-search" viewBox="0 0 24 24"><path d="M10 3a7 7 0 0 1 5.6 11.2l5.6 5.6-1.4 1.4-5.6-5.6A7 7 0 1 1 10 3zm0 2a5 5 0 1 0 0 10 5 5 0 0 0 0-10z"/></symbol>
-    <symbol id="i-gear" viewBox="0 0 24 24"><path d="M19.4 13a7.6 7.6 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.4 7.4 0 0 0-1.7-1L15 3h-4l-.4 2.7a7.4 7.4 0 0 0-1.7 1l-2.5-1-2 3.5L6.6 11a7.6 7.6 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1c.5.4 1.1.7 1.7 1L11 21h4l.4-2.7c.6-.3 1.2-.6 1.7-1l2.5 1 2-3.5zM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z" transform="translate(-1 0)"/></symbol>
-    <symbol id="i-robux" viewBox="0 0 24 24"><path d="M12 2 21 7v10l-9 5-9-5V7zm0 2.3L5 8.2v7.6l7 3.9 7-3.9V8.2zM9 9h6v6H9z"/></symbol>
-    <symbol id="i-thumb" viewBox="0 0 24 24"><path d="M2 10h4v11H2zm6 11V10l5-8 1.5 1c.6.4.8 1.1.6 1.8L14 9h6.2c1 0 1.8.9 1.6 1.9l-1.6 8.6c-.2 1-1 1.5-2 1.5z"/></symbol>
-    <symbol id="i-people" viewBox="0 0 24 24"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm0 2c-4 0-7 2-7 4.5V20h14v-1.5C19 16 16 14 12 14z"/></symbol>
-    <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 4v16l13-8z"/></symbol>
-    <symbol id="i-upload" viewBox="0 0 24 24"><path d="M11 16V7.8L8.4 10.4 7 9l5-5 5 5-1.4 1.4L13 7.8V16zM5 18h14v2H5z"/></symbol>
-  </svg>
-
-  <header class="hdr">
-    <button class="burger" aria-label="Menu" onclick="document.body.classList.toggle('nav-open')"><svg class="i"><use href="#i-menu"/></svg></button>
-    <a class="logo" href="index.html" aria-label="WebBlox home"><img src="WebBlox.png" alt="WebBlox" /></a>
-    <nav class="hnav">
-      <a href="#games">Games</a>
-      <a href="#favorites">Catalog</a>
-      <button onclick="pickPlace()">Develop</button>
-      <a href="#feed">ROBUX</a>
-    </nav>
-    <label class="search"><input id="q" type="search" placeholder="Search" autocomplete="off" aria-label="Search games" /><svg class="i"><use href="#i-search"/></svg></label>
-    <div class="hright">
-      <a href="#feed" title="ROBUX"><svg class="i"><use href="#i-robux"/></svg><span class="rbx-count">8,451</span></a>
-      <a class="gear" href="#feed" title="Settings"><svg class="i"><use href="#i-gear"/></svg></a>
-    </div>
-  </header>
-
-  <aside class="lnav" id="lnav">
-    <a class="who" href="#top">WebBloxPlayer</a>
-    <ul>
-      <li><a class="on" href="#top"><svg class="i"><use href="#i-home"/></svg>Home</a></li>
-      <li><a href="#top"><svg class="i"><use href="#i-user"/></svg>Profile</a></li>
-      <li><a href="#feed"><svg class="i"><use href="#i-msg"/></svg>Messages<span class="count">99+</span></a></li>
-      <li><a href="#friends"><svg class="i"><use href="#i-friends"/></svg>Friends<span class="count" id="friend-count">9</span></a></li>
-      <li><a href="#top"><svg class="i"><use href="#i-avatar"/></svg>Avatar</a></li>
-      <li><a href="#favorites"><svg class="i"><use href="#i-inv"/></svg>Inventory</a></li>
-      <li><a href="#favorites"><svg class="i"><use href="#i-trade"/></svg>Trade</a></li>
-      <li><a href="#friends"><svg class="i"><use href="#i-groups"/></svg>Groups</a></li>
-      <li><a href="#feed"><svg class="i"><use href="#i-forum"/></svg>Forum</a></li>
-      <li><a href="#news"><svg class="i"><use href="#i-blog"/></svg>Blog</a></li>
-      <li><a href="#games"><svg class="i"><use href="#i-shop"/></svg>Shop</a></li>
-    </ul>
-    <a class="upgrade" href="#" onclick="pickPlace(); return false;">Upload a Place</a>
-    <h4>Events</h4>
-    <a class="event" href="#" onclick="openGame('nds'); return false;">Disaster Weekend<small>Survive every disaster!</small></a>
-  </aside>
-  <div class="scrim" onclick="document.body.classList.remove('nav-open')"></div>
+  <script>WB.chrome('home');</script>
 
   <main class="main" id="top">
     <div class="wrap">
       <div class="hello">
-        <div class="av" id="me-av"></div>
+        <a class="av" id="me-av" href="catalog.html?cat=wearing" title="Change your look in the Catalog"></a>
         <div>
-          <h1>Hello, WebBloxPlayer!</h1>
-          <div class="bc"><b>BC</b>Builders Club</div>
+          <h1>Hello, <span class="my-name"></span>!</h1>
+          <div class="sub"><span class="bc"><b>BC</b>Builders Club</span><a href="#" onclick="WB.rename(); return false;">Change name</a><a href="catalog.html?cat=wearing">Change look</a></div>
         </div>
       </div>
-
-      <section class="sec" id="friends">
-        <div class="sec-h"><h2>Friends (<span id="fn">9</span>)</h2><a class="btn-see" href="#friends">See All</a></div>
-        <div class="friends" id="flist"></div>
-      </section>
 
       <section class="sec">
         <div class="sec-h"><h2>Recently Played</h2><a class="btn-see" href="#games">See All</a></div>
@@ -276,19 +111,18 @@
       </section>
 
       <section class="sec" id="games">
-        <div class="sec-h"><h2>Popular</h2><button class="btn-see" onclick="pickPlace()">Upload .rbxl</button></div>
+        <div class="sec-h"><h2>Popular</h2><button class="btn-see" onclick="WB.pickPlace()">Upload .rbxl</button></div>
         <div class="cards" id="popular"></div>
       </section>
-
     </div>
     <footer class="ftr">
-      <nav><a href="#top">About Us</a><a href="#news">Blog</a><a href="#games">Games</a><a href="#" onclick="pickPlace(); return false;">Develop</a><a href="#feed">Help</a></nav>
+      <nav><a href="#top">About Us</a><a href="#news">Blog</a><a href="#games">Games</a><a href="catalog.html">Catalog</a><a href="#" onclick="WB.pickPlace(); return false;">Develop</a></nav>
       <p>WebBlox is a fan-made, unofficial classic-era game player. It is not affiliated with, endorsed by or sponsored by Roblox Corporation.</p>
     </footer>
   </main>
 
   <div class="modal" id="game-modal" onclick="if (event.target === this) closeGame()">
-    <div class="gp" role="dialog" aria-modal="true" aria-labelledby="gp-title">
+    <div class="dialog gp" role="dialog" aria-modal="true" aria-labelledby="gp-title">
       <button class="x" aria-label="Close" onclick="closeGame()">&times;</button>
       <div class="top">
         <div class="shot" id="gp-shot"></div>
@@ -299,17 +133,23 @@
           <div class="rate"><svg class="i"><use href="#i-thumb"/></svg><span id="gp-up"></span><div class="vbar"><i id="gp-bar"></i></div><span id="gp-pct"></span></div>
         </div>
       </div>
-      <div class="tabs"><span class="on">About</span><span>Store</span><span>Servers</span></div>
-      <div class="about">
+      <div class="tabs" role="tablist">
+        <button class="on" data-tab="about" onclick="showTab('about')">About</button>
+        <button data-tab="store" onclick="showTab('store')">Store</button>
+        <button data-tab="servers" onclick="showTab('servers')">Servers</button>
+      </div>
+      <div class="pane" id="tab-about">
         <h3>Description</h3>
         <div class="desc" id="gp-desc"></div>
         <dl class="stats" id="gp-stats"></dl>
       </div>
+      <div class="pane" id="tab-store" hidden>
+        <h3>Store</h3>
+        <p class="note">This game has no game passes. Get hats, shirts and more in the <a href="catalog.html" style="color:var(--blue);font-weight:600">Catalog</a>; you'll wear them in every game.</p>
+      </div>
+      <div class="pane" id="tab-servers" hidden></div>
     </div>
   </div>
-
-  <div class="launch" id="launch"><div class="box"><div class="spinner"></div><h3>WebBlox is now loading.</h3><p>Get ready to play!</p></div></div>
-  <input type="file" id="rbxl" accept=".rbxl,.rbxlx" hidden />
 
   <script>
     const GAMES = [
@@ -336,38 +176,29 @@
     ];
     const RECENT = ['nds', 'speeding-wall', 'hide-seek', 'lumber', 'zombie', 'downhill'];
     const FAVS = ['war-tycoon', 'restaurant', 'coaster', 'nds-classic', 'lumber', 'nds'];
-    const FRIENDS = [['Builderman', 'online', '#1b6bc6'], ['Shedletsky', 'game', '#c4281c'], ['Telamon', '', '#4b974b'], ['Erik.Cassel', '', '#da8541'],
-                     ['ROBLOX', '', '#191919'], ['1x1x1x1', '', '#6b327c'], ['Guest 1337', 'online', '#9c9c9c'], ['Dued1', '', '#0d69ac'], ['Stickmasterluke', '', '#a34b4b']];
     const NEWS = [
-      ['Every game now loads in seconds', 'Classic places are now stored in the fast binary format, so even the biggest maps open almost instantly.', 'Nov 20, 2026'],
-      ['Scripts that error no longer crash games', 'A broken script used to take the whole game down. Now errors are handled the classic way and the game keeps running.', 'Nov 20, 2026'],
-      ['Upload your own places', 'Click Develop or "Upload a Place" to play any .rbxl or .rbxlx file right in your browser.', 'Nov 19, 2026']
+      ['Play together', 'Open a game\'s Servers tab to join the public server or make a private one with chat for you and your friends.', 'Nov 21, 2026'],
+      ['The Catalog is open', 'Spend your ROBUX on hats, shirts, pants and body colors. Whatever you wear shows up in every game.', 'Nov 21, 2026'],
+      ['Characters walk again', 'Walking, jumping, climbing, sitting, holding tools and /e emotes are all animated now.', 'Nov 21, 2026'],
+      ['Every game loads in seconds', 'Classic places are now stored in the fast binary format, so even the biggest maps open almost instantly.', 'Nov 20, 2026']
     ];
     const byId = Object.fromEntries(GAMES.map(g => [g.id, g]));
+    const esc = WB.esc;
     const fmt = n => n >= 1000 ? (n / 1000).toFixed(1).replace(/\.0$/, '') + 'K' : String(n);
-    const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    const server = String((window.WEBBLOX_CONFIG || {}).multiplayerServer || '').replace(/\/+$/, '');
     const thumbUrl = g => 'thumbs/' + g.id + '.jpg';
-    const playUrl = g => 'play.html?' + (g.map ? 'map=' + encodeURIComponent(g.map) + '&' : '') + 'title=' + encodeURIComponent(g.title) + (g.by ? '&by=' + encodeURIComponent(g.by) : '');
-
-    // Classic blocky headshot, drawn so no external images are needed.
-    function headshot(shirt, bg = '#e3e3e3', face = '#f5cd30') {
-      return `<svg viewBox="0 0 84 84" width="100%" height="100%" aria-hidden="true"><rect width="84" height="84" fill="${bg}"/>
-        <rect x="12" y="62" width="60" height="30" rx="6" fill="${shirt}"/><rect x="25" y="16" width="34" height="38" rx="9" fill="${face}"/>
-        <rect x="35" y="11" width="14" height="7" rx="2" fill="${face}"/><circle cx="35.5" cy="32" r="2.6" fill="#191919"/><circle cx="48.5" cy="32" r="2.6" fill="#191919"/>
-        <path d="M34 41q8 7 16 0" stroke="#191919" stroke-width="2.6" fill="none" stroke-linecap="round"/></svg>`;
-    }
+    const playUrl = (g, room) => 'play.html?' + (g.map ? 'map=' + encodeURIComponent(g.map) + '&' : '') + 'title=' + encodeURIComponent(g.title)
+      + (g.by ? '&by=' + encodeURIComponent(g.by) : '') + (room ? '&room=' + room : '');
 
     function card(g) {
-      const down = 100 - g.up;
-      return `<button class="card" data-id="${g.id}" data-name="${esc(g.title.toLowerCase())}" onclick="openGame('${g.id}')">
+      return `<button class="card" data-id="${g.id}" onclick="openGame('${g.id}')">
         <span class="thumb" style="background-image:url('${thumbUrl(g)}')"></span>
         <span class="name">${esc(g.title)}</span>
         <span class="playing">${fmt(g.playing)} Playing</span>
-        <span class="votes"><span>${g.up}%</span><span class="vbar" title="${g.up}% liked, ${down}% disliked"><i style="width:${g.up}%"></i></span></span>
+        <span class="votes"><span>${g.up}%</span><span class="vbar" title="${g.up}% liked"><i style="width:${g.up}%"></i></span></span>
         <span class="creator">by <b>${esc(g.by || 'WebBlox')}</b></span>
       </button>`;
     }
-
     function render() {
       const q = document.getElementById('q').value.trim().toLowerCase();
       const fill = (el, ids) => {
@@ -379,8 +210,10 @@
       fill('popular', GAMES.slice().sort((a, b) => b.playing - a.playing).map(g => g.id));
     }
 
+    let current = null;
     function openGame(id) {
       const g = byId[id]; if (!g) return;
+      current = g;
       document.body.classList.remove('nav-open');
       document.getElementById('gp-shot').style.backgroundImage = `url('${thumbUrl(g).replace('.jpg', '-wide.jpg')}'), url('${thumbUrl(g)}')`;
       document.getElementById('gp-title').textContent = g.title;
@@ -389,9 +222,10 @@
       document.getElementById('gp-bar').style.width = g.up + '%';
       document.getElementById('gp-pct').textContent = fmt(Math.round(g.playing * 3.1)) + ' votes';
       document.getElementById('gp-desc').textContent = g.desc;
-      document.getElementById('gp-stats').innerHTML = [['Playing', fmt(g.playing)], ['Visits', g.visits], ['Created', '3/14/2016'], ['Updated', '11/20/2026'], ['Max Players', 12], ['Genre', g.genre]]
+      document.getElementById('gp-stats').innerHTML = [['Playing', fmt(g.playing)], ['Visits', g.visits], ['Created', '3/14/2016'], ['Updated', '11/21/2026'], ['Max Players', 30], ['Genre', g.genre]]
         .map(([k, v]) => `<div><dt>${k}</dt><dd>${esc(v)}</dd></div>`).join('');
-      document.getElementById('gp-play').onclick = () => launch(playUrl(g));
+      document.getElementById('gp-play').onclick = () => WB.launch(playUrl(g));
+      showTab('about');
       document.getElementById('game-modal').classList.add('open');
       history.replaceState(null, '', '#game=' + id);
     }
@@ -399,65 +233,85 @@
       document.getElementById('game-modal').classList.remove('open');
       history.replaceState(null, '', location.pathname);
     }
-    function launch(url) {
-      document.getElementById('launch').classList.add('open');
-      setTimeout(() => { location.href = url; }, 900);
+    function showTab(name) {
+      document.querySelectorAll('.gp .tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === name));
+      ['about', 'store', 'servers'].forEach(t => { document.getElementById('tab-' + t).hidden = t !== name; });
+      if (name === 'servers') renderServers();
     }
 
-    // Uploaded places go through IndexedDB: sessionStorage can't hold files bigger than a few MB.
-    function pickPlace() { document.body.classList.remove('nav-open'); document.getElementById('rbxl').click(); }
-    document.getElementById('rbxl').addEventListener('change', async e => {
-      const f = e.target.files[0]; if (!f) return;
-      const buf = await f.arrayBuffer();
-      try {
-        await new Promise((resolve, reject) => {
-          const req = indexedDB.open('webblox', 1);
-          req.onupgradeneeded = () => req.result.createObjectStore('files');
-          req.onerror = () => reject(req.error);
-          req.onsuccess = () => {
-            const tx = req.result.transaction('files', 'readwrite');
-            tx.objectStore('files').put(buf, 'upload');
-            tx.oncomplete = resolve; tx.onerror = () => reject(tx.error);
-          };
-        });
-      } catch (err) {
-        alert('Could not open that file in this browser (storage is blocked or full).');
+    // Servers tab: the public server (anyone playing this game) and private invite links.
+    function slug(g) {
+      return String(g.map || 'natural-disaster-survival').toLowerCase().replace(/\.rbxlx?$/, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'game';
+    }
+    async function renderServers() {
+      const pane = document.getElementById('tab-servers');
+      const g = current;
+      if (!server) {
+        pane.innerHTML = `<h3>Servers</h3><p class="note">Multiplayer is turned off on this site. (Site owner: see <code>games/rblx/tools/multiplayer-server/README.md</code>.)</p>`;
         return;
       }
-      launch('play.html?custom=1&title=' + encodeURIComponent(f.name.replace(/\.rbxlx?$/i, '')));
-    });
+      pane.innerHTML = `<h3>Servers</h3><p class="note">Checking who's online…</p>`;
+      let count = null;
+      try {
+        const r = await fetch(server + '/rooms', { cache: 'no-store' });
+        const rooms = await r.json();
+        count = rooms['pub-' + slug(g)] || 0;
+      } catch (e) { /* server asleep or offline: it wakes up when someone joins */ }
+      if (current !== g) return;
+      const slots = Array.from({ length: 30 }, (_, i) => `<i class="${i < (count || 0) ? 'f' : ''}"></i>`).join('');
+      pane.innerHTML = `<h3>Servers</h3>
+        <div class="server"><div class="info"><b>Public server</b><span>${count == null ? 'Server is asleep; it wakes up when you join (about a minute).' : count + ' of 30 players'}</span><div class="slots">${slots}</div></div>
+          <button class="btn-green" onclick="WB.launch(playUrl(current))">Join</button></div>
+        <div class="server"><div class="info"><b>Private server</b><span>Just you and the friends you invite. Chat is on in private servers.</span>
+          <div class="invite" id="invite" hidden><input id="invite-link" readonly aria-label="Invite link" /><button class="btn-white" onclick="copyInvite()">Copy</button></div></div>
+          <button class="btn-blue" id="make-private" onclick="makePrivate()">Create</button></div>
+        <p class="note">In WebBlox multiplayer you see each other's avatars, animations, outfits and chat. Each player's game world runs separately, so NPCs, rounds and items aren't shared.</p>`;
+    }
+    function makePrivate() {
+      const code = Array.from(crypto.getRandomValues(new Uint8Array(6)), b => 'abcdefghjkmnpqrstuvwxyz23456789'[b % 31]).join('');
+      const url = new URL(playUrl(current, code), location.href).href;
+      document.getElementById('invite').hidden = false;
+      document.getElementById('invite-link').value = url;
+      const btn = document.getElementById('make-private');
+      btn.textContent = 'Play';
+      btn.onclick = () => WB.launch(url);
+    }
+    function copyInvite() {
+      const input = document.getElementById('invite-link');
+      input.select();
+      (navigator.clipboard ? navigator.clipboard.writeText(input.value) : Promise.reject()).catch(() => document.execCommand('copy'));
+    }
 
+    // My Feed
     function postStatus(e) {
       e.preventDefault();
       const input = document.getElementById('status-in');
       const text = input.value.trim(); if (!text) return;
       input.value = '';
-      FEED.unshift(['WebBloxPlayer', text, 'Just now', '#0d69ac']);
+      FEED.unshift([WB.displayName(), text, 'Just now', null]);
       try { localStorage.setItem('webblox-status', JSON.stringify(FEED[0])); } catch (err) {}
       renderFeed();
     }
     const FEED = [
-      ['WebBlox', 'Natural Disaster Survival and Zombie Defence II load in seconds now. Go play!', '2 hours ago', '#00a2ff'],
-      ['Guest 1337', 'anyone want to play hide and seek?? i am hiding in the bank', '5 hours ago', '#9c9c9c'],
-      ['WebBlox', 'Tip: hold the right mouse button in game to look around.', 'Yesterday', '#00a2ff']
+      ['WebBlox', 'You can play with other people now! Open a game and check its Servers tab.', '1 hour ago', { skin: 24, shirt: 23, pants: 37, hat: 'cap' }],
+      ['Guest 1337', 'just bought the cheese hat lol', '4 hours ago', { skin: 125, shirt: 1, pants: 26, hat: 'cheese' }],
+      ['WebBlox', 'Tip: type /e dance in the chat to dance.', 'Yesterday', { skin: 24, shirt: 23, pants: 37 }]
     ];
     try { const saved = JSON.parse(localStorage.getItem('webblox-status')); if (Array.isArray(saved)) FEED.unshift(saved); } catch (err) {}
     function renderFeed() {
-      document.getElementById('posts').innerHTML = FEED.slice(0, 4).map(([who, text, when, color]) =>
-        `<div class="post"><div class="av">${headshot(color)}</div><div><b>${esc(who)}</b><p>${esc(text)}</p><time>${esc(when)}</time></div></div>`).join('');
+      document.getElementById('posts').innerHTML = FEED.slice(0, 4).map(([who, text, when, look]) =>
+        `<div class="post"><div class="av">${WB.avatarSVG(look || WB.look(), 'head', '#e3e3e3')}</div><div><b>${esc(who)}</b><p>${esc(text)}</p><time>${esc(when)}</time></div></div>`).join('');
     }
 
-    document.getElementById('me-av').innerHTML = headshot('#0d69ac', '#fff');
-    document.getElementById('fn').textContent = document.getElementById('friend-count').textContent = FRIENDS.length;
-    document.getElementById('flist').innerHTML = FRIENDS.map(([n, st, c]) =>
-      `<div class="friend"><div class="av">${headshot(c)}${st ? `<i class="dot ${st === 'game' ? 'game' : ''}" title="${st === 'game' ? 'In game' : 'Online'}"></i>` : ''}</div><span>${esc(n)}</span></div>`).join('');
+    document.getElementById('me-av').innerHTML = WB.avatarSVG(WB.look(), 'head', '#fff');
+    document.querySelectorAll('.my-name').forEach(e => { e.textContent = WB.displayName(); });
     document.getElementById('news-list').innerHTML = NEWS.map(([t, p, d]) => `<a href="#news"><h3>${esc(t)}</h3><p>${esc(p)}</p><p>${d}</p></a>`).join('');
     document.getElementById('q').addEventListener('input', render);
     document.addEventListener('keydown', e => { if (e.key === 'Escape') closeGame(); });
-    document.querySelectorAll('.lnav a[href^="#"]').forEach(a => a.addEventListener('click', () => document.body.classList.remove('nav-open')));
     render();
     renderFeed();
     const m = location.hash.match(/^#game=([\w-]+)/); if (m) openGame(m[1]);
+    window.addEventListener('hashchange', () => { const h = location.hash.match(/^#game=([\w-]+)/); if (h) openGame(h[1]); });
   </script>
 </body>
 </html>
