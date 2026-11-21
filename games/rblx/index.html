@@ -185,7 +185,8 @@
     const byId = Object.fromEntries(GAMES.map(g => [g.id, g]));
     const esc = WB.esc;
     const fmt = n => n >= 1000 ? (n / 1000).toFixed(1).replace(/\.0$/, '') + 'K' : String(n);
-    const server = String((window.WEBBLOX_CONFIG || {}).multiplayerServer || '').replace(/\/+$/, '');
+    const CFG = window.WEBBLOX_CONFIG || {};
+    const server = String(CFG.multiplayerServer || '').replace(/\/+$/, '');
     const thumbUrl = g => 'thumbs/' + g.id + '.jpg';
     const playUrl = (g, room) => 'play.html?' + (g.map ? 'map=' + encodeURIComponent(g.map) + '&' : '') + 'title=' + encodeURIComponent(g.title)
       + (g.by ? '&by=' + encodeURIComponent(g.by) : '') + (room ? '&room=' + room : '');
@@ -243,33 +244,60 @@
     function slug(g) {
       return String(g.map || 'natural-disaster-survival').toLowerCase().replace(/\.rbxlx?$/, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'game';
     }
+    // Without a server of our own, players connect to each other with PeerJS (p2p.js).
+    // Its scripts are only loaded when someone opens a Servers tab.
+    let p2pReady = null;
+    function loadP2P() {
+      const load = src => new Promise((ok, fail) => { const el = document.createElement('script'); el.src = src; el.onload = ok; el.onerror = fail; document.head.appendChild(el); });
+      p2pReady = p2pReady || load('peerjs.min.js').then(() => load('p2p.js')).catch(() => { p2pReady = null; });
+      return p2pReady;
+    }
+    async function playerCount(g) {
+      if (server) {
+        const r = await fetch(server + '/rooms', { cache: 'no-store' });
+        return (await r.json())['pub-' + slug(g)] || 0;
+      }
+      await loadP2P();
+      if (!window.WebBloxP2P || !window.Peer) return null;
+      const params = new URLSearchParams(location.search);
+      return WebBloxP2P.countPlayers('pub-' + slug(g), WebBloxP2P.peerOptions(params.get('peerserver') || CFG.peerServer));
+    }
     async function renderServers() {
       const pane = document.getElementById('tab-servers');
       const g = current;
-      if (!server) {
-        pane.innerHTML = `<h3>Servers</h3><p class="note">Multiplayer is turned off on this site. (Site owner: see <code>games/rblx/tools/multiplayer-server/README.md</code>.)</p>`;
+      if (CFG.multiplayer === false) {
+        pane.innerHTML = `<h3>Servers</h3><p class="note">Multiplayer is turned off on this site.</p>`;
         return;
       }
-      pane.innerHTML = `<h3>Servers</h3><p class="note">Checking who's online…</p>`;
-      let count = null;
-      try {
-        const r = await fetch(server + '/rooms', { cache: 'no-store' });
-        const rooms = await r.json();
-        count = rooms['pub-' + slug(g)] || 0;
-      } catch (e) { /* server asleep or offline: it wakes up when someone joins */ }
-      if (current !== g) return;
-      const slots = Array.from({ length: 30 }, (_, i) => `<i class="${i < (count || 0) ? 'f' : ''}"></i>`).join('');
-      pane.innerHTML = `<h3>Servers</h3>
-        <div class="server"><div class="info"><b>Public server</b><span>${count == null ? 'Server is asleep; it wakes up when you join (about a minute).' : count + ' of 30 players'}</span><div class="slots">${slots}</div></div>
+      const draw = count => {
+        const slots = Array.from({ length: 30 }, (_, i) => `<i class="${i < (count || 0) ? 'f' : ''}"></i>`).join('');
+        const who = count === undefined ? 'Checking who\'s online…'
+          : count == null ? (server ? 'Server is asleep; it wakes up when you join (about a minute).' : 'Couldn\'t check who\'s online. You can still join.')
+          : count === 0 ? 'Nobody is playing right now. Join and invite someone!'
+          : count + ' of 30 players';
+        pane.innerHTML = `<h3>Servers</h3>
+        <div class="server"><div class="info"><b>Public server</b><span>${who}</span><div class="slots">${slots}</div></div>
           <button class="btn-green" onclick="WB.launch(playUrl(current))">Join</button></div>
         <div class="server"><div class="info"><b>Private server</b><span>Just you and the friends you invite. Chat is on in private servers.</span>
           <div class="invite" id="invite" hidden><input id="invite-link" readonly aria-label="Invite link" /><button class="btn-white" onclick="copyInvite()">Copy</button></div></div>
           <button class="btn-blue" id="make-private" onclick="makePrivate()">Create</button></div>
-        <p class="note">In WebBlox multiplayer you see each other's avatars, animations, outfits and chat. Each player's game world runs separately, so NPCs, rounds and items aren't shared.</p>`;
+        <p class="note">In WebBlox multiplayer you see each other's avatars, animations, outfits and chat. Each player's game world runs separately, so NPCs, rounds and items aren't shared.${server ? '' : ' Players connect straight to each other (peer-to-peer), so there\'s no server to wait for.'}</p>`;
+      };
+      draw(undefined);
+      let count = null;
+      try { count = await playerCount(g); } catch (e) { /* offline or server asleep */ }
+      if (current !== g || document.getElementById('tab-servers').hidden) return;
+      // keep a private invite the player already made
+      const invite = document.getElementById('invite-link');
+      const link = invite && !document.getElementById('invite').hidden ? invite.value : '';
+      draw(count);
+      if (link) showInvite(link);
     }
     function makePrivate() {
       const code = Array.from(crypto.getRandomValues(new Uint8Array(6)), b => 'abcdefghjkmnpqrstuvwxyz23456789'[b % 31]).join('');
-      const url = new URL(playUrl(current, code), location.href).href;
+      showInvite(new URL(playUrl(current, code), location.href).href);
+    }
+    function showInvite(url) {
       document.getElementById('invite').hidden = false;
       document.getElementById('invite-link').value = url;
       const btn = document.getElementById('make-private');

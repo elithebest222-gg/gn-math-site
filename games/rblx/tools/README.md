@@ -39,9 +39,23 @@ If those files are ever replaced with a fresh build, re-run
 
 ## Multiplayer
 
-`multiplayer-server/` is the small server behind WebBlox's lite multiplayer. Its README explains how to
-put it online for free and connect the site to it (`../config.js`). The in-game side is
-`../scripts/WebBloxPlayers.lua`.
+Multiplayer is peer-to-peer and needs nothing hosted. The in-game side, `../scripts/WebBloxPlayers.lua`,
+asks `peer-sync/<id>/sync?...` a few times a second for everyone else's avatar and chat.
+`../coi-serviceworker.js` catches those requests and passes them (over a `BroadcastChannel`) to the play
+page, where `../p2p.js` answers them. It shares the player's state with the other players in the room
+over PeerJS (WebRTC):
+
+- Each room has a PeerJS id, `webblox-v1-<room>`. The first player in a room takes it and becomes the
+  hub; everyone after connects to the hub, which sends everyone the room's players and chat a few
+  times a second. If the hub leaves, the others race to take over the id.
+- PeerJS's free cloud (0.peerjs.com) only introduces the browsers to each other. Game data goes
+  directly between them, or through PeerJS's free TURN relay on networks that block direct connections.
+- Rooms are `pub-<game>` (everyone playing that game, no chat) and `priv-<code>-<game>` (invite links
+  from a game's Servers tab, chat on).
+
+`../config.js` can point at your own PeerJS server (`peerServer`) instead of the free cloud, or switch
+to the classic `multiplayer-server/` (`multiplayerServer`), which speaks the same protocol. Its README
+explains how to run it.
 
 ## Animations
 

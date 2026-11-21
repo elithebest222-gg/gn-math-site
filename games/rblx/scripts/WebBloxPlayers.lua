@@ -343,10 +343,12 @@ while true do
 	local ok, body = pcall(function() return game:HttpGetAsync(url) end)
 	if ok and type(body) == "string" and string.find(body, "S|") then
 		failures = 0
-		local count = 0
+		local count, note = 0, nil
 		for line in string.gmatch(body, "[^\n]+") do
 			local kind = string.sub(line, 1, 2)
-			if kind == "P|" then
+			if kind == "M|" then
+				note = string.sub(line, 3)
+			elseif kind == "P|" then
 				local id, name, st = string.match(line, "^P|([^|]+)|([^|]*)|(.*)$")
 				if id then count = count + 1 update(id, name ~= "" and name or "Guest", st) end
 			elseif kind == "C|" then
@@ -362,16 +364,17 @@ while true do
 			end
 		end
 		local word = count == 1 and " other player" or " other players"
-		status.Text = (mp.private and "Private server: " or "Online: ") .. count .. word
+		status.Text = note or ((mp.private and "Private server: " or "Online: ") .. count .. word)
 		for oid, o in pairs(others) do
-			if tick() - (o.seen or 0) > 6 then
+			if tick() - (o.seen or 0) > 4 then
 				pcall(function() o.model:Destroy() end)
 				others[oid] = nil
 			end
 		end
 	else
 		failures = failures + 1
-		status.Text = failures > 3 and "Multiplayer: waking up the server..." or "Multiplayer: connecting..."
+		local p2p = string.find(mp.url, "/peer-sync/", 1, true)
+		status.Text = failures > 3 and (p2p and "Multiplayer: reconnecting..." or "Multiplayer: waking up the server...") or "Multiplayer: connecting..."
 	end
 	wait(ok and 0.12 or math.min(5, 0.5 * failures))
 end
