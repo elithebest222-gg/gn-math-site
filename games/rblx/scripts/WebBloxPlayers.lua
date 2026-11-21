@@ -8,9 +8,17 @@
 --   WEBBLOX.anims = animation name -> registered KeyframeSequence id (from WebBloxAnimate)
 --
 -- The engine's own networking can't carry a shared game, so multiplayer here is "lite":
--- every player keeps their own world and the server (tools/multiplayer-server) only passes
--- avatar positions, animations, outfits and private-room chat between them. Other players
--- show up as stand-in avatars with name tags and chat bubbles.
+-- every player keeps their own world and only avatar positions, animations, outfits,
+-- leaderstats and private-room chat are passed between them (p2p.js, or
+-- tools/multiplayer-server). Other players show up as stand-in avatars with name tags and
+-- chat bubbles, and on the leaderboard.
+--
+-- ReplicatedStorage.WebBlox is shared with the place's own scripts and the player list:
+--   Room (StringValue)        the multiplayer room, or "solo"
+--   ClockOffset (NumberValue) add to tick() for the room's shared clock (timed rounds, see
+--                             tools/nds_sync.py); ClockReady (BoolValue) once it's known
+--   LocalName (StringValue)   your WebBlox name (the engine calls every local player "Player")
+--   Players (Folder)          a Folder per other player in the room, with their leaderstats
 
 local WB = WEBBLOX or {}
 local Players = game:GetService("Players")
@@ -20,6 +28,26 @@ while not player do
 	Players.ChildAdded:wait()
 	player = Players.LocalPlayer
 end
+
+local mpInfo = WB.mp or {}
+local online = mpInfo.url and mpInfo.url ~= ""
+local shared = Instance.new("Folder")
+shared.Name = "WebBlox"
+local function sharedValue(class, name, v)
+	local o = Instance.new(class)
+	o.Name = name
+	o.Value = v
+	o.Parent = shared
+	return o
+end
+sharedValue("StringValue", "Room", online and mpInfo.room or "solo")
+local clockOffset = sharedValue("NumberValue", "ClockOffset", 0)
+local clockReady = sharedValue("BoolValue", "ClockReady", not online)
+sharedValue("StringValue", "LocalName", mpInfo.name or "Player")
+local remoteFolder = Instance.new("Folder")
+remoteFolder.Name = "Players"
+remoteFolder.Parent = shared
+shared.Parent = game:GetService("ReplicatedStorage")
 
 local BODY = { "Head", "Torso", "Left Arm", "Right Arm", "Left Leg", "Right Leg" }
 local SLOT = { Head = "skin", ["Left Arm"] = "skin", ["Right Arm"] = "skin", Torso = "shirt", ["Left Leg"] = "pants", ["Right Leg"] = "pants" }
@@ -145,6 +173,10 @@ status.Position = UDim2.new(0, 8, 1, -30)
 status.FontSize = Enum.FontSize.Size14
 status.Text = "Multiplayer: connecting..."
 status.Parent = game:GetService("CoreGui"):WaitForChild("RobloxGui")
+local function setStatus(text)
+	status.Text = text
+	status.Size = UDim2.new(0, math.max(150, status.TextBounds.X + 20), 0, 22)
+end
 
 local myId = mp.id or ""
 if not string.match(myId, "^[a-z0-9]+$") or #myId < 6 then
@@ -157,8 +189,9 @@ local function enc(s)
 	return (string.gsub(tostring(s), "[^%w%-_%.]", function(c) return string.format("%%%02X", string.byte(c)) end))
 end
 
--- Chat (private rooms only). This engine build draws neither chat bubbles nor a chat log for
--- local messages, so show both here: a speech bubble over the speaker and a short message list.
+-- Chat. This engine build draws neither chat bubbles nor a chat log for local messages, so
+-- show both here: a speech bubble over the speaker and a short message list. (In public
+-- servers the hub masks swear words before passing a message on.)
 local feed = Instance.new("Frame")
 feed.Name = "WebBloxChat"
 feed.BackgroundTransparency = 1
@@ -207,16 +240,14 @@ local function speechBubble(head, text)
 end
 
 local outbox = {}
-if mp.private then
-	player.Chatted:connect(function(msg)
-		if string.sub(msg, 1, 1) == "/" then return end
-		msg = string.sub(msg, 1, 120)
-		table.insert(outbox, msg)
-		addFeed(mp.name, msg)
-		local head = player.Character and player.Character:FindFirstChild("Head")
-		if head then speechBubble(head, msg) end
-	end)
-end
+player.Chatted:connect(function(msg)
+	if string.sub(msg, 1, 1) == "/" then return end
+	msg = string.sub(msg, 1, 120)
+	table.insert(outbox, msg)
+	addFeed(mp.name, msg)
+	local head = player.Character and player.Character:FindFirstChild("Head")
+	if head then speechBubble(head, msg) end
+end)
 
 local function myState()
 	local c = player.Character
@@ -231,6 +262,67 @@ local function myState()
 	local hat = (WB.look and HATS[WB.look.hat or ""]) and WB.look.hat or "none"
 	return string.format("%.2f,%.2f,%.2f,%.3f,%s,%d,%d,%d,%d,%d,%d,%s", p.X, p.Y, p.Z,
 		math.atan2(-look.X, -look.Z), WB.anim or "idle", colors[1], colors[2], colors[3], colors[4], colors[5], colors[6], hat)
+end
+
+-- Your leaderstats, sent to the others: "Cash:120,Logs:4"
+local function myStats()
+	local ls = player:FindFirstChild("leaderstats")
+	if not ls then return "" end
+	local out = {}
+	for _, v in pairs(ls:GetChildren()) do
+		local ok, val = pcall(function() return v.Value end)
+		local name = string.gsub(v.Name, "[^%w _]", "")
+		if ok and name ~= "" then
+			local text
+			if type(val) == "number" then
+				text = val == math.floor(val) and string.format("%.0f", val) or string.format("%.2f", val)
+			elseif type(val) == "string" or type(val) == "boolean" then
+				text = string.gsub(tostring(val), "[^%w _%.%-]", "")
+			end
+			if text then out[#out + 1] = string.sub(name, 1, 24) .. ":" .. string.sub(text, 1, 24) end
+		end
+	end
+	return string.sub(table.concat(out, ","), 1, 200)
+end
+
+-- Another player's entry for the leaderboard: a Folder with a leaderstats copy
+local function setRemoteStats(o, name, stats)
+	local f = o.folder
+	if not f or not f.Parent then
+		f = Instance.new("Folder")
+		o.folder, o.statsKey = f, nil
+	end
+	if f.Name ~= name then f.Name = name end
+	if o.statsKey ~= stats then
+		o.statsKey = stats
+		local ls = f:FindFirstChild("leaderstats")
+		if not ls then
+			ls = Instance.new("IntValue")
+			ls.Name = "leaderstats"
+		end
+		local seen = {}
+		for pair in string.gmatch(stats, "[^,]+") do
+			local k, v = string.match(pair, "^([^:]+):(.*)$")
+			if k then
+				seen[k] = true
+				local num = tonumber(v)
+				local want = num and (num == math.floor(num) and math.abs(num) < 2^31 and "IntValue" or "NumberValue") or "StringValue"
+				local cur = ls:FindFirstChild(k)
+				if cur and cur.ClassName ~= want then cur:Destroy() cur = nil end
+				if not cur then
+					cur = Instance.new(want)
+					cur.Name = k
+					cur.Parent = ls
+				end
+				cur.Value = num or v
+			end
+		end
+		for _, c in pairs(ls:GetChildren()) do
+			if not seen[c.Name] then c:Destroy() end
+		end
+		if not ls.Parent then ls.Parent = f end
+	end
+	if not f.Parent then f.Parent = remoteFolder end
 end
 
 -- Stand-in avatar for another player
@@ -291,7 +383,7 @@ local function playOn(o, animName)
 	end
 end
 
-local function update(id, name, state)
+local function update(id, name, state, stats)
 	local f = {}
 	for v in string.gmatch(state, "[^,]+") do f[#f + 1] = v end
 	if #f < 12 then return end
@@ -318,6 +410,7 @@ local function update(id, name, state)
 		setHat(o.model, f[12])
 	end
 	playOn(o, f[5])
+	setRemoteStats(o, name, stats or "")
 end
 
 local function bubble(id, text)
@@ -339,18 +432,29 @@ while true do
 	local state = myState()
 	local chat = table.remove(outbox, 1)
 	local url = mp.url .. "/sync?room=" .. enc(mp.room) .. "&id=" .. myId .. "&name=" .. enc(mp.name)
-		.. "&ack=" .. lastSeq .. (state and ("&s=" .. enc(state)) or "") .. (chat and ("&c=" .. enc(chat)) or "")
+		.. "&ack=" .. lastSeq .. (state and ("&s=" .. enc(state)) or "") .. "&l=" .. enc(myStats())
+		.. (chat and ("&c=" .. enc(chat)) or "")
 	local ok, body = pcall(function() return game:HttpGetAsync(url) end)
 	if ok and type(body) == "string" and string.find(body, "S|") then
 		failures = 0
-		local count, note = 0, nil
+		local count, note, serverNo = 0, nil, nil
 		for line in string.gmatch(body, "[^\n]+") do
 			local kind = string.sub(line, 1, 2)
 			if kind == "M|" then
 				note = string.sub(line, 3)
+			elseif kind == "N|" then
+				serverNo = tonumber(string.sub(line, 3))
 			elseif kind == "P|" then
-				local id, name, st = string.match(line, "^P|([^|]+)|([^|]*)|(.*)$")
-				if id then count = count + 1 update(id, name ~= "" and name or "Guest", st) end
+				local id, name, st, stats = string.match(line, "^P|([^|]+)|([^|]*)|([^|]*)|?(.*)$")
+				if id then count = count + 1 update(id, name ~= "" and name or "Guest", st, stats) end
+			elseif kind == "T|" then
+				-- the room's shared clock (ms); small jitter from the request itself is ignored
+				local ms = tonumber(string.sub(line, 3))
+				if ms then
+					local off = ms / 1000 - tick()
+					if not clockReady.Value or math.abs(off - clockOffset.Value) > 0.25 then clockOffset.Value = off end
+					clockReady.Value = true
+				end
 			elseif kind == "C|" then
 				local seq, oid, text = string.match(line, "^C|(%d+)|([^|]+)|[^|]*|(.*)$")
 				seq = tonumber(seq)
@@ -364,17 +468,21 @@ while true do
 			end
 		end
 		local word = count == 1 and " other player" or " other players"
-		status.Text = note or ((mp.private and "Private server: " or "Online: ") .. count .. word)
+		local where = mp.private and "Private server: " or (serverNo and ("Server " .. serverNo .. ": ") or "Online: ")
+		setStatus(note or (where .. count .. word))
 		for oid, o in pairs(others) do
 			if tick() - (o.seen or 0) > 4 then
 				pcall(function() o.model:Destroy() end)
+				if o.folder then pcall(function() o.folder:Destroy() end) end
 				others[oid] = nil
 			end
 		end
 	else
 		failures = failures + 1
 		local p2p = string.find(mp.url, "/peer-sync/", 1, true)
-		status.Text = failures > 3 and (p2p and "Multiplayer: reconnecting..." or "Multiplayer: waking up the server...") or "Multiplayer: connecting..."
+		setStatus(failures > 3 and (p2p and "Multiplayer: reconnecting..." or "Multiplayer: waking up the server...") or "Multiplayer: connecting...")
+		-- don't hold up timed rounds forever if we can't reach anyone
+		if failures > 10 then clockReady.Value = true end
 	end
 	wait(ok and 0.12 or math.min(5, 0.5 * failures))
 end

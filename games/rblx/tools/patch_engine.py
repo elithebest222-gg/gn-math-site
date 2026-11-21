@@ -24,6 +24,18 @@ repeatable on a fresh copy of the original files).
    bug in Emscripten's socket bridge and lets the page set Module.bridgeUrl.
    (That mode still can't work: the build is missing RakNet's reliable-send code.)
 
+6. Place scripts start before you join, like on a real Roblox server.
+   BrowserApp's startup (maybeStartInitialSession) created the local player and
+   only then set RunService running, so every game script that sets up
+   leaderstats in Players.PlayerAdded / ChildAdded never saw you join: no Cash,
+   no KOs, empty leaderboards, and some games' join logic never ran. The
+   RunService.setRunState(Running) call now comes just before createLocalPlayer.
+
+7. The build's debug alignment check no longer ends the game. Leaderstats made
+   the player list pass numbers through a BindableEvent, which writes a double
+   at an unaligned address; WebAssembly handles that fine (the instrumented
+   store still happens after the check), but the check aborted the engine.
+
 usage: python3 patch_engine.py ../rblx.wasm ../rblx.js
 """
 import sys
@@ -168,6 +180,39 @@ def patch(d):
 
 
 
+# 6. (any copy, matched by bytes) In BrowserApp's startup lambda, move
+#    `create<RunService>(sp)->setRunState(RS_RUNNING)` from after the local player is created
+#    to just before Players::createLocalPlayer. sp is local 8, set by the local.tee just before.
+JOIN_OLD = bytes.fromhex('200141bc146a2208' '10cb0a' '41014100' '10cfb601')
+JOIN_NEW = bytes.fromhex('200141bc146a2208' '200810c90a410110e929' '10cb0a' '41014100' '10cfb601')
+RUN_LATER = bytes.fromhex('200810c90a410110e929' '41ffc50c')   # ...; puts("BrowserApp: RunService started")
+
+
+def patch_join(d):
+    out = bytearray(d[:8])
+    done = 0
+    for sid, h, p, e in sections(d):
+        if sid != 10:
+            out += d[h:e]
+            continue
+        code = d[p:e]
+        n, q = rleb(code, 0)
+        body = bytearray(uleb(n))
+        for _ in range(n):
+            sz, q2 = rleb(code, q)
+            b = code[q2:q2 + sz]
+            q = q2 + sz
+            if JOIN_OLD in b:
+                assert b.count(JOIN_OLD) == 1 and b.count(RUN_LATER) == 1
+                b = b.replace(RUN_LATER, b'\x01' * 10 + RUN_LATER[10:])   # nop out the old call
+                b = b.replace(JOIN_OLD, JOIN_NEW)
+                done += 1
+            body += uleb(len(b)) + b
+        out += bytes([10]) + uleb(len(body)) + body
+    assert done == 1, 'startup sequence not found'
+    return bytes(out)
+
+
 def patch_js(s, PUSHSTRING_TABLE_INDEX):
     old_vii = 'function invoke_vii(index,a1,a2){var sp=stackSave();try{getWasmTableEntry(index)(a1,a2)}catch(e){stackRestore(sp);if(!(e instanceof EmscriptenEH))throw e;_setThrew(1,0)}}'
     old_iiii = 'function invoke_iiii(index,a1,a2,a3){var sp=stackSave();try{return getWasmTableEntry(index)(a1,a2,a3)}catch(e){stackRestore(sp);if(!(e instanceof EmscriptenEH))throw e;_setThrew(1,0)}}'
@@ -215,6 +260,11 @@ def patch_js(s, PUSHSTRING_TABLE_INDEX):
     old_ws = 'var url=UTF8ToString((growMemViews(),HEAPU32)[SAFE_HEAP_INDEX((growMemViews(),HEAPU32),createAttributes>>2,"loading")]);'
     assert s.count(old_ws) == 1
     s = s.replace(old_ws, old_ws + 'if(url=="ws://127.0.0.1:4016"&&Module["bridgeUrl"])url=Module["bridgeUrl"];')
+
+    # 7. Unaligned access is fine in WebAssembly: report nothing (the store/load still happens).
+    old_align = 'function alignfault(){abort("alignment fault")}'
+    assert s.count(old_align) == 1
+    s = s.replace(old_align, 'function alignfault(){}')
     return s
 
 
@@ -223,6 +273,7 @@ if __name__ == '__main__':
         sys.exit(__doc__)
     wasm_path, js_path = sys.argv[1], sys.argv[2]
     wasm, idx = patch(open(wasm_path, 'rb').read())
+    wasm = patch_join(wasm)
     js = patch_js(open(js_path).read(), idx[2])
     open(wasm_path, 'wb').write(wasm)
     open(js_path, 'w').write(js)

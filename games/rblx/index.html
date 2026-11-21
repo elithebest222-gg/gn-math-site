@@ -62,6 +62,7 @@
     .server .slots i { width: 10px; height: 10px; border-radius: 2px; background: var(--line); }
     .server .slots i.f { background: var(--green); }
     .invite { display: flex; gap: 8px; margin-top: 10px; }
+    .invite[hidden] { display: none; }
     .invite input { flex: 1; min-width: 0; border: 1px solid var(--border); border-radius: 3px; padding: 6px 8px; font-size: 14px; }
     .note { color: var(--muted); font-size: 14px; }
 
@@ -177,6 +178,8 @@
     const RECENT = ['nds', 'speeding-wall', 'hide-seek', 'lumber', 'zombie', 'downhill'];
     const FAVS = ['war-tycoon', 'restaurant', 'coaster', 'nds-classic', 'lumber', 'nds'];
     const NEWS = [
+      ['Leaderboards are back', 'Cash, KOs, points and every other leaderboard stat works again, and you can see the other players in your server on it, under your own name.', 'Nov 21, 2026'],
+      ['Disasters for everyone', 'In Natural Disaster Survival everyone in a server now gets the same map and the same disaster at the same time. How many can you survive?', 'Nov 21, 2026'],
       ['Play together', 'Open a game\'s Servers tab to join the public server or make a private one with chat for you and your friends.', 'Nov 21, 2026'],
       ['The Catalog is open', 'Spend your ROBUX on hats, shirts, pants and body colors. Whatever you wear shows up in every game.', 'Nov 21, 2026'],
       ['Characters walk again', 'Walking, jumping, climbing, sitting, holding tools and /e emotes are all animated now.', 'Nov 21, 2026'],
@@ -188,8 +191,8 @@
     const CFG = window.WEBBLOX_CONFIG || {};
     const server = String(CFG.multiplayerServer || '').replace(/\/+$/, '');
     const thumbUrl = g => 'thumbs/' + g.id + '.jpg';
-    const playUrl = (g, room) => 'play.html?' + (g.map ? 'map=' + encodeURIComponent(g.map) + '&' : '') + 'title=' + encodeURIComponent(g.title)
-      + (g.by ? '&by=' + encodeURIComponent(g.by) : '') + (room ? '&room=' + room : '');
+    const playUrl = (g, room, ps) => 'play.html?' + (g.map ? 'map=' + encodeURIComponent(g.map) + '&' : '') + 'title=' + encodeURIComponent(g.title)
+      + (g.by ? '&by=' + encodeURIComponent(g.by) : '') + (room ? '&room=' + room : '') + (ps > 1 ? '&ps=' + ps : '');
 
     function card(g) {
       return `<button class="card" data-id="${g.id}" onclick="openGame('${g.id}')">
@@ -252,7 +255,9 @@
       p2pReady = p2pReady || load('peerjs.min.js').then(() => load('p2p.js')).catch(() => { p2pReady = null; });
       return p2pReady;
     }
-    async function playerCount(g) {
+    // Public player counts: a number (multiplayer server), one count per public server
+    // (peer-to-peer; see p2p.js), or null if we couldn't find out.
+    async function playerCounts(g) {
       if (server) {
         const r = await fetch(server + '/rooms', { cache: 'no-store' });
         return (await r.json())['pub-' + slug(g)] || 0;
@@ -260,7 +265,7 @@
       await loadP2P();
       if (!window.WebBloxP2P || !window.Peer) return null;
       const params = new URLSearchParams(location.search);
-      return WebBloxP2P.countPlayers('pub-' + slug(g), WebBloxP2P.peerOptions(params.get('peerserver') || CFG.peerServer));
+      return WebBloxP2P.countServers('pub-' + slug(g), WebBloxP2P.peerOptions(params.get('peerserver') || CFG.peerServer));
     }
     async function renderServers() {
       const pane = document.getElementById('tab-servers');
@@ -269,28 +274,34 @@
         pane.innerHTML = `<h3>Servers</h3><p class="note">Multiplayer is turned off on this site.</p>`;
         return;
       }
-      const draw = count => {
-        const slots = Array.from({ length: 30 }, (_, i) => `<i class="${i < (count || 0) ? 'f' : ''}"></i>`).join('');
-        const who = count === undefined ? 'Checking who\'s online…'
-          : count == null ? (server ? 'Server is asleep; it wakes up when you join (about a minute).' : 'Couldn\'t check who\'s online. You can still join.')
-          : count === 0 ? 'Nobody is playing right now. Join and invite someone!'
-          : count + ' of 30 players';
-        pane.innerHTML = `<h3>Servers</h3>
-        <div class="server"><div class="info"><b>Public server</b><span>${who}</span><div class="slots">${slots}</div></div>
-          <button class="btn-green" onclick="WB.launch(playUrl(current))">Join</button></div>
-        <div class="server"><div class="info"><b>Private server</b><span>Just you and the friends you invite. Chat is on in private servers.</span>
+      const row = (label, text, n, ps) => `<div class="server"><div class="info"><b>${label}</b><span>${text}</span>
+          <div class="slots">${Array.from({ length: 30 }, (_, i) => `<i class="${i < n ? 'f' : ''}"></i>`).join('')}</div></div>
+          <button class="btn-green" onclick="WB.launch(playUrl(current, '', ${ps || 1}))">Join</button></div>`;
+      const nobody = 'Nobody is playing right now. Join and invite someone!';
+      const draw = counts => {
+        let pub;
+        if (counts === undefined) pub = row('Public server', 'Checking who\'s online…', 0);
+        else if (counts == null) pub = row('Public server', server ? 'Server is asleep; it wakes up when you join (about a minute).' : 'Couldn\'t check who\'s online. You can still join.', 0);
+        else if (typeof counts === 'number') pub = row('Public server', counts ? counts + ' of 30 players' : nobody, counts);
+        else {
+          const live = counts.map((n, i) => [n, i + 1]).filter(([n]) => n > 0);
+          pub = live.length ? live.map(([n, k]) => row('Public server ' + k, n + (n === 1 ? ' player' : ' players') + ' of 30', n, k)).join('')
+            : row('Public server', nobody, 0);
+        }
+        pane.innerHTML = `<h3>Servers</h3>${pub}
+        <div class="server"><div class="info"><b>Private server</b><span>Just you and the friends you invite.</span>
           <div class="invite" id="invite" hidden><input id="invite-link" readonly aria-label="Invite link" /><button class="btn-white" onclick="copyInvite()">Copy</button></div></div>
           <button class="btn-blue" id="make-private" onclick="makePrivate()">Create</button></div>
-        <p class="note">In WebBlox multiplayer you see each other's avatars, animations, outfits and chat. Each player's game world runs separately, so NPCs, rounds and items aren't shared.${server ? '' : ' Players connect straight to each other (peer-to-peer), so there\'s no server to wait for.'}</p>`;
+        <p class="note">In WebBlox multiplayer you see each other's avatars, animations, outfits, leaderboard stats and chat (swear words are hidden in public servers). Each player's game world runs separately, so NPCs and items aren't shared, but Natural Disaster Survival keeps everyone's rounds together: same map, same disaster, same time.${server ? '' : ' Players connect straight to each other (peer-to-peer), so there\'s no server to wait for.'}</p>`;
       };
       draw(undefined);
-      let count = null;
-      try { count = await playerCount(g); } catch (e) { /* offline or server asleep */ }
+      let counts = null;
+      try { counts = await playerCounts(g); } catch (e) { /* offline or server asleep */ }
       if (current !== g || document.getElementById('tab-servers').hidden) return;
       // keep a private invite the player already made
       const invite = document.getElementById('invite-link');
       const link = invite && !document.getElementById('invite').hidden ? invite.value : '';
-      draw(count);
+      draw(counts);
       if (link) showInvite(link);
     }
     function makePrivate() {
@@ -333,7 +344,7 @@
 
     document.getElementById('me-av').innerHTML = WB.avatarSVG(WB.look(), 'head', '#fff');
     document.querySelectorAll('.my-name').forEach(e => { e.textContent = WB.displayName(); });
-    document.getElementById('news-list').innerHTML = NEWS.map(([t, p, d]) => `<a href="#news"><h3>${esc(t)}</h3><p>${esc(p)}</p><p>${d}</p></a>`).join('');
+    document.getElementById('news-list').innerHTML = NEWS.slice(0, 4).map(([t, p, d]) => `<a href="#news"><h3>${esc(t)}</h3><p>${esc(p)}</p><p>${d}</p></a>`).join('');
     document.getElementById('q').addEventListener('input', render);
     document.addEventListener('keydown', e => { if (e.key === 'Escape') closeGame(); });
     render();

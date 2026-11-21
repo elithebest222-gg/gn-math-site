@@ -4,11 +4,11 @@
 // (position, facing, animation, colors, hat) and any chat line, and gets back everyone
 // else in the same room. No dependencies: `node server.js` (PORT env, default 8080).
 //
-//   GET /sync?room=&id=&name=&s=&c=&ack=   -> text lines (see reply format below)
+//   GET /sync?room=&id=&name=&s=&l=&c=&ack= -> text lines (see reply format below)
+//   (l = the player's leaderstats, "Cash:120,Logs:4")
 //   GET /rooms                             -> {"room": playerCount, ...}
 //
-// Chat is only relayed in private rooms (names starting with "priv-"), since the
-// public rooms are open to anyone on the site.
+// Public rooms are open to anyone on the site, so swear words in chat are masked (####).
 'use strict';
 const http = require('http');
 
@@ -22,7 +22,11 @@ const rooms = new Map();        // name -> { players: Map<id, player>, chat: [],
 const ROOM_RE = /^(pub|priv)-[a-z0-9-]{1,60}$/;
 const ID_RE = /^[a-z0-9]{6,16}$/;
 const STATE_RE = /^[-0-9.,a-z]{1,160}$/;
+const STATS_RE = /^[A-Za-z0-9 _.:,\-]{0,200}$/;
 const clean = (s, n) => String(s || '').replace(/[^A-Za-z0-9 _.\-!?,'@#:()]/g, '').trim().slice(0, n);
+// (same list as p2p.js)
+const BAD_WORDS = /(f+u+c+k|sh[i1]t|b[i1]tch|cunt|d[i1]ck|puss(y|ie)|a+s+s+h+o+l+e|bastard|slut|wh[o0]re|n[i1]gg|f[a@]g|retard|\bc[o0]ck|porn|pen[i1]s|vag[i1]na|\brap(e|ed|es|ing|ist|ists)\b|nazi|d[i1]ldo|b[o0]{2}b|\bt[i1]ts\b|\bcum\b|\bsex\b|\bkys\b)/gi;
+const filterChat = text => text.replace(BAD_WORDS, w => '#'.repeat(w.length));
 
 function room(name) {
   let r = rooms.get(name);
@@ -45,28 +49,32 @@ function sync(q, now) {
   let me = r.players.get(id);
   if (!me) {
     if (r.players.size >= MAX_PLAYERS) return [503, 'E|room is full\n'];
-    me = { name: 'Guest', state: '', t: now };
+    me = { name: 'Guest', state: '', stats: '', t: now };
     r.players.set(id, me);
   }
   me.t = now;
   me.name = clean(q.get('name'), 20) || me.name;
   const s = String(q.get('s') || '');
   if (STATE_RE.test(s)) me.state = s;
+  const l = String(q.get('l') || '');
+  if (q.has('l') && STATS_RE.test(l)) me.stats = l;
   const c = clean(q.get('c'), 120);
-  if (c && name.startsWith('priv-') && now - (me.lastChat || 0) > 700) {
+  if (c && now - (me.lastChat || 0) > 700) {
     me.lastChat = now;
-    r.chat.push({ seq: ++r.seq, id, name: me.name, text: c, t: now });
+    r.chat.push({ seq: ++r.seq, id, name: me.name, text: filterChat(c), t: now });
     if (r.chat.length > CHAT_KEEP) r.chat.shift();
   }
 
-  // Reply: one line per other player, then chat lines newer than ?ack=, then the latest seq.
-  //   P|id|name|state     C|seq|id|name|text     S|seq
+  // Reply: one line per other player, then chat lines newer than ?ack=, the server's clock
+  // (ms; games use it to run timed rounds together), then the latest seq.
+  //   P|id|name|state|stats     C|seq|id|name|text     T|ms     S|seq
   const ack = parseInt(q.get('ack'), 10);
   const out = [];
-  for (const [pid, p] of r.players) if (pid !== id && p.state) out.push(`P|${pid}|${p.name}|${p.state}`);
+  for (const [pid, p] of r.players) if (pid !== id && p.state) out.push(`P|${pid}|${p.name}|${p.state}|${p.stats}`);
   if (Number.isFinite(ack) && ack >= 0) {
     for (const m of r.chat) if (m.seq > ack && m.id !== id) out.push(`C|${m.seq}|${m.id}|${m.name}|${m.text}`);
   }
+  out.push(`T|${now}`);
   out.push(`S|${r.seq}`);
   return [200, out.join('\n') + '\n'];
 }

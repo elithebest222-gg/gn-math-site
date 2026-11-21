@@ -27,12 +27,16 @@ engine's own binary places, and the engine refuses a place whose property types 
 
 ## Engine patch
 
-`patch_engine.py` documents the two fixes applied to `rblx.wasm` / `rblx.js`
-(already applied in this folder):
+`patch_engine.py` documents the fixes applied to `rblx.wasm` / `rblx.js` (already applied in
+this folder). The main ones:
 
 1. Lua errors, including errors inside `pcall`, used to crash the whole game. They are now
    handled like normal Lua errors.
 2. Requests for linked scripts are answered immediately, so they no longer hang loading.
+3. A game's scripts start before you join, like on a real Roblox server. The engine used to
+   create your player first, so scripts that hand out leaderstats when a player joins never
+   saw you: empty leaderboards, no Cash, no KOs.
+4. The build's debug alignment check no longer ends the game (leaderboard numbers tripped it).
 
 If those files are ever replaced with a fresh build, re-run
 `python3 patch_engine.py ../rblx.wasm ../rblx.js` and bump `VERSION` in `../play.html`.
@@ -40,18 +44,39 @@ If those files are ever replaced with a fresh build, re-run
 ## Multiplayer
 
 Multiplayer is peer-to-peer and needs nothing hosted. The in-game side, `../scripts/WebBloxPlayers.lua`,
-asks `peer-sync/<id>/sync?...` a few times a second for everyone else's avatar and chat.
+asks `peer-sync/<id>/sync?...` a few times a second for everyone else's avatar, leaderstats and chat.
 `../coi-serviceworker.js` catches those requests and passes them (over a `BroadcastChannel`) to the play
 page, where `../p2p.js` answers them. It shares the player's state with the other players in the room
 over PeerJS (WebRTC):
 
-- Each room has a PeerJS id, `webblox-v1-<room>`. The first player in a room takes it and becomes the
-  hub; everyone after connects to the hub, which sends everyone the room's players and chat a few
-  times a second. If the hub leaves, the others race to take over the id.
+- Each server has a PeerJS id, `webblox-v1-<room>` (public servers 2-5: `..._s2` and so on). The
+  first player in a server takes it and becomes the hub; everyone after connects to the hub, which
+  sends everyone the server's players and chat a few times a second. If the hub leaves (or goes
+  quiet for 4 seconds), the others race to take over the id.
 - PeerJS's free cloud (0.peerjs.com) only introduces the browsers to each other. Game data goes
   directly between them, or through PeerJS's free TURN relay on networks that block direct connections.
-- Rooms are `pub-<game>` (everyone playing that game, no chat) and `priv-<code>-<game>` (invite links
-  from a game's Servers tab, chat on).
+- Rooms are `pub-<game>` (everyone playing that game) and `priv-<code>-<game>` (invite links from a
+  game's Servers tab). A public room has up to 5 servers: anyone can end up hosting one, including
+  someone whose network refuses connections, so a server you can't reach in 9 seconds (or that's
+  full) is skipped for a minute and you join the next one. A hub alone on a higher server moves down
+  once a lower one is free again. Swear words in chat are masked (`####`).
+- Replies also carry the room's clock (`T|ms`); `ReplicatedStorage.WebBlox` hands it, the room name
+  and the other players' leaderstats to the game's own scripts and the player list.
+
+## Natural Disaster Survival rounds
+
+Every player runs their own copy of the game, so out of the box everyone got their own random map
+and disaster. `nds_sync.py` rewrites the game's round script so rounds start on the room's shared
+clock (every 190 seconds) and the map and disaster come from the room name and round number:
+everyone in a server gets the same ones at the same time. It also counts Survivals in leaderstats
+and fills the lobby's Top 10 board with everyone in the server.
+
+```bash
+python3 nds_sync.py --builtin ../places/natural-disaster-survival.rbxl   # the built-in game
+python3 nds_sync.py "in.rbxl" "out.rbxl"                                 # e.g. the Classic copy
+```
+
+`../play.html` loads `places/natural-disaster-survival.rbxl` when no map is given.
 
 `../config.js` can point at your own PeerJS server (`peerServer`) instead of the free cloud, or switch
 to the classic `multiplayer-server/` (`multiplayerServer`), which speaks the same protocol. Its README
