@@ -6,19 +6,20 @@ everything through a server of their own: set `multiplayerServer` in `games/rblx
 games use it instead of peer-to-peer.
 
 Lets players in the same game see each other. Each player's game sends its avatar's position, animation,
-outfit and (in private servers) chat to this server a few times a second and gets everyone else's back.
+outfit, leaderstats and chat to this server a few times a second and gets everyone else's back, plus the
+server's clock (Natural Disaster Survival runs its rounds on it, so everyone gets the same map and disaster).
 
 **What it is:** "lite" multiplayer. You see other players walk, jump, emote and chat, but every player's
-world runs on their own computer, so NPCs, rounds, disasters and items aren't shared. Real Roblox-style
+world runs on their own computer, so NPCs and items aren't shared. Real Roblox-style
 multiplayer isn't possible with this engine build. Its networking library (RakNet) is missing the code
 that sends game data once players are connected (the compiler removed it because of a bug in the
 source). Only the engine's developers can fix that by rebuilding it.
 
 **Public vs private servers:**
-- Every game has one public server that anyone on the site joins automatically. Public servers have
-  no chat, because anyone can be in them.
-- Players with the same invite code (`play.html?...&room=CODE`) are in a private server together, with
-  chat. The game page's **Servers** tab makes these links.
+- Every game has one public server that anyone on the site joins automatically. Anyone can be in
+  them, so swear words in chat are masked (`####`).
+- Players with the same invite code (`play.html?...&room=CODE`) are in a private server together.
+  The game page's **Servers** tab makes these links.
 
 ## Put it online
 

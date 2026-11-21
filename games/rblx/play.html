@@ -65,7 +65,7 @@
     try { Object.defineProperty(navigator, 'hardwareConcurrency', { get: () => 32 }); } catch (e) {}
 
     (async function () {
-      const VERSION = '38';                       // bump when rblx.js / rblx.wasm change
+      const VERSION = '39';                       // bump when rblx.js / rblx.wasm change
       const CHUNKS = 12, CHUNK_SIZE = 25165824, DATA_SIZE = 289418733;
       const $ = id => document.getElementById(id);
       const canvas = $('canvas'), loading = $('loading');
@@ -126,7 +126,7 @@
       // peer-to-peer over PeerJS (p2p.js), started now so it connects while the game downloads.
       const mp = multiplayerSettings();
       if (mp.mode === 'p2p') {
-        try { WebBloxP2P.start({ room: mp.room, sid: mp.sid, peer: mp.peer }); }
+        try { WebBloxP2P.start({ room: mp.room, sid: mp.sid, peer: mp.peer, server: +params.get('ps') || 1 }); }
         catch (e) { console.warn('Multiplayer unavailable:', e); mp.url = ''; }
       }
 
@@ -138,7 +138,9 @@
       const luaP = Promise.all(['WebBloxAnimate', 'WebBloxPlayers'].map(n =>
         fetch('scripts/' + n + '.lua?v=' + VERSION).then(r => r.ok ? r.text() : null).catch(() => null)));
 
-      // The place to load: an uploaded file (IndexedDB) or one of places/.
+      // The place to load: an uploaded file (IndexedDB) or one of places/. Without either it's the
+      // built-in Natural Disaster Survival, from places/ too: that copy runs its rounds on the room's
+      // shared clock (tools/nds_sync.py), so everyone in a server gets the same map and disaster.
       const placeP = (async () => {
         let bytes = null;
         if (params.get('custom') === '1') {
@@ -148,6 +150,10 @@
           const res = await fetch('places/' + encodeURIComponent(params.get('map')));
           if (!res.ok) throw new Error('Missing places/' + params.get('map') + ' (HTTP ' + res.status + ')');
           bytes = new Uint8Array(await res.arrayBuffer());
+        } else {
+          // (falls back to the engine's own copy if this is missing)
+          const res = await fetch('places/natural-disaster-survival.rbxl').catch(() => null);
+          if (res && res.ok) bytes = new Uint8Array(await res.arrayBuffer());
         }
         if (bytes && !isBinaryPlace(bytes)) {
           // Very old XML places sometimes have FogEnd = 0, which fogs out the whole world.
@@ -215,6 +221,17 @@
             for (const code of [animateSource, playersSource]) if (code) inject += 'spawn(function()\n' + code + '\nend)\n';
             FS.writeFile(starter, src.includes(marker) ? src.replace(marker, marker + inject) : src + inject);
           } catch (e) { console.warn('WebBlox client scripts unavailable:', e); }
+          const luaName = '"' + playerName() + '"';
+          for (const [file, list] of Object.entries(CORE_EDITS)) {
+            try {
+              let src = FS.readFile(file, { encoding: 'utf8' });
+              for (const [from, to] of list) {
+                if (src.split(from).length !== 2) throw new Error('engine script changed: ' + from.slice(0, 40));
+                src = src.replace(from, () => to.split('__WEBBLOX_NAME__').join(luaName));
+              }
+              FS.writeFile(file, src);
+            } catch (e) { console.warn('WebBlox: left ' + file + ' unchanged:', e.message); }
+          }
           status('Loading place…', 88);
           setTimeout(show, placeStarted ? 120000 : 90000);
         }
@@ -223,6 +240,34 @@
       s.src = 'rblx.js?v=' + VERSION;
       s.onerror = () => fail('Couldn\'t download the game engine.', 'rblx.js failed to load');
       document.body.appendChild(s);
+
+      // WebBlox: the player list also shows the other players in your multiplayer room, and you
+      // appear under your WebBlox name (the engine names every local player "Player").
+      // Each edit must match the engine's script exactly once, or that script is left alone.
+      const CORE_EDITS = {
+        '/content/scripts/Modules/PlayerlistModule.lua': [
+          ["local function getMembershipIcon(player)\n\tif isTenFootInterface then",
+           "local function getMembershipIcon(player)\n\tif not player:IsA(\"Player\") then return \"\" end\n\tif isTenFootInterface then"],
+          ["\tspawn(function()\n\t\tlocal success, result = pcall(function()\n\t\t\treturn player:GetRankInGroup(game.CreatorId) == 255",
+           "\tspawn(function()\n\t\tif not player:IsA(\"Player\") then return end\n\t\tlocal success, result = pcall(function()\n\t\t\treturn player:GetRankInGroup(game.CreatorId) == 255"],
+          ["if selectedPlayer ~= Player and selectedPlayer.userId > 1 and Player.userId > 1 then",
+           "if selectedPlayer ~= Player and selectedPlayer:IsA(\"Player\") and selectedPlayer.userId > 1 and Player.userId > 1 then"],
+          ["\t\t\tif player.Neutral then\n\t\t\t\ttable.insert(teams.Neutral, playerEntry)",
+           "\t\t\tif not player:IsA(\"Player\") or player.Neutral then\n\t\t\t\ttable.insert(teams.Neutral, playerEntry)"],
+          ["local team = player.Neutral and 'Neutral' or tostring(player.TeamColor)",
+           "local team = (not player:IsA(\"Player\") or player.Neutral) and 'Neutral' or tostring(player.TeamColor)"],
+          ["\t\tlocal userId = tostring(player.userId)\n\n\t\t-- don't update icon if already friends",
+           "\t\tlocal userId = player:IsA(\"Player\") and tostring(player.userId) or \"\"\n\n\t\t-- don't update icon if already friends"],
+          ["local function createPlayerEntry(player, isTopStat)\n\tlocal playerEntry = {}\n\tlocal name = player.Name",
+           "local function createPlayerEntry(player, isTopStat)\n\tlocal playerEntry = {}\n\tlocal name = (player == Player and __WEBBLOX_NAME__) or player.Name"],
+          ["for _,player in pairs(Players:GetPlayers()) do\n\tinsertPlayerEntry(player)\nend\n",
+           "for _,player in pairs(Players:GetPlayers()) do\n\tinsertPlayerEntry(player)\nend\n-- WebBlox: the other players in this multiplayer room (Folders with their leaderstats, kept up\n-- to date by WebBloxPlayers.lua in ReplicatedStorage.WebBlox.Players)\nspawn(function()\n\tlocal remote = game:GetService(\"ReplicatedStorage\"):WaitForChild(\"WebBlox\"):WaitForChild(\"Players\")\n\tlocal function add(child) if child:IsA(\"Folder\") then insertPlayerEntry(child) end end\n\tremote.ChildAdded:connect(add)\n\tremote.ChildRemoved:connect(function(child) removePlayerEntry(child) end)\n\tfor _, child in pairs(remote:GetChildren()) do add(child) end\nend)\n"]
+        ],
+        '/content/scripts/CoreScripts/Topbar.lua': [
+          ["\t\tText = Player.Name;\n",
+           "\t\tText = __WEBBLOX_NAME__;\n"]
+        ]
+      };
 
       function isBinaryPlace(b) { return b.length > 8 && String.fromCharCode(...b.subarray(0, 8)) === '<roblox!'; }
 
@@ -247,6 +292,15 @@
         return { mode: 'p2p', url: /^[A-Za-z0-9.:\/_\-]+$/.test(base) ? base + 'peer-sync/' + sid : '', room, code, sid, peer };
       }
 
+      // Your name in games: the one set on the home page, or a random Guest name for this visit.
+      let nameCache = null;
+      function playerName() {
+        if (nameCache) return nameCache;
+        let saved = '';
+        try { saved = localStorage.getItem('webblox-name') || ''; } catch (e) {}
+        return nameCache = saved.replace(/[^A-Za-z0-9_ ]/g, '').trim().slice(0, 20) || 'Guest ' + (1000 + Math.floor(Math.random() * 9000));
+      }
+
       // Settings handed to the client scripts as a Lua table (WEBBLOX): multiplayer address and room,
       // your name, and the outfit you wear from the Catalog. Everything is sanitized to plain chars.
       function webbloxLua() {
@@ -255,7 +309,7 @@
         const store = k => { try { return localStorage.getItem(k); } catch (e) { return null; } };
         let outfit = {};
         try { outfit = JSON.parse(store('webblox-outfit')) || {}; } catch (e) {}
-        const name = (store('webblox-name') || '').replace(/[^A-Za-z0-9_ ]/g, '').slice(0, 20) || 'Guest ' + (1000 + Math.floor(Math.random() * 9000));
+        const name = playerName();
         const id = Array.from(crypto.getRandomValues(new Uint8Array(10)), b => 'abcdefghijklmnopqrstuvwxyz0123456789'[b % 36]).join('');
         return 'local WEBBLOX = {\n' +
           '  mp = { url = ' + str(mp.url, /[^A-Za-z0-9.:\/_\-]/g) + ', room = ' + str(mp.room) + ', name = ' + str(name) + ', id = ' + str(id) + ', private = ' + (mp.code ? 'true' : 'false') + ' },\n' +
