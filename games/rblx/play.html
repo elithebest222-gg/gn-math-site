@@ -44,14 +44,12 @@
     #sound { position: fixed; top: 4px; left: 280px; z-index: 30; display: flex; align-items: center; gap: 6px; height: 28px; padding: 0 12px; border-radius: 3px; background: rgba(0,0,0,.5); color: #fff; font: inherit; font-size: 14px; font-weight: 600; border: 1px solid rgba(255,255,255,.25); cursor: pointer; }
     #sound[hidden] { display: none; }
     #sound svg { width: 16px; height: 16px; fill: currentColor; }
-    #gfx { position: fixed; top: 4px; left: 150px; z-index: 30; height: 28px; padding: 0 10px; border-radius: 3px; background: rgba(0,0,0,.45); color: #fff; font: inherit; font-size: 13px; font-weight: 600; border: 1px solid rgba(255,255,255,.25); cursor: pointer; }
-    #gfx:hover, #sound:hover { background: rgba(0,0,0,.75); }
-    @media (max-width: 600px) { #sound { left: auto; right: 8px; top: auto; bottom: 8px; } #gfx { display: none; } #loading .tip { display: none; } #loading .info { left: 18px; right: 96px; bottom: 26px; } #loading .ring { right: 20px; bottom: 26px; width: 46px; height: 46px; } }
+    #sound:hover { background: rgba(0,0,0,.75); }
+    @media (max-width: 600px) { #sound { left: auto; right: 8px; top: auto; bottom: 8px; } #loading .tip { display: none; } #loading .info { left: 18px; right: 96px; bottom: 26px; } #loading .ring { right: 20px; bottom: 26px; width: 46px; height: 46px; } }
   </style>
 </head>
 <body>
   <button id="sound" hidden title="Your browser is keeping the game quiet until you click"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9v6h4l5 5V4L7 9zm13.6 3 2.7-2.7-1.4-1.4-2.7 2.7-2.7-2.7-1.4 1.4 2.7 2.7-2.7 2.7 1.4 1.4 2.7-2.7 2.7 2.7 1.4-1.4z"/></svg>Click for sound</button>
-  <button id="gfx" title="Graphics: Auto keeps the game smooth by drawing fewer pixels when it needs to. Fast is always smoothest, Sharp uses your screen's full resolution."></button>
   <div id="loading">
     <div class="tip" id="tip"></div>
     <div class="info">
@@ -96,27 +94,33 @@
 
       // Graphics: how many pixels the game draws. The engine renders at the screen's pixel ratio, so a
       // high-DPI screen meant 4x the pixels and a quarter of the frame rate (and slow-motion physics).
-      // Normal draws one pixel per CSS pixel; Sharp uses the full ratio; Fast draws even fewer.
-      // Auto (the default) starts at Normal and draws fewer pixels while the game runs below 60 fps
-      // (the game reports its frame rate every 2 seconds, see the signals below).
+      // It's set in the game's own menu, like 2016 Roblox (Settings: Graphics Mode and Graphics Quality,
+      // see GameSettings.lua below): Automatic (the default) draws fewer pixels while the game runs
+      // below 60 fps (the game reports its frame rate every 2 seconds); Manual quality 1-9 goes from 40%
+      // to 100% of the page's pixels, and 10 uses the screen's full resolution.
       const realRatio = window.devicePixelRatio || 1;
       let autoScale = Math.min(realRatio, 1), smoothFor = 0;
-      const GFX = { auto: ['Auto', () => autoScale], fast: ['Fast', () => Math.min(realRatio, 0.6)], normal: ['Normal', () => Math.min(realRatio, 1)], sharp: ['Sharp', () => realRatio] };
-      let gfx = 'auto';
-      try { gfx = GFX[localStorage.getItem('webblox-graphics')] ? localStorage.getItem('webblox-graphics') : 'auto'; } catch (e) {}
-      try { Object.defineProperty(window, 'devicePixelRatio', { get: () => GFX[gfx][1](), configurable: true }); } catch (e) {}
-      const gfxBtn = $('gfx');
-      const showGfx = () => { gfxBtn.textContent = 'Graphics: ' + GFX[gfx][0]; };
-      showGfx();
-      gfxBtn.addEventListener('click', () => {
-        gfx = { auto: 'fast', fast: 'normal', normal: 'sharp', sharp: 'auto' }[gfx];
-        try { localStorage.setItem('webblox-graphics', gfx); } catch (e) {}
-        showGfx();
+      let gfx = 0;   // 0 = Automatic, 1-10 = Manual quality
+      try {
+        const saved = localStorage.getItem('webblox-graphics') || 'auto';
+        gfx = ({ fast: 3, normal: 9, sharp: 10 })[saved] || (/^q(10|[1-9])$/.test(saved) ? +saved.slice(1) : 0);
+      } catch (e) {}
+      const gfxLevel = () => gfx;
+      const pixelScale = () => gfx === 0 ? autoScale : gfx >= 10 ? realRatio : Math.min(realRatio, 1) * (0.4 + 0.6 * (gfx - 1) / 8);
+      try { Object.defineProperty(window, 'devicePixelRatio', { get: pixelScale, configurable: true }); } catch (e) {}
+      const setGfx = n => {
+        n = Math.max(0, Math.min(10, n | 0));
+        if (n === gfx) return;
+        gfx = n;
+        try { localStorage.setItem('webblox-graphics', n ? 'q' + n : 'auto'); } catch (e) {}
         window.dispatchEvent(new Event('resize'));
-        canvas.focus();
-      });
+      };
+      // (no resizing in the middle of a click: the engine would lose the button press)
+      let lastPress = 0, pressing = false;
+      addEventListener('pointerdown', () => { pressing = true; lastPress = performance.now(); }, true);
+      addEventListener('pointerup', () => { pressing = false; lastPress = performance.now(); }, true);
       const autoGraphics = fps => {
-        if (gfx !== 'auto' || !(fps > 0)) return;
+        if (gfx !== 0 || !(fps > 0) || pressing || performance.now() - lastPress < 1500) return;
         const before = autoScale, top = Math.min(realRatio, 1);
         if (fps < 50) { autoScale = Math.max(0.45, autoScale * (fps < 35 ? 0.8 : 0.9)); smoothFor = 0; }
         else if (fps >= 57 && ++smoothFor >= 3 && autoScale < top) { autoScale = Math.min(top, autoScale * 1.1); smoothFor = 0; }
@@ -132,6 +136,14 @@
             location.href = './index.html';
           } else if (m.startsWith('fps/')) {
             autoGraphics(parseFloat(m.slice(4)));
+          } else if (m.startsWith('gfx/')) {
+            setGfx(parseInt(m.slice(4), 10));
+          } else if (m.startsWith('fullscreen/')) {
+            const on = m.endsWith('/1');
+            try {
+              if (on && !document.fullscreenElement) document.documentElement.requestFullscreen().catch(() => {});
+              else if (!on && document.fullscreenElement) document.exitFullscreen().catch(() => {});
+            } catch (e) {}
           }
         };
       } catch (e) {}
@@ -336,13 +348,13 @@
             for (const code of [animateSource, playersSource]) if (code) inject += 'spawn(function()\n' + code + '\nend)\n';
             FS.writeFile(starter, src.includes(marker) ? src.replace(marker, marker + inject) : src + inject);
           } catch (e) { console.warn('WebBlox client scripts unavailable:', e); }
-          const luaName = '"' + playerName() + '"';
+          const holders = { __WEBBLOX_NAME__: '"' + playerName() + '"', __WEBBLOX_GFX__: String(gfxLevel()), __WEBBLOX_FULLSCREEN__: document.fullscreenElement ? 'true' : 'false' };
           for (const [file, list] of Object.entries(CORE_EDITS)) {
             try {
               let src = FS.readFile(file, { encoding: 'utf8' });
               for (const [from, to] of list) {
                 if (src.split(from).length !== 2) throw new Error('engine script changed: ' + from.slice(0, 40));
-                src = src.replace(from, () => to.split('__WEBBLOX_NAME__').join(luaName));
+                src = src.replace(from, () => Object.entries(holders).reduce((t, [k, v]) => t.split(k).join(v), to));
               }
               FS.writeFile(file, src);
             } catch (e) { console.warn('WebBlox: left ' + file + ' unchanged:', e.message); }
@@ -359,6 +371,7 @@
       // WebBlox: the player list also shows the other players in your multiplayer room, and you
       // appear under your WebBlox name (the engine names every local player "Player"). Leave Game
       // in the menu takes you home, and chat (yours and other players') shows in the chat window.
+      // Settings has 2016's Graphics Mode / Graphics Quality and Fullscreen on every computer.
       // Each edit must match the engine's script exactly once, or that script is left alone.
       const CORE_EDITS = {
         '/content/scripts/Modules/PlayerlistModule.lua': [
@@ -386,6 +399,20 @@
         '/content/scripts/Modules/Chat.lua': [
           ["\tlocal ChatInstance = CreateChat()\n\tChatInstance:Initialize()\n",
            "\tlocal ChatInstance = CreateChat()\n\tChatInstance:Initialize()\n\t-- WebBlox: your chat and other players' chat (from WebBloxPlayers.lua) go in this window\n\tspawn(function()\n\t\tlocal ev = game:GetService(\"ReplicatedStorage\"):WaitForChild(\"WebBlox\"):WaitForChild(\"ChatMessage\")\n\t\tev.Event:connect(function(name, text)\n\t\t\tif ChatInstance.ChatWindowWidget then\n\t\t\t\tpcall(function()\n\t\t\t\t\tChatInstance.ChatWindowWidget:AddChatMessage(Enum.PlayerChatType.All, { Name = tostring(name), Neutral = true, TeamColor = BrickColor.new(\"White\") }, tostring(text), nil)\n\t\t\t\tend)\n\t\t\tend\n\t\tend)\n\tend)\n"]
+        ],
+        '/content/scripts/Modules/Settings/Pages/GameSettings.lua': [
+          ["\tif platform == Enum.Platform.Windows or platform == Enum.Platform.OSX then\n\t\tcreateGraphicsOptions()\n\tend\n",
+           "\t-- WebBlox: graphics options on every computer (play.html scales the picture to match)\n\tcreateGraphicsOptions()\n"],
+          ["\t\tlocal fullScreenInit = 1\n\t\tif not GameSettings:InFullScreen() then\n\t\t\tfullScreenInit = 2\n\t\tend\n",
+           "\t\tlocal fullScreenInit = __WEBBLOX_FULLSCREEN__ and 1 or 2\n"],
+          ["\t\tthis.FullscreenEnabler.IndexChanged:connect(function(newIndex)\n\t\t\tGuiService:ToggleFullscreen()\n\t\tend)\n",
+           "\t\tthis.FullscreenEnabler.IndexChanged:connect(function(newIndex)\n\t\t\t-- WebBlox: the page goes fullscreen (or back)\n\t\t\tspawn(function() pcall(function() game:HttpGetAsync(\"https://webblox.signal/fullscreen/\" .. (newIndex == 1 and \"1\" or \"0\")) end) end)\n\t\tend)\n"],
+          ["\t\tfunction SetGraphicsQuality(newValue, automaticSettingAllowed)\n",
+           "\t\t-- WebBlox: tell the page (it draws fewer or more pixels: Automatic follows the frame rate)\n\t\tlocal wbGfxReady = false\n\t\tlocal function wbGfx(v)\n\t\t\tif not wbGfxReady then return end\n\t\t\tspawn(function() pcall(function() game:HttpGetAsync(\"https://webblox.signal/gfx/\" .. tostring(math.floor(tonumber(v) or 0))) end) end)\n\t\tend\n\t\tfunction SetGraphicsQuality(newValue, automaticSettingAllowed)\n"],
+          ["\t\t\tGameSettings.SavedQualityLevel = newValue\n\t\t\tsettings().Rendering.QualityLevel = newQualityLevel\n\t\tend\n",
+           "\t\t\tGameSettings.SavedQualityLevel = newValue\n\t\t\tsettings().Rendering.QualityLevel = newQualityLevel\n\t\t\twbGfx(newValue)\n\t\tend\n"],
+          ["\t\t-- initialize the slider position\n\t\tif GameSettings.SavedQualityLevel == Enum.SavedQualitySetting.Automatic then\n\t\t\tthis.GraphicsQualitySlider:SetValue(5)\n\t\t\tthis.GraphicsQualityEnabler:SetSelectionIndex(1)\n\t\telse\n\t\t\tlocal graphicsLevel = tostring(GameSettings.SavedQualityLevel)\n\t\t\tif GRAPHICS_QUALITY_TO_INT[graphicsLevel] then\n\t\t\t\tgraphicsLevel = GRAPHICS_QUALITY_TO_INT[graphicsLevel]\n\t\t\telse\n\t\t\t\tgraphicsLevel = GRAPHICS_QUALITY_LEVELS\n\t\t\tend\n\n\t\t\tspawn(function()\n\t\t\t\tthis.GraphicsQualitySlider:SetValue(graphicsLevel)\n\t\t\t\tthis.GraphicsQualityEnabler:SetSelectionIndex(2)\n\t\t\tend)\n\t\tend\n",
+           "\t\t-- initialize the slider position (WebBlox: from the setting saved on this device)\n\t\tif __WEBBLOX_GFX__ == 0 then\n\t\t\tthis.GraphicsQualitySlider:SetValue(5)\n\t\t\tthis.GraphicsQualityEnabler:SetSelectionIndex(1)\n\t\t\tsetGraphicsToAuto()\n\t\telse\n\t\t\tspawn(function()\n\t\t\t\tthis.GraphicsQualitySlider:SetValue(__WEBBLOX_GFX__)\n\t\t\t\tthis.GraphicsQualityEnabler:SetSelectionIndex(2)\n\t\t\tend)\n\t\tend\n\t\tdelay(2, function() wbGfxReady = true end)\n"]
         ],
         '/content/scripts/CoreScripts/Topbar.lua': [
           ["\t\tText = Player.Name;\n",
