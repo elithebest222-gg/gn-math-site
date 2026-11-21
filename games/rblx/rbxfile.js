@@ -707,6 +707,39 @@
     notes.push('this file is a model, so it was put in a new place with a baseplate');
   }
 
+  // No SpawnLocation: Roblox puts you at the middle of the map (0, 0, 0). When there's no floor
+  // there either, you'd fall forever, so add an invisible spawn on top of the biggest floor.
+  function ensureSpawn(doc, notes) {
+    const ws = doc.roots.find(it => it.cls === 'Workspace');
+    if (!ws) return;
+    const parts = [];
+    const walk = it => { for (const c of it.children) { if (c.cls === 'SpawnLocation') parts.spawn = true; if (c.props.has('size') && c.props.has('CFrame') && c.cls !== 'Terrain') parts.push(c); walk(c); } };
+    walk(ws);
+    if (parts.spawn) return;
+    const box = it => {   // world-space bounds of a part
+      const s = it.props.get('size').v, cf = it.props.get('CFrame').v, h = [s[0] / 2, s[1] / 2, s[2] / 2];
+      const e = [0, 1, 2].map(r => Math.abs(cf[3 + r * 3]) * h[0] + Math.abs(cf[4 + r * 3]) * h[1] + Math.abs(cf[5 + r * 3]) * h[2]);
+      return { min: [cf[0] - e[0], cf[1] - e[1], cf[2] - e[2]], max: [cf[0] + e[0], cf[1] + e[1], cf[2] + e[2]] };
+    };
+    const solid = it => { const t = it.props.get('Transparency'), c = it.props.get('CanCollide'); return !(t && t.v >= 0.95) && !(c && c.v === false); };
+    const floors = parts.filter(solid).map(it => ({ it, b: box(it) }));
+    if (floors.some(({ b }) => b.min[0] <= 0 && b.max[0] >= 0 && b.min[2] <= 0 && b.max[2] >= 0 && b.max[1] > -25 && b.max[1] < 25)) return;
+    let best = null;
+    for (const f of floors) {
+      const area = (f.b.max[0] - f.b.min[0]) * (f.b.max[2] - f.b.min[2]);
+      if (area >= 16 && f.b.max[1] - f.b.min[1] < 60 && (!best || area > best.area)) best = { area, ...f };
+    }
+    if (!best) return;
+    const sp = new Inst('SpawnLocation');
+    const x = (best.b.min[0] + best.b.max[0]) / 2, z = (best.b.min[2] + best.b.max[2]) / 2;
+    sp.set('Name', 1, enc.encode('SpawnLocation'));
+    sp.set('Anchored', 2, true); sp.set('CanCollide', 2, false); sp.set('Transparency', 4, 1);
+    sp.set('Neutral', 2, true); sp.set('Duration', 3, 0);
+    sp.set('size', 14, [6, 1, 6]); sp.set('CFrame', 16, [x, best.b.max[1] + 0.5, z, ...IDENT]);
+    sp.parent = ws; ws.children.push(sp);
+    notes.push('this place has no spawn, so one was added on ' + best.it.name);
+  }
+
   function toEngine(doc, typemap, opts = {}) {
     const safe = !!opts.safe;
     const notes = [];
@@ -714,6 +747,7 @@
     const bump = k => { count[k] = (count[k] || 0) + 1; };
     fixSnapshots(doc, notes);
     wrapModel(doc, notes);
+    ensureSpawn(doc, notes);
 
     // property name -> type, where every class in the typemap agrees
     const nameType = {};

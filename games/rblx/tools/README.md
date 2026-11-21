@@ -47,7 +47,9 @@ them in the browser when the game starts. It reads any Roblox place or model, XM
 - exact part colors (`Color3uint8`) become the nearest 2016 BrickColor (the engine's own 208-color palette),
 - WeldConstraints become ManualWelds that hold the parts where they are, font faces become fonts,
 - properties and objects the 2016 engine doesn't have are left out, linked scripts are cleared,
-- a model file gets put in a new place with a baseplate.
+- a model file gets put in a new place with a baseplate,
+- a place with no SpawnLocation and no floor in the middle of the map (where Roblox puts you when there's
+  no spawn) gets an invisible spawn on top of its biggest floor, so you don't fall forever.
 
 If the engine still rejects the place, `../play.html` reloads it once in safe mode, which also leaves
 out terrain and union data and any property the engine isn't known to read.
