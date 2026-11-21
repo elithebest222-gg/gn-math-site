@@ -276,7 +276,7 @@
     </aside>
     <div class="scrim" onclick="document.body.classList.remove('nav-open')"></div>
     <div class="confirm launch" id="launch"><div class="box"><div class="spinner"></div><h3>WebBlox is now loading.</h3><p>Get ready to play!</p></div></div>
-    <input type="file" id="rbxl" accept=".rbxl,.rbxlx" hidden />`;
+    <input type="file" id="rbxl" accept=".rbxl,.rbxlx,.rbxm,.rbxmx" hidden />`;
     document.body.insertAdjacentHTML('afterbegin', html);
     document.getElementById('who').textContent = WB.displayName();
     WB.updateRobux();
@@ -371,7 +371,7 @@
       alert('Could not open that file in this browser (storage is blocked or full).');
       return;
     }
-    WB.launch('play.html?custom=1&title=' + encodeURIComponent(f.name.replace(/\.rbxlx?$/i, '')));
+    WB.launch('play.html?custom=1&title=' + encodeURIComponent(f.name.replace(/\.rbx[lm]x?$/i, '')));
   }
 
   window.WB = WB;

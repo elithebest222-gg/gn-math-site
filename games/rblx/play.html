@@ -10,6 +10,8 @@
   <script src="site.js"></script>
   <script src="peerjs.min.js"></script>
   <script src="p2p.js"></script>
+  <script src="vendor/fzstd.js"></script>
+  <script src="rbxfile.js"></script>
   <style>
     :root { --panel: #232527; --text: #fff; --muted: #b8b8b8; --blue: #00a2ff; --green: #02b757; --red: #d86868; }
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -74,7 +76,7 @@
     try { Object.defineProperty(navigator, 'hardwareConcurrency', { get: () => 32 }); } catch (e) {}
 
     (async function () {
-      const VERSION = '42';                       // bump when rblx.js / rblx.wasm change
+      const VERSION = '43';                       // bump when rblx.js / rblx.wasm change
       const CHUNKS = 12, CHUNK_SIZE = 25165824, DATA_SIZE = 289418733;
       const $ = id => document.getElementById(id);
       const canvas = $('canvas'), loading = $('loading');
@@ -143,7 +145,8 @@
         P.prototype.getError = function () { return ready ? 0 : realGetError.call(this); };
       }
 
-      let failed = false, ready = false;
+      let failed = false, ready = false, placeStarted = false;
+      const custom1 = params.get('custom') === '1';
       const status = (text, pct) => {
         if (failed || ready) return;
         $('status').textContent = text;
@@ -151,6 +154,19 @@
       };
       const fail = (msg, detail) => {
         if (failed) return;
+        // An uploaded place the engine rejects while loading: try once more, keeping only what the
+        // 2016 engine is known to read (safe mode), before giving up.
+        if (custom1 && !params.has('safe') && !ready && /deserializ|Malformed|Invalid|runtime_error|uncaught exception/i.test(detail || '')) {
+          status('Trying again in safe mode…', 0);
+          failed = true;
+          console.warn('WebBlox: the place failed to load (' + detail + '), retrying in safe mode');
+          location.replace(location.href + '&safe=1');
+          return;
+        }
+        if (custom1 && placeStarted && !ready) {
+          msg = 'This place couldn\'t be loaded by the 2016 engine' + (params.has('safe') ? ', even in safe mode.' : '.');
+          detail = (detail || '') + ' (if it keeps happening, send this message to whoever runs this site)';
+        }
         failed = true;
         $('err-msg').textContent = msg;
         $('err-detail').textContent = detail || '';
@@ -225,9 +241,10 @@
       // shared clock (tools/nds_sync.py), so everyone in a server gets the same map and disaster.
       const placeP = (async () => {
         let bytes = null;
-        if (params.get('custom') === '1') {
+        if (custom1) {
           bytes = await readUpload();
           if (!bytes) throw new Error('The uploaded place could not be found. Upload it again from the home page.');
+          return convertUpload(bytes);
         } else if (params.get('map')) {
           const res = await fetch('places/' + encodeURIComponent(params.get('map')));
           if (!res.ok) throw new Error('Missing places/' + params.get('map') + ' (HTTP ' + res.status + ')');
@@ -288,7 +305,6 @@
       const [animateSource, playersSource] = results[2];
       status('Starting game engine…', 84);
 
-      let placeStarted = false;
       window.Module = {
         canvas,
         locateFile: p => p === 'rblx.wasm' ? 'rblx.wasm?v=' + VERSION : p,
@@ -376,6 +392,26 @@
            "\t\tText = __WEBBLOX_NAME__;\n"]
         ]
       };
+
+      // Any Roblox place or model -> the binary format the 2016 engine reads (rbxfile.js): XML is
+      // read here instead of by the engine (which takes minutes on big places), and newer files get
+      // their Zstd chunks, exact part colors, 64-bit numbers, WeldConstraints and so on converted.
+      async function convertUpload(bytes) {
+        try {
+          const typemap = await (await fetch('tools/typemap.json?v=' + VERSION)).json();
+          const t0 = performance.now();
+          const doc = RBXFile.read(bytes);
+          const notes = RBXFile.toEngine(doc, typemap, { safe: params.has('safe') });
+          const out = RBXFile.write(doc);
+          console.log('WebBlox: converted the place (' + doc.format + ', ' + doc.insts.length + ' objects, ' +
+            Math.round(performance.now() - t0) + ' ms' + (params.has('safe') ? ', safe mode' : '') + ')' + (notes.length ? ': ' + notes.join('; ') : ''));
+          return out;
+        } catch (e) {
+          console.warn('WebBlox: couldn\'t convert the place, giving it to the engine as it is:', e);
+          if (!isBinaryPlace(bytes)) bytes = new TextEncoder().encode(new TextDecoder().decode(bytes).replace(/<float name="FogEnd">0(\.0+)?<\/float>/g, '<float name="FogEnd">100000</float>'));
+          return bytes;
+        }
+      }
 
       function isBinaryPlace(b) { return b.length > 8 && String.fromCharCode(...b.subarray(0, 8)) === '<roblox!'; }
 
