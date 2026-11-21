@@ -15,8 +15,6 @@
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body { width: 100%; height: 100%; background: #000; overflow: hidden; font-family: "Source Sans Pro", "Source Sans 3", "Helvetica Neue", Helvetica, Arial, sans-serif; color: var(--text); }
     #canvas { display: block; width: 100vw; height: 100vh; background: #000; }
-    #leave { position: fixed; top: 4px; left: 150px; z-index: 30; display: flex; align-items: center; gap: 6px; height: 28px; padding: 0 12px; border-radius: 3px; background: rgba(0,0,0,.5); color: #fff; text-decoration: none; font-size: 14px; font-weight: 600; border: 1px solid rgba(255,255,255,.25); }
-    #leave:hover { background: rgba(0,0,0,.75); }
 
     /* 2016-style in-game loading screen: the game's picture, dimmed; name bottom left; spinner bottom right */
     #loading { position: fixed; inset: 0; z-index: 20; background: #3d3f41 center / cover no-repeat; overflow: hidden; }
@@ -41,18 +39,17 @@
     #error button, #error a { min-width: 120px; padding: 8px 14px; border-radius: 3px; border: 1px solid transparent; font: inherit; font-size: 16px; font-weight: 600; cursor: pointer; text-decoration: none; text-align: center; }
     #error .primary { background: var(--blue); color: #fff; }
     #error .secondary { background: #fff; color: #191919; border-color: #b8b8b8; }
-    #sound { position: fixed; top: 4px; left: 372px; z-index: 30; display: flex; align-items: center; gap: 6px; height: 28px; padding: 0 12px; border-radius: 3px; background: rgba(0,0,0,.5); color: #fff; font: inherit; font-size: 14px; font-weight: 600; border: 1px solid rgba(255,255,255,.25); cursor: pointer; }
+    #sound { position: fixed; top: 4px; left: 280px; z-index: 30; display: flex; align-items: center; gap: 6px; height: 28px; padding: 0 12px; border-radius: 3px; background: rgba(0,0,0,.5); color: #fff; font: inherit; font-size: 14px; font-weight: 600; border: 1px solid rgba(255,255,255,.25); cursor: pointer; }
     #sound[hidden] { display: none; }
     #sound svg { width: 16px; height: 16px; fill: currentColor; }
-    #gfx { position: fixed; top: 4px; left: 236px; z-index: 30; height: 28px; padding: 0 10px; border-radius: 3px; background: rgba(0,0,0,.45); color: #fff; font: inherit; font-size: 13px; font-weight: 600; border: 1px solid rgba(255,255,255,.25); cursor: pointer; }
+    #gfx { position: fixed; top: 4px; left: 150px; z-index: 30; height: 28px; padding: 0 10px; border-radius: 3px; background: rgba(0,0,0,.45); color: #fff; font: inherit; font-size: 13px; font-weight: 600; border: 1px solid rgba(255,255,255,.25); cursor: pointer; }
     #gfx:hover, #sound:hover { background: rgba(0,0,0,.75); }
-    @media (max-width: 600px) { #leave { left: auto; right: 8px; top: auto; bottom: 8px; } #sound { left: auto; right: 90px; top: auto; bottom: 8px; } #gfx { display: none; } #loading .tip { display: none; } #loading .info { left: 18px; right: 96px; bottom: 26px; } #loading .ring { right: 20px; bottom: 26px; width: 46px; height: 46px; } }
+    @media (max-width: 600px) { #sound { left: auto; right: 8px; top: auto; bottom: 8px; } #gfx { display: none; } #loading .tip { display: none; } #loading .info { left: 18px; right: 96px; bottom: 26px; } #loading .ring { right: 20px; bottom: 26px; width: 46px; height: 46px; } }
   </style>
 </head>
 <body>
-  <a id="leave" href="./index.html" onclick="if (document.exitPointerLock) document.exitPointerLock();">&#8592; Leave</a>
   <button id="sound" hidden title="Your browser is keeping the game quiet until you click"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9v6h4l5 5V4L7 9zm13.6 3 2.7-2.7-1.4-1.4-2.7 2.7-2.7-2.7-1.4 1.4 2.7 2.7-2.7 2.7 1.4 1.4 2.7-2.7 2.7 2.7 1.4-1.4z"/></svg>Click for sound</button>
-  <button id="gfx" title="Graphics: Fast draws fewer pixels (smoothest), Sharp uses your screen's full resolution"></button>
+  <button id="gfx" title="Graphics: Auto keeps the game smooth by drawing fewer pixels when it needs to. Fast is always smoothest, Sharp uses your screen's full resolution."></button>
   <div id="loading">
     <div class="tip" id="tip"></div>
     <div class="info">
@@ -77,7 +74,7 @@
     try { Object.defineProperty(navigator, 'hardwareConcurrency', { get: () => 32 }); } catch (e) {}
 
     (async function () {
-      const VERSION = '41';                       // bump when rblx.js / rblx.wasm change
+      const VERSION = '42';                       // bump when rblx.js / rblx.wasm change
       const CHUNKS = 12, CHUNK_SIZE = 25165824, DATA_SIZE = 289418733;
       const $ = id => document.getElementById(id);
       const canvas = $('canvas'), loading = $('loading');
@@ -98,21 +95,53 @@
       // Graphics: how many pixels the game draws. The engine renders at the screen's pixel ratio, so a
       // high-DPI screen meant 4x the pixels and a quarter of the frame rate (and slow-motion physics).
       // Normal draws one pixel per CSS pixel; Sharp uses the full ratio; Fast draws even fewer.
+      // Auto (the default) starts at Normal and draws fewer pixels while the game runs below 60 fps
+      // (the game reports its frame rate every 2 seconds, see the signals below).
       const realRatio = window.devicePixelRatio || 1;
-      const GFX = { fast: ['Fast', () => Math.min(realRatio, 0.7)], normal: ['Normal', () => Math.min(realRatio, 1)], sharp: ['Sharp', () => realRatio] };
-      let gfx = 'normal';
-      try { gfx = GFX[localStorage.getItem('webblox-graphics')] ? localStorage.getItem('webblox-graphics') : 'normal'; } catch (e) {}
+      let autoScale = Math.min(realRatio, 1), smoothFor = 0;
+      const GFX = { auto: ['Auto', () => autoScale], fast: ['Fast', () => Math.min(realRatio, 0.6)], normal: ['Normal', () => Math.min(realRatio, 1)], sharp: ['Sharp', () => realRatio] };
+      let gfx = 'auto';
+      try { gfx = GFX[localStorage.getItem('webblox-graphics')] ? localStorage.getItem('webblox-graphics') : 'auto'; } catch (e) {}
       try { Object.defineProperty(window, 'devicePixelRatio', { get: () => GFX[gfx][1](), configurable: true }); } catch (e) {}
       const gfxBtn = $('gfx');
       const showGfx = () => { gfxBtn.textContent = 'Graphics: ' + GFX[gfx][0]; };
       showGfx();
       gfxBtn.addEventListener('click', () => {
-        gfx = { fast: 'normal', normal: 'sharp', sharp: 'fast' }[gfx];
+        gfx = { auto: 'fast', fast: 'normal', normal: 'sharp', sharp: 'auto' }[gfx];
         try { localStorage.setItem('webblox-graphics', gfx); } catch (e) {}
         showGfx();
         window.dispatchEvent(new Event('resize'));
         canvas.focus();
       });
+      const autoGraphics = fps => {
+        if (gfx !== 'auto' || !(fps > 0)) return;
+        const before = autoScale, top = Math.min(realRatio, 1);
+        if (fps < 50) { autoScale = Math.max(0.45, autoScale * (fps < 35 ? 0.8 : 0.9)); smoothFor = 0; }
+        else if (fps >= 57 && ++smoothFor >= 3 && autoScale < top) { autoScale = Math.min(top, autoScale * 1.1); smoothFor = 0; }
+        if (Math.abs(autoScale - before) > 0.001) window.dispatchEvent(new Event('resize'));
+      };
+
+      // Signals from the game's scripts (the engine posts https://webblox.signal/<message> here)
+      try {
+        new BroadcastChannel('webblox-page').onmessage = e => {
+          const m = String(e.data || '');
+          if (m === 'leave') {
+            if (document.exitPointerLock) document.exitPointerLock();
+            location.href = './index.html';
+          } else if (m.startsWith('fps/')) {
+            autoGraphics(parseFloat(m.slice(4)));
+          }
+        };
+      } catch (e) {}
+
+      // The engine calls gl.getError() after every draw call. Each one makes the browser wait for the
+      // GPU to finish everything so far, 25+ times a frame. Once the game is running nothing reads
+      // those errors, so answer "no error" right away.
+      for (const P of [window.WebGL2RenderingContext, window.WebGLRenderingContext]) {
+        if (!P) continue;
+        const realGetError = P.prototype.getError;
+        P.prototype.getError = function () { return ready ? 0 : realGetError.call(this); };
+      }
 
       let failed = false, ready = false;
       const status = (text, pct) => {
@@ -312,7 +341,8 @@
       document.body.appendChild(s);
 
       // WebBlox: the player list also shows the other players in your multiplayer room, and you
-      // appear under your WebBlox name (the engine names every local player "Player").
+      // appear under your WebBlox name (the engine names every local player "Player"). Leave Game
+      // in the menu takes you home, and chat (yours and other players') shows in the chat window.
       // Each edit must match the engine's script exactly once, or that script is left alone.
       const CORE_EDITS = {
         '/content/scripts/Modules/PlayerlistModule.lua': [
@@ -332,6 +362,14 @@
            "local function createPlayerEntry(player, isTopStat)\n\tlocal playerEntry = {}\n\tlocal name = (player == Player and __WEBBLOX_NAME__) or player.Name"],
           ["for _,player in pairs(Players:GetPlayers()) do\n\tinsertPlayerEntry(player)\nend\n",
            "for _,player in pairs(Players:GetPlayers()) do\n\tinsertPlayerEntry(player)\nend\n-- WebBlox: the other players in this multiplayer room (Folders with their leaderstats, kept up\n-- to date by WebBloxPlayers.lua in ReplicatedStorage.WebBlox.Players)\nspawn(function()\n\tlocal remote = game:GetService(\"ReplicatedStorage\"):WaitForChild(\"WebBlox\"):WaitForChild(\"Players\")\n\tlocal function add(child) if child:IsA(\"Folder\") then insertPlayerEntry(child) end end\n\tremote.ChildAdded:connect(add)\n\tremote.ChildRemoved:connect(function(child) removePlayerEntry(child) end)\n\tfor _, child in pairs(remote:GetChildren()) do add(child) end\nend)\n"]
+        ],
+        '/content/scripts/Modules/Settings/Pages/LeaveGame.lua': [
+          ["\tthis.LeaveGameButton:SetVerb(\"Exit\")\n",
+           "\t-- WebBlox: leaving goes back to the WebBlox home page (play.html listens for this signal)\n\tthis.LeaveGameButton.MouseButton1Click:connect(function()\n\t\tspawn(function() pcall(function() game:HttpGetAsync(\"https://webblox.signal/leave\") end) end)\n\tend)\n"]
+        ],
+        '/content/scripts/Modules/Chat.lua': [
+          ["\tlocal ChatInstance = CreateChat()\n\tChatInstance:Initialize()\n",
+           "\tlocal ChatInstance = CreateChat()\n\tChatInstance:Initialize()\n\t-- WebBlox: your chat and other players' chat (from WebBloxPlayers.lua) go in this window\n\tspawn(function()\n\t\tlocal ev = game:GetService(\"ReplicatedStorage\"):WaitForChild(\"WebBlox\"):WaitForChild(\"ChatMessage\")\n\t\tev.Event:connect(function(name, text)\n\t\t\tif ChatInstance.ChatWindowWidget then\n\t\t\t\tpcall(function()\n\t\t\t\t\tChatInstance.ChatWindowWidget:AddChatMessage(Enum.PlayerChatType.All, { Name = tostring(name), Neutral = true, TeamColor = BrickColor.new(\"White\") }, tostring(text), nil)\n\t\t\t\tend)\n\t\t\tend\n\t\tend)\n\tend)\n"]
         ],
         '/content/scripts/CoreScripts/Topbar.lua': [
           ["\t\tText = Player.Name;\n",

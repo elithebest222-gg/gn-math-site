@@ -42,6 +42,11 @@ repeatable on a fresh copy of the original files).
    jump and landing sounds, which load when you spawn. The context is now made
    right away (browsers start it paused) and resumed by the first gesture.
 
+9. Game scripts can signal the page: a request to https://webblox.signal/<message> is
+   answered at once (no network) and <message> is posted on BroadcastChannel
+   "webblox-page", which play.html listens to (leaving from the in-game menu, the
+   frame rate for Auto graphics).
+
 usage: python3 patch_engine.py ../rblx.wasm ../rblx.js
 """
 import sys
@@ -280,6 +285,11 @@ def patch_js(s, PUSHSTRING_TABLE_INDEX):
     old_ev = 'var events=["pointerdown","keydown","touchstart","mousedown"];'
     assert s.count(old_ev) == 1
     s = s.replace(old_ev, 'var events=["pointerdown","pointerup","keydown","keyup","touchstart","touchend","mousedown","click"];')
+
+    # 9. https://webblox.signal/<message> -> BroadcastChannel "webblox-page", answered with "ok"
+    old_xhr = 'var xhr=new XMLHttpRequest;xhr.withCredentials=!!'
+    assert s.count(old_xhr) == 1
+    s = s.replace(old_xhr, 'if(url_.indexOf("https://webblox.signal/")===0){try{(globalThis.__wbSignal||(globalThis.__wbSignal=new BroadcastChannel("webblox-page"))).postMessage(url_.slice(23))}catch(e){}url_="data:text/plain,ok"}' + old_xhr)
     return s
 
 

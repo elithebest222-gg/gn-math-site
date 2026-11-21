@@ -57,6 +57,9 @@ this folder). The main ones:
    create your player first, so scripts that hand out leaderstats when a player joins never
    saw you: empty leaderboards, no Cash, no KOs.
 4. The build's debug alignment check no longer ends the game (leaderboard numbers tripped it).
+6. Game scripts can signal the page: a request to `https://webblox.signal/<message>` is answered
+   at once and `<message>` goes to `../play.html` on a BroadcastChannel. Leave Game in the in-game
+   menu uses it to go home, and the game reports its frame rate for Auto graphics.
 5. Game sound starts right away. The audio bridge used to wait for your first click to even set up,
    and dropped any sound loaded before it; now it's set up at once and starts on your first click
    or key press (`../play.html` shows a "Click for sound" button until then).
