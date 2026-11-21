@@ -245,7 +245,7 @@
       <nav class="hnav">
         <a href="index.html#games">Games</a>
         <a href="catalog.html"${on('catalog')}>Catalog</a>
-        <button type="button" onclick="WB.pickPlace()">Develop</button>
+        <a href="studio.html">Develop</a>
         <a href="catalog.html#robux">ROBUX</a>
       </nav>
       <label class="search"><input id="q" type="search" placeholder="${esc(searchPlaceholder || 'Search')}" autocomplete="off" aria-label="Search" /><svg class="i"><use href="#i-search"/></svg></label>
@@ -270,7 +270,8 @@
         <li><a href="index.html#news"><svg class="i"><use href="#i-blog"/></svg>Blog</a></li>
         <li><a href="catalog.html"${on('catalog')}><svg class="i"><use href="#i-shop"/></svg>Shop</a></li>
       </ul>
-      <a class="upgrade" href="#" onclick="WB.pickPlace(); return false;">Upload a Place</a>
+      <a class="upgrade" href="studio.html">Create in Studio</a>
+      <a class="upgrade alt" href="#" onclick="WB.pickPlace(); return false;">Upload a Place</a>
       <h4>Events</h4>
       <a class="event" href="index.html#game=nds">Disaster Weekend<small>Survive every disaster!</small></a>
     </aside>

@@ -61,6 +61,14 @@ The converter also:
 `typemap.json` lists the property types the engine expects. It was read out of the
 engine's own binary places, and the engine refuses a place whose property types don't match.
 
+## Studio
+
+`../studio.html` (Develop on the site) is a place editor in the style of 2016 Roblox Studio: Explorer,
+Properties, Move/Scale/Rotate handles with snapping, Insert Object, a Lua script editor, undo/redo,
+copy/paste/duplicate/group, and Play, which hands the place to `../play.html`. It opens any .rbxl/.rbxlx/.rbxm
+(through `../rbxfile.js`), saves binary .rbxl files, and keeps the place you're working on in the browser.
+New objects get the property types in `typemap.json`, so what you build loads in the 2016 engine.
+
 ## Engine patch
 
 `patch_engine.py` documents the fixes applied to `rblx.wasm` / `rblx.js` (already applied in
