@@ -5,72 +5,87 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Home - WebBlox</title>
   <link rel="icon" type="image/png" href="favicon.png" />
-  <link rel="stylesheet" crossorigin="anonymous" href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@300;400;600;700&display=swap" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&display=swap" />
   <link rel="stylesheet" href="site.css" />
   <script src="config.js"></script>
   <script src="site.js"></script>
   <script src="three.min.js"></script>
   <script src="avatar3d.js"></script>
   <style>
-    .hello { display: flex; align-items: center; gap: 18px; margin-bottom: 22px; }
-    .hello .av { width: 128px; height: 128px; border-radius: 50%; background: #fff; overflow: hidden; flex-shrink: 0; box-shadow: 0 1px 4px rgba(25,25,25,.15); }
-    .hello h1 { font-size: 32px; font-weight: 400; line-height: 1.1; }
-    .hello .sub { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; margin-top: 6px; font-size: 14px; color: var(--muted); }
-    .hello .bc { display: inline-flex; align-items: center; gap: 6px; }
-    .hello .bc b { background: var(--text); color: #fff; font-size: 11px; padding: 1px 5px; border-radius: 2px; letter-spacing: .5px; }
-    .hello .sub a { color: var(--blue); font-weight: 600; }
+    /* game cards: big 16:9 tiles (4 across) and smaller ones in a row that scrolls on narrow screens */
+    .games { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 24px 16px; }
+    .games.row { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: calc((100% - 4 * 16px) / 5); overflow-x: auto; scrollbar-width: thin; padding-bottom: 4px; }
+    .games .thumb { aspect-ratio: 16 / 9; }
+    .games.row .name { font-size: 15px; }
+    .meta { position: relative; margin-top: 4px; height: 18px; font-size: 13px; font-weight: 500; color: var(--muted); }
+    .meta > span { position: absolute; inset: 0; display: flex; align-items: center; gap: 5px; transition: opacity .12s; }
+    .meta svg { font-size: 15px; color: #888b91; }
+    .meta .p { opacity: 0; }
+    .card:hover .meta .r, .card:focus-visible .meta .r { opacity: 0; }
+    .card:hover .meta .p, .card:focus-visible .meta .p { opacity: 1; }
 
-    .cols { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; }
-    .status { display: flex; gap: 8px; padding: 12px; border-bottom: 1px solid var(--line); }
-    .status input { flex: 1; min-width: 0; border: 1px solid var(--border); border-radius: 3px; padding: 6px 9px; font-size: 15px; outline: none; }
+    /* communities */
+    .cols { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 24px; align-items: start; }
+    .status { display: flex; gap: 8px; padding: 14px; border-bottom: 1px solid var(--line); }
+    .status input { flex: 1; min-width: 0; height: 40px; border: 1px solid var(--border); border-radius: 8px; padding: 0 12px; font-size: 15px; outline: none; }
     .status input:focus { border-color: var(--blue); }
-    .post { display: flex; gap: 10px; padding: 12px; border-bottom: 1px solid var(--line); }
+    .post { display: flex; gap: 12px; padding: 14px; border-bottom: 1px solid var(--line); }
     .post:last-child { border-bottom: 0; }
-    .post .av { width: 48px; height: 48px; border-radius: 50%; background: #e3e3e3; flex-shrink: 0; overflow: hidden; }
-    .post b { font-weight: 600; color: var(--blue); }
+    .post .av { width: 48px; height: 48px; border-radius: 50%; background: var(--soft); flex-shrink: 0; overflow: hidden; }
+    .post b { font-weight: 700; }
     .post p { font-size: 15px; margin: 2px 0 4px; word-break: break-word; }
     .post time { font-size: 12px; color: var(--muted); }
-    .news a { display: block; padding: 12px; border-bottom: 1px solid var(--line); }
-    .news a:last-child { border-bottom: 0; }
-    .news a:hover h3 { text-decoration: underline; }
-    .news h3 { font-size: 16px; font-weight: 600; color: var(--blue); }
-    .news p { font-size: 14px; color: var(--muted); margin-top: 2px; }
+    .group { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-bottom: 1px solid var(--line); }
+    .group:last-child { border-bottom: 0; }
+    .group .em { width: 48px; height: 48px; border-radius: 12px; display: grid; place-items: center; color: #fff; font-size: 22px; font-weight: 800; flex: none; }
+    .group b { display: block; }
+    .group span { font-size: 13px; color: var(--muted); }
 
-    /* game page (2016 game details) */
-    .gp .top { display: grid; grid-template-columns: 576px 1fr; gap: 24px; padding: 24px; }
-    .gp .shot { width: 100%; aspect-ratio: 16 / 9; border-radius: 3px; background: #d4d4d4 center/cover no-repeat; }
-    .gp h2 { font-size: 32px; font-weight: 400; line-height: 1.1; padding-right: 30px; }
-    .gp .by { margin-top: 4px; color: var(--muted); }
-    .gp .by b { color: var(--blue); font-weight: 600; }
-    .gp .play { margin-top: 18px; width: 100%; height: 66px; border: 0; border-radius: 3px; background: var(--green); color: #fff; cursor: pointer; display: grid; place-items: center; }
-    .gp .play:hover { background: var(--green-dark); }
-    .gp .play svg { width: 34px; height: 34px; }
-    .gp .rate { display: flex; align-items: center; gap: 10px; margin-top: 18px; color: var(--muted); font-size: 15px; }
-    .gp .rate .vbar { height: 6px; }
-    .gp .tabs { display: flex; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
-    .gp .tabs button { flex: 1; padding: 10px 0; font-weight: 600; color: var(--muted); background: none; border: 0; cursor: pointer; }
-    .gp .tabs button.on { color: var(--text); box-shadow: inset 0 -4px 0 var(--blue); }
-    .gp .pane { padding: 18px 24px 24px; }
-    .gp .pane h3 { font-size: 20px; font-weight: 400; margin-bottom: 6px; }
+    /* newsroom */
+    .news { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+    .news article { padding: 18px; border: 1px solid var(--line); border-radius: 12px; }
+    .news .d { font-size: 13px; color: var(--muted); font-weight: 600; }
+    .news h3 { font-size: 18px; font-weight: 800; margin: 4px 0 6px; }
+    .news p { color: #393b3d; font-size: 15px; }
+
+    /* game details */
+    .gp .top { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr); gap: 24px; padding: 24px; }
+    .gp .shot { width: 100%; aspect-ratio: 16 / 9; border-radius: 12px; background: var(--soft) center/cover no-repeat; }
+    .gp h2 { font-size: 28px; font-weight: 800; line-height: 1.15; padding-right: 36px; }
+    .gp .by { margin-top: 6px; color: var(--muted); }
+    .gp .by b { color: var(--text); font-weight: 700; }
+    .gp .play { margin-top: 20px; width: 100%; height: 56px; border: 0; border-radius: 10px; background: var(--blue); color: #fff; cursor: pointer; display: grid; place-items: center; }
+    .gp .play:hover { background: var(--blue-dark); }
+    .gp .play svg { width: 30px; height: 30px; }
+    .gp .rate { display: flex; align-items: center; gap: 10px; margin-top: 18px; color: var(--muted); font-size: 15px; font-weight: 600; }
+    .gp .rate .vbar { height: 6px; border-radius: 3px; }
+    .gp .tabs { display: flex; gap: 4px; padding: 0 24px; border-bottom: 1px solid var(--line); }
+    .gp .tabs button { padding: 12px 14px; font-weight: 700; color: var(--muted); background: none; border: 0; cursor: pointer; }
+    .gp .tabs button.on { color: var(--text); box-shadow: inset 0 -3px 0 var(--text); }
+    .gp .pane { padding: 20px 24px 26px; }
+    .gp .pane h3 { font-size: 20px; font-weight: 800; margin-bottom: 8px; }
     .gp .desc { white-space: pre-line; font-size: 16px; color: #393b3d; }
-    .gp .stats { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line); text-align: center; }
-    .gp .stats dt { font-size: 14px; color: var(--muted); }
-    .gp .stats dd { font-size: 18px; margin-top: 2px; }
-    .server { display: flex; align-items: center; gap: 14px; padding: 14px; border: 1px solid var(--line); border-radius: 3px; margin-bottom: 10px; }
+    .gp .stats { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--line); }
+    .gp .stats dt { font-size: 13px; color: var(--muted); font-weight: 600; }
+    .gp .stats dd { font-size: 17px; font-weight: 700; margin-top: 2px; }
+    .server { display: flex; align-items: center; gap: 14px; padding: 14px; border: 1px solid var(--line); border-radius: 12px; margin-bottom: 10px; }
     .server .info { flex: 1; min-width: 0; }
-    .server .info b { display: block; font-weight: 600; }
+    .server .info b { display: block; font-weight: 700; }
     .server .info span { color: var(--muted); font-size: 14px; }
-    .server .slots { display: flex; gap: 2px; margin-top: 6px; }
-    .server .slots i { width: 10px; height: 10px; border-radius: 2px; background: var(--line); }
+    .server .slots { display: flex; flex-wrap: wrap; gap: 2px; margin-top: 6px; }
+    .server .slots i { width: 10px; height: 10px; border-radius: 3px; background: var(--line); }
     .server .slots i.f { background: var(--green); }
     .invite { display: flex; gap: 8px; margin-top: 10px; }
     .invite[hidden] { display: none; }
-    .invite input { flex: 1; min-width: 0; border: 1px solid var(--border); border-radius: 3px; padding: 6px 8px; font-size: 14px; }
+    .invite input { flex: 1; min-width: 0; border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px; font-size: 14px; }
     .note { color: var(--muted); font-size: 14px; }
 
-    @media (max-width: 960px) { .cols { grid-template-columns: 1fr; } .gp .top { grid-template-columns: 1fr; } }
-    @media (max-width: 760px) { .hello .av { width: 84px; height: 84px; } .hello h1 { font-size: 26px; } .gp .stats { grid-template-columns: repeat(3, 1fr); } .server { flex-wrap: wrap; } }
-    @media (max-width: 480px) { .gp .top { padding: 16px; } .gp .pane { padding: 14px 16px 18px; } .gp h2 { font-size: 26px; } }
+    @media (max-width: 1260px) { .games.row { grid-auto-columns: calc((100% - 3 * 16px) / 4); } }
+    @media (max-width: 960px) { .cols { grid-template-columns: 1fr; } .gp .top { grid-template-columns: 1fr; } .games { grid-template-columns: repeat(3, minmax(0, 1fr)); } .games.row { grid-auto-columns: calc((100% - 2 * 16px) / 3); } }
+    @media (max-width: 760px) { .games { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 12px; } .games.row { grid-auto-columns: 42%; gap: 12px; } .news { grid-template-columns: 1fr; } .gp .stats { grid-template-columns: repeat(3, 1fr); } .server { flex-wrap: wrap; } }
+    @media (max-width: 480px) { .gp .top { padding: 16px; } .gp .tabs { padding: 0 10px; } .gp .pane { padding: 16px 16px 20px; } .gp h2 { font-size: 24px; } .games.row { grid-auto-columns: 62%; } }
   </style>
 </head>
 <body>
@@ -78,49 +93,58 @@
 
   <main class="main" id="top">
     <div class="wrap">
-      <div class="hello">
-        <a class="av" id="me-av" href="profile.html" title="Your profile"></a>
-        <div>
-          <h1>Hello, <span class="my-name"></span>!</h1>
-          <div class="sub"><span class="bc"><b>BC</b>Builders Club</span><a href="#" onclick="WB.rename(); return false;">Change name</a><a href="catalog.html?cat=wearing">Change look</a></div>
+      <div id="view-home">
+        <h1 class="page" id="home-title">Home</h1>
+
+        <section class="sec" id="friends-sec">
+          <div class="sec-h"><h2>Friends (<span id="fr-n">0</span>)</h2><button class="see" onclick="WB.openFriends('friends')">See All<svg class="o"><use href="#o-arrow"/></svg></button></div>
+          <div class="friends" id="friends"></div>
+        </section>
+
+        <section class="sec">
+          <div class="sec-h"><h2 id="rec-title">Recommended For You</h2></div>
+          <div class="games" id="rec"></div>
+        </section>
+
+        <section class="sec" id="cont-sec" hidden>
+          <div class="sec-h"><h2>Continue</h2></div>
+          <div class="games row" id="cont"></div>
+        </section>
+
+        <section class="sec" id="games">
+          <div class="sec-h"><h2>Popular Right Now</h2><button class="btn-see" onclick="WB.pickPlace()">Upload .rbxl</button></div>
+          <div class="games row" id="pop"></div>
+        </section>
+      </div>
+
+      <div id="view-communities" hidden>
+        <h1 class="page">Communities</h1>
+        <div class="cols">
+          <section>
+            <div class="sec-h"><h2>Community Feed</h2></div>
+            <div class="panel">
+              <form class="status" onsubmit="postStatus(event)">
+                <input id="status-in" maxlength="140" placeholder="What are you up to?" aria-label="Status" />
+                <button class="btn-blue">Share</button>
+              </form>
+              <div id="posts"></div>
+            </div>
+          </section>
+          <section>
+            <div class="sec-h"><h2>Your Communities</h2></div>
+            <div class="panel" id="groups"></div>
+          </section>
         </div>
       </div>
 
-      <section class="sec">
-        <div class="sec-h"><h2>Recently Played</h2><a class="btn-see" href="#games">See All</a></div>
-        <div class="cards" id="recent"></div>
-      </section>
-
-      <div class="cols sec">
-        <section id="feed">
-          <div class="sec-h"><h2>My Feed</h2></div>
-          <div class="panel">
-            <form class="status" onsubmit="postStatus(event)">
-              <input id="status-in" maxlength="140" placeholder="What are you up to?" aria-label="Status" />
-              <button class="btn-blue">Share</button>
-            </form>
-            <div id="posts"></div>
-          </div>
-        </section>
-        <section id="news">
-          <div class="sec-h"><h2>Blog News</h2></div>
-          <div class="panel news" id="news-list"></div>
-        </section>
+      <div id="view-news" hidden>
+        <h1 class="page">Newsroom</h1>
+        <div class="news" id="news-list"></div>
       </div>
-
-      <section class="sec" id="favorites">
-        <div class="sec-h"><h2>My Favorites</h2><a class="btn-see" href="#games">See All</a></div>
-        <div class="cards" id="favs"></div>
-      </section>
-
-      <section class="sec" id="games">
-        <div class="sec-h"><h2>Popular</h2><button class="btn-see" onclick="WB.pickPlace()">Upload .rbxl</button></div>
-        <div class="cards" id="popular"></div>
-      </section>
     </div>
     <footer class="ftr">
-      <nav><a href="#top">About Us</a><a href="#news">Blog</a><a href="#games">Games</a><a href="catalog.html">Catalog</a><a href="#" onclick="WB.pickPlace(); return false;">Develop</a></nav>
-      <p>WebBlox is a fan-made, unofficial classic-era game player. It is not affiliated with, endorsed by or sponsored by Roblox Corporation.</p>
+      <nav><a href="index.html">Home</a><a href="index.html#news">Newsroom</a><a href="catalog.html">Official Store</a><a href="#" onclick="WB.pickPlace(); return false;">Create</a></nav>
+      <p>WebBlox is a fan-made, unofficial classic-era game player. It is not affiliated with, endorsed by or sponsored by Roblox Corporation. ROBUX, friends and chat here are pretend.</p>
     </footer>
   </main>
 
@@ -148,88 +172,113 @@
       </div>
       <div class="pane" id="tab-store" hidden>
         <h3>Store</h3>
-        <p class="note">This game has no game passes. Get hats, shirts and more in the <a href="catalog.html" style="color:var(--blue);font-weight:600">Catalog</a>; you'll wear them in every game.</p>
+        <p class="note">This game has no game passes. Get hats, shirts and more in the <a href="catalog.html" style="color:var(--blue);font-weight:700">Official Store</a>; you'll wear them in every game.</p>
       </div>
       <div class="pane" id="tab-servers" hidden></div>
     </div>
   </div>
 
   <script>
-    const GAMES = [
-      { id: 'nds', title: 'Natural Disaster Survival', by: 'WebBlox', genre: 'Adventure', playing: 4127, visits: '1.2M', up: 95,
-        desc: 'Survive natural disasters on a randomly chosen island. Each round brings a new map and a new disaster: floods, tsunamis, tornadoes, volcanoes, meteor showers and more.\n\nEveryone in a server gets the same map and the same disaster at the same time. How many can you survive?' },
-      { id: 'obby', map: 'rainbow-obby.rbxl', title: 'Rainbow Obby', by: 'WebBlox', genre: 'Adventure', playing: 3864, visits: '987K', up: 94,
-        desc: '30 stages of obby fun! Jump across stepping stones, dodge spinning lava bars, ride moving platforms, bounce on trampolines, climb trusses and run across a belt that pushes you back.\n\nCheckpoints save your stage, so you only go back to the last one you reached. Reach the golden trophy to win!' },
-      { id: 'tower', map: 'sky-tower.rbxl', title: 'Sky Tower', by: 'WebBlox', genre: 'Adventure', playing: 2296, visits: '640K', up: 93,
-        desc: 'A tower in the clouds, ten floors high. Jump from platform to platform as they spiral up around it. The higher you go, the smaller they get, and some of them vanish or move.\n\nEvery floor has a checkpoint. Make it to the roof to win!' },
-      { id: 'lava', map: 'floor-is-lava.rbxl', title: 'The Floor is Lava', by: 'WebBlox', genre: 'Funny', playing: 2941, visits: '812K', up: 95,
-        desc: 'THE FLOOR IS LAVA! Every minute the lava rises out of the floor of a giant living room. Climb the couches, shelves, bunk beds and the tower before it gets you.\n\nEveryone who survives the round gets a win. Everyone in a server faces the same lava at the same time.' },
-      { id: 'speedrun', map: 'speed-run.rbxl', title: 'Speed Run', by: 'WebBlox', genre: 'Sports', playing: 1527, visits: '433K', up: 92,
-        desc: 'How fast can you go? Cross the line and race over speed pads, gaps, trampolines, stepping stones and a balance beam to the finish.\n\nYour best time goes on the leaderboard. Fall off and you start again!' }
-    ];
-    const RECENT = ['nds', 'obby', 'lava', 'tower', 'speedrun'];
-    const FAVS = ['obby', 'nds', 'speedrun', 'lava', 'tower'];
+    const GAMES = WB.GAMES;
+    const byId = Object.fromEntries(GAMES.map(g => [g.id, g]));
+    const esc = WB.esc, fmt = WB.fmt;
+    const CFG = window.WEBBLOX_CONFIG || {};
+    const server = String(CFG.multiplayerServer || '').replace(/\/+$/, '');
+    const playUrl = WB.playUrl;
     const NEWS = [
+      ['New look for the website', 'A brand new home page: see your friends at the top, chat with them from any page and find something to play under Recommended For You.', 'Nov 21, 2026'],
       ['New games: obbies and more!', 'Try the Rainbow Obby, climb the Sky Tower, survive The Floor is Lava and race the clock in Speed Run.', 'Nov 21, 2026'],
-      ['New in the Catalog', '14 new hats and the first gear: Speed Coil, Gravity Coil, Fusion Coil and the Red Balloon. Check out your new 3D avatar on your Profile!', 'Nov 21, 2026'],
+      ['New in the Official Store', '14 new hats and the first gear: Speed Coil, Gravity Coil, Fusion Coil and the Red Balloon. Check out your new 3D avatar on your Profile!', 'Nov 21, 2026'],
       ['Leaderboards are back', 'Cash, KOs, points and every other leaderboard stat works again, and you can see the other players in your server on it, under your own name.', 'Nov 21, 2026'],
       ['Disasters for everyone', 'In Natural Disaster Survival everyone in a server now gets the same map and the same disaster at the same time. How many can you survive?', 'Nov 21, 2026'],
       ['Play together', 'Open a game\'s Servers tab to join the public server or make a private one with chat for you and your friends.', 'Nov 21, 2026'],
-      ['The Catalog is open', 'Spend your ROBUX on hats, shirts, pants and body colors. Whatever you wear shows up in every game.', 'Nov 21, 2026'],
       ['Characters walk again', 'Walking, jumping, climbing, sitting, holding tools and /e emotes are all animated now.', 'Nov 21, 2026'],
       ['Every game loads in seconds', 'Classic places are now stored in the fast binary format, so even the biggest maps open almost instantly.', 'Nov 20, 2026']
     ];
-    const byId = Object.fromEntries(GAMES.map(g => [g.id, g]));
-    const esc = WB.esc;
-    const fmt = n => n >= 1000 ? (n / 1000).toFixed(1).replace(/\.0$/, '') + 'K' : String(n);
-    const CFG = window.WEBBLOX_CONFIG || {};
-    const server = String(CFG.multiplayerServer || '').replace(/\/+$/, '');
-    const thumbUrl = g => 'thumbs/' + g.id + '.jpg';
-    const playUrl = (g, room, ps) => 'play.html?' + (g.map ? 'map=' + encodeURIComponent(g.map) + '&' : '') + 'title=' + encodeURIComponent(g.title)
-      + (g.by ? '&by=' + encodeURIComponent(g.by) : '') + (room ? '&room=' + room : '') + (ps > 1 ? '&ps=' + ps : '');
+    const GROUPS = [
+      ['WebBlox Fans', '24.8K members', '#335fff', 'W'],
+      ['Obby Builders Guild', '9.1K members', '#e5484d', 'O'],
+      ['Disaster Survivors', '6.4K members', '#f5a524', 'D'],
+      ['Speed Runners Club', '3.2K members', '#00a854', 'S']
+    ];
 
     function card(g) {
-      return `<button class="card" data-id="${g.id}" onclick="openGame('${g.id}')">
-        <span class="thumb" style="background-image:url('${thumbUrl(g)}')"></span>
+      return `<button class="card" onclick="openGame('${g.id}')">
+        <span class="thumb" style="background-image:url('${WB.thumbUrl(g, true)}')"></span>
         <span class="name">${esc(g.title)}</span>
-        <span class="playing">${fmt(g.playing)} Playing</span>
-        <span class="votes"><span>${g.up}%</span><span class="vbar" title="${g.up}% liked"><i style="width:${g.up}%"></i></span></span>
-        <span class="creator">by <b>${esc(g.by || 'WebBlox')}</b></span>
+        <span class="meta"><span class="r"><svg class="i"><use href="#i-thumb"/></svg>${g.up}% Rating</span><span class="p"><svg class="i"><use href="#i-user"/></svg>${fmt(g.playing)} Playing</span></span>
       </button>`;
+    }
+
+    // ---------- views: Home, Communities, Newsroom ----------
+    function view() {
+      const h = location.hash;
+      return /^#(communities|feed)$/.test(h) ? 'communities' : h === '#news' ? 'news' : 'home';
+    }
+    function showView() {
+      const v = view();
+      ['home', 'communities', 'news'].forEach(k => { document.getElementById('view-' + k).hidden = k !== v; });
+      WB.setNav(v);
+      document.title = { home: 'Home', communities: 'Communities', news: 'Newsroom' }[v] + ' - WebBlox';
+      if (v !== 'home') window.scrollTo(0, 0);
+    }
+
+    // ---------- Home ----------
+    function renderFriends() {
+      const list = WB.sortedFriends();
+      document.getElementById('fr-n').textContent = list.length;
+      document.getElementById('friends').innerHTML =
+        `<button class="friend" onclick="WB.openFriends('friends')"><span class="av"><svg class="o add"><use href="#o-add"/></svg></span><b>Add Friends</b></button>`
+        + list.map(f => `<button class="friend" data-name="${esc(f.name)}" title="${esc(f.name)}: ${esc(WB.presence(f).text)}">${WB.friendAv(f)}<b>${esc(f.name)}</b></button>`).join('');
+      document.querySelectorAll('#friends [data-name]').forEach(b => b.addEventListener('click', () => WB.openFriend(b.dataset.name)));
     }
     function render() {
       const q = document.getElementById('q').value.trim().toLowerCase();
-      const fill = (el, ids) => {
-        const list = ids.map(id => byId[id]).filter(g => !q || g.title.toLowerCase().includes(q) || (g.genre || '').toLowerCase().includes(q));
-        document.getElementById(el).innerHTML = list.length ? list.map(card).join('') : `<div class="empty">No games match "${esc(q)}".</div>`;
-      };
-      fill('recent', RECENT);
-      fill('favs', FAVS);
-      fill('popular', GAMES.slice().sort((a, b) => b.playing - a.playing).map(g => g.id));
+      const recent = WB.recent();
+      if (q) {
+        const hits = GAMES.filter(g => g.title.toLowerCase().includes(q) || (g.genre || '').toLowerCase().includes(q));
+        document.getElementById('rec-title').textContent = `Results for "${document.getElementById('q').value.trim()}"`;
+        document.getElementById('rec').innerHTML = hits.length ? hits.map(card).join('') : `<div class="empty">No games match "${esc(q)}".</div>`;
+      } else {
+        // the four you haven't just played (or the four best rated)
+        const skip = recent[0] || GAMES.slice().sort((a, b) => a.up - b.up || a.playing - b.playing)[0].id;
+        document.getElementById('rec-title').textContent = 'Recommended For You';
+        document.getElementById('rec').innerHTML = GAMES.filter(g => g.id !== skip).slice(0, 4).map(card).join('');
+        document.getElementById('cont').innerHTML = recent.map(id => card(byId[id])).join('');
+        document.getElementById('pop').innerHTML = GAMES.slice().sort((a, b) => b.playing - a.playing).map(card).join('');
+      }
+      document.getElementById('home-title').hidden = !!q;
+      document.getElementById('friends-sec').hidden = !!q;
+      document.getElementById('cont-sec').hidden = !!q || !recent.length;
+      document.getElementById('games').hidden = !!q;
     }
 
+    // ---------- game details ----------
     let current = null;
     function openGame(id) {
       const g = byId[id]; if (!g) return;
       current = g;
       document.body.classList.remove('nav-open');
-      document.getElementById('gp-shot').style.backgroundImage = `url('${thumbUrl(g).replace('.jpg', '-wide.jpg')}'), url('${thumbUrl(g)}')`;
+      document.getElementById('gp-shot').style.backgroundImage = `url('${WB.thumbUrl(g, true)}'), url('${WB.thumbUrl(g)}')`;
       document.getElementById('gp-title').textContent = g.title;
       document.getElementById('gp-by').innerHTML = 'By <b>' + esc(g.by || 'WebBlox') + '</b>';
       document.getElementById('gp-up').textContent = g.up + '%';
       document.getElementById('gp-bar').style.width = g.up + '%';
       document.getElementById('gp-pct').textContent = fmt(Math.round(g.playing * 3.1)) + ' votes';
       document.getElementById('gp-desc').textContent = g.desc;
+      const friendsHere = WB.friends().filter(f => f.game === g.id).map(f => f.name);
       document.getElementById('gp-stats').innerHTML = [['Playing', fmt(g.playing)], ['Visits', g.visits], ['Created', '3/14/2016'], ['Updated', '11/21/2026'], ['Max Players', 30], ['Genre', g.genre]]
-        .map(([k, v]) => `<div><dt>${k}</dt><dd>${esc(v)}</dd></div>`).join('');
-      document.getElementById('gp-play').onclick = () => WB.launch(playUrl(g));
+        .map(([k, v]) => `<div><dt>${k}</dt><dd>${esc(v)}</dd></div>`).join('')
+        + (friendsHere.length ? `<div style="grid-column:1/-1;text-align:left"><dt>Friends here</dt><dd style="font-size:15px">${esc(friendsHere.join(', '))}</dd></div>` : '');
+      document.getElementById('gp-play').onclick = () => WB.playGame(g);
       showTab('about');
       document.getElementById('game-modal').classList.add('open');
       history.replaceState(null, '', '#game=' + id);
     }
     function closeGame() {
+      if (!document.getElementById('game-modal').classList.contains('open')) return;
       document.getElementById('game-modal').classList.remove('open');
-      history.replaceState(null, '', location.pathname);
+      history.replaceState(null, '', location.pathname + location.search);
     }
     function showTab(name) {
       document.querySelectorAll('.gp .tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === name));
@@ -270,7 +319,7 @@
       }
       const row = (label, text, n, ps) => `<div class="server"><div class="info"><b>${label}</b><span>${text}</span>
           <div class="slots">${Array.from({ length: 30 }, (_, i) => `<i class="${i < n ? 'f' : ''}"></i>`).join('')}</div></div>
-          <button class="btn-green" onclick="WB.launch(playUrl(current, '', ${ps || 1}))">Join</button></div>`;
+          <button class="btn-blue" onclick="WB.playGame(current, '', ${ps || 1})">Join</button></div>`;
       const nobody = 'Nobody is playing right now. Join and invite someone!';
       const draw = counts => {
         let pub;
@@ -285,7 +334,7 @@
         pane.innerHTML = `<h3>Servers</h3>${pub}
         <div class="server"><div class="info"><b>Private server</b><span>Just you and the friends you invite.</span>
           <div class="invite" id="invite" hidden><input id="invite-link" readonly aria-label="Invite link" /><button class="btn-white" onclick="copyInvite()">Copy</button></div></div>
-          <button class="btn-blue" id="make-private" onclick="makePrivate()">Create</button></div>
+          <button class="btn-white" id="make-private" onclick="makePrivate()">Create</button></div>
         <p class="note">In WebBlox multiplayer you see each other's avatars, animations, outfits, leaderboard stats and chat (swear words are hidden in public servers). Each player's game world runs separately, so NPCs and items aren't shared, but Natural Disaster Survival keeps everyone's rounds together: same map, same disaster, same time.${server ? '' : ' Players connect straight to each other (peer-to-peer), so there\'s no server to wait for.'}</p>`;
       };
       draw(undefined);
@@ -307,7 +356,8 @@
       document.getElementById('invite-link').value = url;
       const btn = document.getElementById('make-private');
       btn.textContent = 'Play';
-      btn.onclick = () => WB.launch(url);
+      btn.className = 'btn-blue';
+      btn.onclick = () => WB.playGame(current, new URL(url).searchParams.get('room'));
     }
     function copyInvite() {
       const input = document.getElementById('invite-link');
@@ -315,36 +365,51 @@
       (navigator.clipboard ? navigator.clipboard.writeText(input.value) : Promise.reject()).catch(() => document.execCommand('copy'));
     }
 
-    // My Feed
+
+    // ---------- Communities ----------
+    const FEED = [
+      ['WebBlox', 'The website has a whole new look! Your friends are at the top of Home, and Chat is in the corner of every page.', '1 hour ago', { skin: 24, shirt: 23, pants: 37, hat: 'cap' }],
+      ['Guest1337', 'just bought the cheese hat lol', '4 hours ago', { skin: 125, shirt: 1, pants: 26, hat: 'cheese' }],
+      ['ObbyQueen', 'made it to the roof of Sky Tower first try!!', '6 hours ago', { skin: 125, shirt: 1032, pants: 1, hat: 'bunny' }],
+      ['WebBlox', 'Tip: type /e dance in the chat to dance.', 'Yesterday', { skin: 24, shirt: 23, pants: 37 }]
+    ];
+    try { const saved = JSON.parse(localStorage.getItem('webblox-status')); if (Array.isArray(saved)) FEED.unshift(saved); } catch (err) {}
     function postStatus(e) {
       e.preventDefault();
       const input = document.getElementById('status-in');
       const text = input.value.trim(); if (!text) return;
       input.value = '';
+      if (FEED[0] && FEED[0][2] === 'Just now' && FEED[0][3] === null) FEED.shift();
       FEED.unshift([WB.displayName(), text, 'Just now', null]);
       try { localStorage.setItem('webblox-status', JSON.stringify(FEED[0])); } catch (err) {}
       renderFeed();
     }
-    const FEED = [
-      ['WebBlox', 'You can play with other people now! Open a game and check its Servers tab.', '1 hour ago', { skin: 24, shirt: 23, pants: 37, hat: 'cap' }],
-      ['Guest 1337', 'just bought the cheese hat lol', '4 hours ago', { skin: 125, shirt: 1, pants: 26, hat: 'cheese' }],
-      ['WebBlox', 'Tip: type /e dance in the chat to dance.', 'Yesterday', { skin: 24, shirt: 23, pants: 37 }]
-    ];
-    try { const saved = JSON.parse(localStorage.getItem('webblox-status')); if (Array.isArray(saved)) FEED.unshift(saved); } catch (err) {}
     function renderFeed() {
-      document.getElementById('posts').innerHTML = FEED.slice(0, 4).map(([who, text, when, look]) =>
-        `<div class="post"><div class="av">${WB.avatarImg(look || WB.look(), 'head', '#e3e3e3', 96)}</div><div><b>${esc(who)}</b><p>${esc(text)}</p><time>${esc(when)}</time></div></div>`).join('');
+      document.getElementById('posts').innerHTML = FEED.slice(0, 8).map(([who, text, when, look]) =>
+        `<div class="post"><div class="av">${look ? WB.pic(look, 'head') : WB.avatarImg(WB.look(), 'head', null, 192)}</div><div><b>${esc(who)}</b><p>${esc(text)}</p><time>${esc(when)}</time></div></div>`).join('');
     }
 
-    document.getElementById('me-av').innerHTML = WB.avatarImg(WB.look(), 'head', '#fff', 256);
-    document.querySelectorAll('.my-name').forEach(e => { e.textContent = WB.displayName(); });
-    document.getElementById('news-list').innerHTML = NEWS.slice(0, 4).map(([t, p, d]) => `<a href="#news"><h3>${esc(t)}</h3><p>${esc(p)}</p><p>${d}</p></a>`).join('');
-    document.getElementById('q').addEventListener('input', render);
+    // ---------- start ----------
+    document.getElementById('groups').innerHTML = GROUPS.map(([n, m, c, l]) => `<div class="group"><span class="em" style="background:${c}">${l}</span><div><b>${esc(n)}</b><span>${m}</span></div></div>`).join('');
+    document.getElementById('news-list').innerHTML = NEWS.map(([t, p, d]) => `<article><div class="d">${d}</div><h3>${esc(t)}</h3><p>${esc(p)}</p></article>`).join('');
+    document.getElementById('q').addEventListener('input', () => {
+      if (view() !== 'home') { history.replaceState(null, '', location.pathname + location.search); showView(); }
+      render();
+    });
     document.addEventListener('keydown', e => { if (e.key === 'Escape') closeGame(); });
+    window.addEventListener('webblox-friends', renderFriends);
+    function route() {
+      showView();
+      const m = location.hash.match(/^#game=([\w-]+)/);
+      if (m) openGame(m[1]);
+      if (location.hash === '#friends') { history.replaceState(null, '', location.pathname + location.search); WB.openFriends('friends'); }
+      if (location.hash === '#games') document.getElementById('games').scrollIntoView();
+    }
+    window.addEventListener('hashchange', route);
+    renderFriends();
     render();
     renderFeed();
-    const m = location.hash.match(/^#game=([\w-]+)/); if (m) openGame(m[1]);
-    window.addEventListener('hashchange', () => { const h = location.hash.match(/^#game=([\w-]+)/); if (h) openGame(h[1]); });
+    route();
   </script>
 </body>
 </html>

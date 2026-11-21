@@ -1,5 +1,5 @@
-// WebBlox site: shared header/menu, saved player state (Robux, inventory, outfit, name),
-// the Catalog's items, and 2016-style avatar drawings. Used by index.html and catalog.html.
+// WebBlox site: shared left menu, saved player state (Robux, inventory, outfit, name), the games,
+// pretend friends and chat, the Catalog's items, and avatar drawings. Used by every page.
 (function () {
   'use strict';
   const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -216,82 +216,365 @@
     return `<svg viewBox="0 0 100 100" width="100%" height="100%" aria-hidden="true"><rect width="100" height="100" fill="${bg}"/>${shape}</svg>`;
   };
 
-  // ---------- header + left menu ----------
+  // ---------- games ----------
+  const GAMES = [
+    { id: 'nds', title: 'Natural Disaster Survival', by: 'WebBlox', genre: 'Adventure', playing: 4127, visits: '1.2M', up: 95,
+      desc: 'Survive natural disasters on a randomly chosen island. Each round brings a new map and a new disaster: floods, tsunamis, tornadoes, volcanoes, meteor showers and more.\n\nEveryone in a server gets the same map and the same disaster at the same time. How many can you survive?' },
+    { id: 'obby', map: 'rainbow-obby.rbxl', title: 'Rainbow Obby', by: 'WebBlox', genre: 'Adventure', playing: 3864, visits: '987K', up: 94,
+      desc: '30 stages of obby fun! Jump across stepping stones, dodge spinning lava bars, ride moving platforms, bounce on trampolines, climb trusses and run across a belt that pushes you back.\n\nCheckpoints save your stage, so you only go back to the last one you reached. Reach the golden trophy to win!' },
+    { id: 'tower', map: 'sky-tower.rbxl', title: 'Sky Tower', by: 'WebBlox', genre: 'Adventure', playing: 2296, visits: '640K', up: 93,
+      desc: 'A tower in the clouds, ten floors high. Jump from platform to platform as they spiral up around it. The higher you go, the smaller they get, and some of them vanish or move.\n\nEvery floor has a checkpoint. Make it to the roof to win!' },
+    { id: 'lava', map: 'floor-is-lava.rbxl', title: 'The Floor is Lava', by: 'WebBlox', genre: 'Funny', playing: 2941, visits: '812K', up: 95,
+      desc: 'THE FLOOR IS LAVA! Every minute the lava rises out of the floor of a giant living room. Climb the couches, shelves, bunk beds and the tower before it gets you.\n\nEveryone who survives the round gets a win. Everyone in a server faces the same lava at the same time.' },
+    { id: 'speedrun', map: 'speed-run.rbxl', title: 'Speed Run', by: 'WebBlox', genre: 'Sports', playing: 1527, visits: '433K', up: 92,
+      desc: 'How fast can you go? Cross the line and race over speed pads, gaps, trampolines, stepping stones and a balance beam to the finish.\n\nYour best time goes on the leaderboard. Fall off and you start again!' }
+  ];
+  WB.GAMES = GAMES;
+  WB.game = id => GAMES.find(g => g.id === id);
+  WB.fmt = n => n >= 1000 ? (n / 1000).toFixed(1).replace(/\.0$/, '') + 'K' : String(n);
+  WB.thumbUrl = (g, wide) => 'thumbs/' + g.id + (wide ? '-wide' : '') + '.jpg';
+  WB.playUrl = (g, room, ps) => 'play.html?' + (g.map ? 'map=' + encodeURIComponent(g.map) + '&' : '') + 'title=' + encodeURIComponent(g.title)
+    + (g.by ? '&by=' + encodeURIComponent(g.by) : '') + (room ? '&room=' + room : '') + (ps > 1 ? '&ps=' + ps : '');
+  // games you've played, newest first
+  WB.recent = () => { const v = load('webblox-recent', []); return Array.isArray(v) ? v.filter(id => WB.game(id)) : []; };
+  WB.playGame = function (g, room, ps) {
+    save('webblox-recent', [g.id].concat(WB.recent().filter(id => id !== g.id)).slice(0, 12));
+    WB.launch(WB.playUrl(g, room, ps));
+  };
+
+  // A headshot or full-body picture of someone else (doesn't borrow your hat or gear).
+  function pic(look, mode) {
+    look = Object.assign({}, DEFAULT_LOOK, look || {});
+    if (window.WB3D) {
+      try { return `<img src="${window.WB3D.snapshot(look, { mode, size: mode === 'head' ? 192 : 320 })}" alt="" style="width:100%;height:100%;object-fit:contain;display:block" />`; } catch (e) { /* drawing below */ }
+    }
+    return WB.avatarSVG(look, mode);
+  }
+  WB.pic = pic;
+
+  // ---------- friends (pretend ones, kept in this browser) ----------
+  const FRIENDS = [
+    { name: 'BuilderBen', look: { skin: 24, shirt: 21, pants: 26, hat: 'hardhat' }, game: 'obby' },
+    { name: 'ObbyQueen', look: { skin: 125, shirt: 1032, pants: 1, hat: 'bunny' }, game: 'tower' },
+    { name: 'CoilKid', look: { skin: 192, shirt: 1031, pants: 23, hat: 'propeller' }, online: true },
+    { name: 'Guest1337', look: { skin: 125, shirt: 1, pants: 26, hat: 'cheese' }, game: 'nds' },
+    { name: 'LavaJumper', look: { skin: 18, shirt: 106, pants: 26, hat: 'cap' }, game: 'lava' },
+    { name: 'WizardWes', look: { skin: 24, shirt: 26, pants: 26, hat: 'wizard' }, online: true },
+    { name: 'ChefMaya', look: { skin: 192, shirt: 1, pants: 194, hat: 'chef' } },
+    { name: 'SkyPilot99', look: { skin: 125, shirt: 23, pants: 192, hat: 'viking' } },
+    { name: 'PartyPanda', look: { skin: 1, shirt: 26, pants: 26, hat: 'party' } },
+    { name: 'CowboyCarl', look: { skin: 18, shirt: 192, pants: 23, hat: 'cowboy' } },
+    { name: 'ShadesSam', look: { skin: 125, shirt: 199, pants: 26, hat: 'shades' } },
+    { name: 'NoobSlayer', look: { skin: 24, shirt: 23, pants: 37 } },
+  ];
+  const REQUESTS = [
+    { name: 'TowerClimber', look: { skin: 18, shirt: 37, pants: 26, hat: 'beanie' } },
+    { name: 'SpeedySam', look: { skin: 24, shirt: 21, pants: 1, hat: 'headphones' } },
+  ];
+  const copy = v => JSON.parse(JSON.stringify(v));
+  const cleanName = n => String(n || '').replace(/[^A-Za-z0-9_ ]/g, '').trim().slice(0, 20);
+  WB.friends = () => { const v = load('webblox-friends', null); return Array.isArray(v) ? v : copy(FRIENDS); };
+  WB.requests = () => { const v = load('webblox-requests', null); return Array.isArray(v) ? v : copy(REQUESTS); };
+  WB.friend = name => WB.friends().find(f => f.name === name);
+  function friendsChanged(list, reqs) {
+    if (list) save('webblox-friends', list);
+    if (reqs) save('webblox-requests', reqs);
+    updateBadges();
+    window.dispatchEvent(new Event('webblox-friends'));
+  }
+  // { kind: 'game' | 'online' | 'off', text, game }
+  WB.presence = function (f) {
+    const g = f.game && WB.game(f.game);
+    if (g) return { kind: 'game', text: 'Playing ' + g.title, game: g };
+    return f.online ? { kind: 'online', text: 'Online' } : { kind: 'off', text: 'Offline' };
+  };
+  const RANK = { game: 0, online: 1, off: 2 };
+  WB.sortedFriends = () => WB.friends().map((f, i) => [f, i]).sort((a, b) => RANK[WB.presence(a[0]).kind] - RANK[WB.presence(b[0]).kind] || a[1] - b[1]).map(p => p[0]);
+  WB.friendAv = f => `<span class="av">${pic(f.look, 'head')}<i class="dot ${WB.presence(f).kind}"></i></span>`;
+  function randomLook() {
+    const r = a => a[Math.floor(Math.random() * a.length)];
+    return { skin: r([24, 125, 18, 192]), shirt: r([21, 23, 37, 26, 1, 106, 1031, 1032, 24, 199]), pants: r([26, 23, 192, 194, 28, 1]),
+      hat: r(['', 'cap', 'beanie', 'tophat', 'fedora', 'party', 'headphones', 'shades', 'cowboy', 'pirate']) };
+  }
+  WB.addFriend = function (name, look) {
+    name = cleanName(name);
+    if (!name) return 'Type a username first.';
+    if (name.toLowerCase() === WB.displayName().toLowerCase()) return 'That\'s you!';
+    const list = WB.friends();
+    if (list.some(f => f.name.toLowerCase() === name.toLowerCase())) return 'You\'re already friends with ' + name + '.';
+    if (list.length >= 200) return 'You have too many friends!';
+    list.unshift({ name, look: look || randomLook(), online: true });
+    friendsChanged(list, WB.requests().filter(r => r.name !== name));
+    return '';
+  };
+  WB.removeFriend = function (name) { friendsChanged(WB.friends().filter(f => f.name !== name)); };
+  WB.acceptRequest = function (name) { const r = WB.requests().find(q => q.name === name); if (r) WB.addFriend(r.name, r.look); };
+  WB.declineRequest = function (name) { friendsChanged(null, WB.requests().filter(r => r.name !== name)); };
+
+  // ---------- chat (your friends answer with canned replies) ----------
+  const CHAT_SEED = {
+    threads: { BuilderBen: [['them', 'yo want to do Rainbow Obby later?']], Guest1337: [['them', 'just bought the cheese hat lol']] },
+    unread: { BuilderBen: 1, Guest1337: 1 },
+  };
+  const chatState = () => { const v = load('webblox-chat', null); return v && v.threads && v.unread ? v : copy(CHAT_SEED); };
+  const saveChat = s => save('webblox-chat', s);
+  WB.unread = function () { const u = chatState().unread, names = new Set(WB.friends().map(f => f.name)); return Object.keys(u).reduce((n, k) => n + (names.has(k) ? u[k] || 0 : 0), 0); };
+  function updateBadges() {
+    const n = WB.unread(), r = WB.requests().length;
+    document.querySelectorAll('.msg-count').forEach(e => { e.textContent = n ? String(n) : ''; });
+    document.querySelectorAll('.req-count').forEach(e => { e.textContent = r ? String(r) : ''; });
+  }
+  WB.updateBadges = updateBadges;
+
+  const chatUI = { open: false, with: null, typing: null };
+  function chatReply(f, text) {
+    const t = text.toLowerCase(), p = WB.presence(f);
+    const pick = a => a[Math.floor(Math.random() * a.length)];
+    if (/\b(hi+|hey+|hello|yo+|sup|hai)\b/.test(t)) return pick(['hey!', 'yo', 'hiii', 'sup ' + WB.displayName()]);
+    if (/(play|join|game|server|obby|lava|tower)/.test(t)) return p.game ? pick([`im in ${p.game.title} rn, join me!`, `come to ${p.game.title}`]) : pick(['sure, what game?', 'ok lets do The Floor is Lava', 'one sec, getting on']);
+    if (/(hat|catalog|robux|coil|outfit)/.test(t)) return pick(['the Speed Coil is so op', 'i want the Golden Crown so bad', 'collect your daily robux in the catalog!']);
+    if (/\?\s*$/.test(t)) return pick(['idk', 'yeah', 'nah', 'maybe lol', 'why?']);
+    return pick(['lol', 'nice', 'haha', 'gg', 'same', 'fr', 'ok', 'brb', 'did you see the new hats?', ':)']);
+  }
+  function renderChat() {
+    const box = document.getElementById('chat');
+    if (!box) return;
+    box.classList.toggle('open', chatUI.open);
+    updateBadges();
+    if (!chatUI.open) return;
+    const body = document.getElementById('chat-body');
+    const s = chatState();
+    const f = chatUI.with && WB.friend(chatUI.with);
+    if (!f) {
+      chatUI.with = null;
+      const list = WB.sortedFriends().sort((a, b) => (s.unread[b.name] || 0) - (s.unread[a.name] || 0));
+      body.innerHTML = `<div class="chat-list">${list.length ? list.map(fr => {
+        const th = s.threads[fr.name] || [], last = th.filter(m => m[0] !== 'note').pop(), un = s.unread[fr.name] || 0;
+        const sub = last ? (last[0] === 'me' ? 'You: ' : '') + last[1] : WB.presence(fr).text;
+        return `<button class="chat-row${un ? ' unread' : ''}" data-name="${esc(fr.name)}">${WB.friendAv(fr)}<span class="tx"><b>${esc(fr.name)}</b><span>${esc(sub)}</span></span>${un ? '<i class="pip"></i>' : ''}</button>`;
+      }).join('') : '<p class="empty" style="margin:8px">Add some friends to chat with them.</p>'}</div>`;
+      body.querySelectorAll('.chat-row').forEach(b => b.addEventListener('click', () => WB.chatWith(b.dataset.name)));
+      return;
+    }
+    if (s.unread[f.name]) { s.unread[f.name] = 0; saveChat(s); updateBadges(); }
+    const p = WB.presence(f);
+    const msgs = (s.threads[f.name] || []).map(([who, text]) => who === 'note' ? `<p class="note">${esc(text)}</p>` : `<p class="${who === 'me' ? 'me' : ''}">${esc(text)}</p>`).join('')
+      + (chatUI.typing === f.name ? `<p class="typing">${esc(f.name)} is typing…</p>` : '');
+    const keep = document.getElementById('chat-in');
+    const draft = keep && keep.dataset.name === f.name ? keep.value : '';
+    body.innerHTML = `<div class="chat-top"><button aria-label="Back" id="chat-back"><svg class="o"><use href="#o-back"/></svg></button>
+        <div><b>${esc(f.name)}</b><span>${esc(p.text)}</span></div></div>
+      <div class="chat-msgs" id="chat-msgs">${msgs || `<p class="note">Say hi to ${esc(f.name)}!</p>`}</div>
+      <form class="chat-form" id="chat-form"><input id="chat-in" data-name="${esc(f.name)}" maxlength="200" placeholder="Send a message" autocomplete="off" aria-label="Message" /><button aria-label="Send"><svg class="o"><use href="#o-send"/></svg></button></form>`;
+    const m = document.getElementById('chat-msgs'); m.scrollTop = m.scrollHeight;
+    document.getElementById('chat-back').onclick = () => { chatUI.with = null; renderChat(); };
+    const input = document.getElementById('chat-in');
+    input.value = draft;
+    if (window.matchMedia('(pointer: fine)').matches) input.focus();
+    document.getElementById('chat-form').onsubmit = e => {
+      e.preventDefault();
+      const text = input.value.trim(); if (!text) return;
+      input.value = '';
+      sendChat(f.name, text);
+    };
+  }
+  function sendChat(name, text) {
+    const s = chatState();
+    const th = s.threads[name] = (s.threads[name] || []).concat([['me', text]]).slice(-60);
+    const f = WB.friend(name);
+    if (f && WB.presence(f).kind === 'off') {
+      if (!th.slice(-3).some(m => m[0] === 'note')) th.push(['note', name + ' is offline. They\'ll see this next time they\'re on.']);
+      saveChat(s); renderChat(); return;
+    }
+    saveChat(s); renderChat();
+    if (!f) return;
+    setTimeout(() => { chatUI.typing = name; if (chatUI.with === name) renderChat(); }, 500 + Math.random() * 500);
+    setTimeout(() => {
+      const s2 = chatState();
+      s2.threads[name] = (s2.threads[name] || []).concat([['them', chatReply(f, text)]]).slice(-60);
+      if (!(chatUI.open && chatUI.with === name)) s2.unread[name] = (s2.unread[name] || 0) + 1;
+      saveChat(s2);
+      if (chatUI.typing === name) chatUI.typing = null;
+      renderChat();
+    }, 1400 + Math.random() * 1600);
+  }
+  WB.chatWith = function (name) { chatUI.open = true; chatUI.with = name || null; renderChat(); };
+  WB.toggleChat = function () { chatUI.open = !chatUI.open; if (!chatUI.open) chatUI.with = null; renderChat(); };
+
+  // ---------- friends list + a friend's card (modals, on every page) ----------
+  function modal(id, html) {
+    let m = document.getElementById(id);
+    if (!m) {
+      m = document.createElement('div');
+      m.className = 'modal'; m.id = id;
+      m.addEventListener('click', e => { if (e.target === m) m.classList.remove('open'); });
+      document.body.appendChild(m);
+    }
+    m.innerHTML = `<div class="dialog" role="dialog" aria-modal="true" style="width:min(${id === 'friend-card' ? 640 : 860}px,100%)"><button class="x" aria-label="Close">&times;</button>${html}</div>`;
+    m.querySelector('.x').onclick = () => m.classList.remove('open');
+    m.classList.add('open');
+    return m;
+  }
+  let flTab = 'friends', flMsg = '';
+  WB.openFriends = function (tab) {
+    document.body.classList.remove('nav-open');
+    if (tab) flTab = tab;
+    const list = WB.sortedFriends(), reqs = WB.requests();
+    const row = (f, acts) => `<div class="fl-row">${WB.friendAv(f)}<button class="who" data-open="${esc(f.name)}"><b>${esc(f.name)}</b>
+      <span class="${WB.presence(f).kind}">${esc(flTab === 'requests' ? 'Wants to be your friend' : WB.presence(f).text)}</span></button><span class="acts">${acts}</span></div>`;
+    const body = flTab === 'requests'
+      ? (reqs.length ? `<div class="fl-list">${reqs.map(r => row(r, `<button class="btn-blue" data-accept="${esc(r.name)}">Accept</button><button class="btn-white" data-decline="${esc(r.name)}">Ignore</button>`)).join('')}</div>`
+        : '<p class="empty">No friend requests right now.</p>')
+      : `<form class="fl-add" id="fl-add"><input id="fl-name" maxlength="20" placeholder="Add a friend by username" autocomplete="off" aria-label="Username" /><button class="btn-blue">Add Friend</button></form>
+        ${flMsg ? `<p class="fl-msg">${esc(flMsg)}</p>` : ''}
+        ${list.length ? `<div class="fl-list">${list.map(f => row(f, `<button class="btn-white" data-chat="${esc(f.name)}">Chat</button>`)).join('')}</div>` : '<p class="empty">No friends yet. Add someone above!</p>'}`;
+    const m = modal('friends-modal', `<div class="fl-head"><h2>Friends</h2></div>
+      <div class="fl-tabs"><button data-tab="friends" class="${flTab === 'friends' ? 'on' : ''}">Friends (${list.length})</button>
+        <button data-tab="requests" class="${flTab === 'requests' ? 'on' : ''}">Requests${reqs.length ? `<span class="count">${reqs.length}</span>` : ''}</button></div>
+      <div class="fl-body">${body}</div>`);
+    flMsg = '';
+    m.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => WB.openFriends(b.dataset.tab));
+    m.querySelectorAll('[data-open]').forEach(b => b.onclick = () => WB.openFriend(b.dataset.open));
+    m.querySelectorAll('[data-chat]').forEach(b => b.onclick = () => { m.classList.remove('open'); WB.chatWith(b.dataset.chat); });
+    m.querySelectorAll('[data-accept]').forEach(b => b.onclick = () => { WB.acceptRequest(b.dataset.accept); WB.openFriends(); });
+    m.querySelectorAll('[data-decline]').forEach(b => b.onclick = () => { WB.declineRequest(b.dataset.decline); WB.openFriends(); });
+    const form = m.querySelector('#fl-add');
+    if (form) {
+      form.onsubmit = e => {
+        e.preventDefault();
+        const name = cleanName(m.querySelector('#fl-name').value);
+        const err = WB.addFriend(name);
+        flMsg = err || 'You and ' + name + ' are now friends!';
+        WB.openFriends();
+        if (err) { const i = document.getElementById('fl-name'); i.value = name; i.focus(); }
+      };
+      if (window.matchMedia('(pointer: fine)').matches) m.querySelector('#fl-name').focus();
+    }
+  };
+  WB.openFriend = function (name) {
+    const f = WB.friend(name) || WB.requests().find(r => r.name === name);
+    if (!f) return;
+    const isFriend = !!WB.friend(name), p = isFriend ? WB.presence(f) : { kind: 'off', text: 'Wants to be your friend' };
+    const btns = isFriend
+      ? (p.game ? `<button class="btn-blue" id="fp-join">Join Game</button>` : '') + `<button class="btn-white" id="fp-chat">Chat</button><button class="btn-white" id="fp-remove">Unfriend</button>`
+      : `<button class="btn-blue" id="fp-accept">Accept</button><button class="btn-white" id="fp-decline">Ignore</button>`;
+    const m = modal('friend-card', `<div class="fp"><div class="fig">${pic(f.look, 'full')}</div><div>
+      <h2>${esc(f.name)}</h2><div class="st ${p.kind}">${esc(p.text)}</div>
+      <div class="btns">${btns}</div>
+      <p class="since">Friends here are pretend and live in this browser. To play with a real friend, open a game's Servers tab and send them a private server link.</p></div></div>`);
+    const on = (id, fn) => { const b = m.querySelector('#' + id); if (b) b.onclick = fn; };
+    const close = () => m.classList.remove('open');
+    on('fp-join', () => { close(); WB.playGame(p.game); });
+    on('fp-chat', () => { close(); document.getElementById('friends-modal')?.classList.remove('open'); WB.chatWith(f.name); });
+    on('fp-remove', () => { if (confirm('Unfriend ' + f.name + '?')) { WB.removeFriend(f.name); close(); if (document.getElementById('friends-modal')?.classList.contains('open')) WB.openFriends(); } });
+    on('fp-accept', () => { WB.acceptRequest(f.name); WB.openFriend(f.name); if (document.getElementById('friends-modal')?.classList.contains('open')) WB.openFriends(); });
+    on('fp-decline', () => { WB.declineRequest(f.name); close(); if (document.getElementById('friends-modal')?.classList.contains('open')) WB.openFriends(); });
+  };
+
+  // ---------- left menu ----------
+  // outline icons (o-*) for the menu; filled ones (i-*) for ratings, ROBUX and the play button
+  const sym = (id, d) => `<symbol id="${id}" viewBox="0 0 24 24">${d}</symbol>`;
   const ICONS = `<svg width="0" height="0" style="position:absolute" aria-hidden="true">
     <symbol id="i-menu" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></symbol>
-    <symbol id="i-home" viewBox="0 0 24 24"><path d="M12 3 2 11.5h3V21h5.5v-6h3v6H19v-9.5h3z"/></symbol>
     <symbol id="i-user" viewBox="0 0 24 24"><path d="M12 12a4.5 4.5 0 1 0 0-9 4.5 4.5 0 0 0 0 9zm0 2c-4.4 0-8 2.2-8 5v2h16v-2c0-2.8-3.6-5-8-5z"/></symbol>
-    <symbol id="i-msg" viewBox="0 0 24 24"><path d="M3 5h18v14H3zm2 2v.5l7 4.5 7-4.5V7l-7 4.4z"/></symbol>
-    <symbol id="i-avatar" viewBox="0 0 24 24"><path d="M8 2h8v6H8zM5 9h14v7h-3v6h-3v-6h-2v6H8v-6H5z"/></symbol>
-    <symbol id="i-inv" viewBox="0 0 24 24"><path d="M9 3h6v3h5v14H4V6h5zm2 3h2V5h-2zM6 10v2h12v-2z"/></symbol>
-    <symbol id="i-trade" viewBox="0 0 24 24"><path d="M7 4 3 8l4 4V9h10V7H7zm10 8v3H7v2h10v3l4-4z"/></symbol>
-    <symbol id="i-forum" viewBox="0 0 24 24"><path d="M3 4h13v9H7l-4 4zm15 4h3v12l-4-4H8v-1h10z"/></symbol>
-    <symbol id="i-blog" viewBox="0 0 24 24"><path d="M4 4h16v16H4zm2 2v4h5V6zm7 0v1h5V6zm0 3v1h5V9zM6 12v1h12v-1zm0 3v1h12v-1z"/></symbol>
-    <symbol id="i-shop" viewBox="0 0 24 24"><path d="M3 4h2.6l.8 2H21l-2.5 8H8.2l-.6 2H19v2H5l1.5-4.6L4.2 6H3zm5 16a1.5 1.5 0 1 0 0 .1zm9 0a1.5 1.5 0 1 0 0 .1z"/></symbol>
-    <symbol id="i-search" viewBox="0 0 24 24"><path d="M10 3a7 7 0 0 1 5.6 11.2l5.6 5.6-1.4 1.4-5.6-5.6A7 7 0 1 1 10 3zm0 2a5 5 0 1 0 0 10 5 5 0 0 0 0-10z"/></symbol>
-    <symbol id="i-gear" viewBox="0 0 24 24"><path d="M19.4 13a7.6 7.6 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.4 7.4 0 0 0-1.7-1L15 3h-4l-.4 2.7a7.4 7.4 0 0 0-1.7 1l-2.5-1-2 3.5L6.6 11a7.6 7.6 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1c.5.4 1.1.7 1.7 1L11 21h4l.4-2.7c.6-.3 1.2-.6 1.7-1l2.5 1 2-3.5zM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z" transform="translate(-1 0)"/></symbol>
     <symbol id="i-robux" viewBox="0 0 24 24"><path d="M12 2 21 7v10l-9 5-9-5V7zm0 2.3L5 8.2v7.6l7 3.9 7-3.9V8.2zM9 9h6v6H9z"/></symbol>
     <symbol id="i-thumb" viewBox="0 0 24 24"><path d="M2 10h4v11H2zm6 11V10l5-8 1.5 1c.6.4.8 1.1.6 1.8L14 9h6.2c1 0 1.8.9 1.6 1.9l-1.6 8.6c-.2 1-1 1.5-2 1.5z"/></symbol>
     <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 4v16l13-8z"/></symbol>
+    ${sym('o-home', '<path d="M3.5 10.5 12 3.5l8.5 7V20a1 1 0 0 1-1 1H15v-6H9v6H4.5a1 1 0 0 1-1-1z"/>')}
+    ${sym('o-profile', '<circle cx="12" cy="7" r="3.5"/><path d="M8.5 21v-3.2L7 12.8A2 2 0 0 1 9 10.5h6a2 2 0 0 1 2 2.3l-1.5 5V21z"/>')}
+    ${sym('o-plus', '<rect x="3.5" y="3.5" width="17" height="17" rx="5"/><path d="M10 16.5v-9h2.8a2.6 2.6 0 0 1 0 5.2H10"/>')}
+    ${sym('o-msg', '<path d="M4 5.5A1.5 1.5 0 0 1 5.5 4h13A1.5 1.5 0 0 1 20 5.5v10a1.5 1.5 0 0 1-1.5 1.5H9l-5 4z"/><path d="M8 9h8M8 12.5h5"/>')}
+    ${sym('o-friends', '<circle cx="9" cy="8" r="3.2"/><path d="M3 20v-1a5 5 0 0 1 5-5h2a5 5 0 0 1 5 5v1"/><path d="M15.5 4.9a3.2 3.2 0 0 1 0 6.2M17.5 14.2A5 5 0 0 1 21 19v1"/>')}
+    ${sym('o-avatar', '<circle cx="12" cy="4.8" r="2.3"/><path d="M5.5 9h13M12 9v5M8.5 21 12 14l3.5 7M8 9l-.6 4.5M16 9l.6 4.5"/>')}
+    ${sym('o-inv', '<path d="M6 9a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v10.5a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 6 19.5z"/><path d="M9.5 5V4a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1v1M9 14h6v3"/>')}
+    ${sym('o-trade', '<path d="M4 8h15M15.5 4.5 19 8l-3.5 3.5M20 16H5M8.5 12.5 5 16l3.5 3.5"/>')}
+    ${sym('o-groups', '<circle cx="12" cy="7.5" r="2.8"/><circle cx="5.5" cy="9.5" r="2"/><circle cx="18.5" cy="9.5" r="2"/><path d="M7.5 19.5v-1a4.5 4.5 0 0 1 9 0v1M2.5 18.5V18a3 3 0 0 1 4-2.8M21.5 18.5V18a3 3 0 0 0-4-2.8"/>')}
+    ${sym('o-news', '<path d="M12 2.8 6.5 8.5 8.3 17h7.4l1.8-8.5z"/><path d="M12 2.8V11"/><circle cx="12" cy="12.3" r="1.4"/><path d="M8 21h8"/>')}
+    ${sym('o-store', '<path d="M4.5 10v10h15V10"/><path d="M3 9.5 5 4h14l2 5.5a2.6 2.6 0 0 1-4.5 1.7 2.6 2.6 0 0 1-4.5 0 2.6 2.6 0 0 1-4.5 0A2.6 2.6 0 0 1 3 9.5z"/><path d="M10 20v-5h4v5"/>')}
+    ${sym('o-robux', '<path d="M12 2.8 20 7.4v9.2l-8 4.6-8-4.6V7.4z"/><rect x="9.3" y="9.3" width="5.4" height="5.4" rx=".6"/>')}
+    ${sym('o-create', '<path d="M15 4.5l4.5 4.5L9 19.5H4.5V15z"/><path d="M12.5 7l4.5 4.5"/>')}
+    ${sym('o-settings', '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>')}
+    ${sym('o-search', '<circle cx="10.5" cy="10.5" r="6.5"/><path d="m20 20-4.8-4.8"/>')}
+    ${sym('o-add', '<path d="M12 4.5v15M4.5 12h15"/>')}
+    ${sym('o-arrow', '<path d="M4.5 12h15M13.5 6l6 6-6 6"/>')}
+    ${sym('o-compose', '<path d="M20 13.5V19a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 19V6a1.5 1.5 0 0 1 1.5-1.5H11"/><path d="M17.5 3.5l3 3L12 15H9v-3z"/>')}
+    ${sym('o-back', '<path d="M15 5l-7 7 7 7"/>')}
+    ${sym('o-send', '<path d="M4 12 20 4l-4 16-4-6.5z"/><path d="M12 13.5 20 4"/>')}
   </svg>`;
 
-  // active: 'home' | 'profile' | 'catalog' | 'avatar' | 'inventory'
+  // active: 'home' | 'profile' | 'avatar' | 'inventory' | 'catalog' | 'communities' | 'news'
   WB.chrome = function (active, searchPlaceholder) {
-    const on = k => active === k ? ' class="on"' : '';
+    const item = (k, href, icon, label, extra) => `<li><a href="${href}" data-k="${k}"${active === k ? ' class="on"' : ''}><svg class="o"><use href="#o-${icon}"/></svg>${label}${extra || ''}</a></li>`;
+    const action = (fn, icon, label, extra) => `<li><button type="button" onclick="${fn}"><svg class="o"><use href="#o-${icon}"/></svg>${label}${extra || ''}</button></li>`;
     const html = ICONS + `
-    <header class="hdr">
+    <header class="topbar">
       <button class="burger" aria-label="Menu" onclick="document.body.classList.toggle('nav-open')"><svg class="i"><use href="#i-menu"/></svg></button>
       <a class="logo" href="index.html" aria-label="WebBlox home"><img src="WebBlox.png" alt="WebBlox" /></a>
-      <nav class="hnav">
-        <a href="index.html#games">Games</a>
-        <a href="catalog.html"${on('catalog')}>Catalog</a>
-        <button type="button" onclick="WB.pickPlace()">Develop</button>
-        <a href="catalog.html#robux">ROBUX</a>
-      </nav>
-      <label class="search"><input id="q" type="search" placeholder="${esc(searchPlaceholder || 'Search')}" autocomplete="off" aria-label="Search" /><svg class="i"><use href="#i-search"/></svg></label>
-      <div class="hright">
-        <a href="catalog.html#robux" title="ROBUX"><svg class="i"><use href="#i-robux"/></svg><span class="rbx-count"></span></a>
-        <a class="gear" href="#" title="Change your name" onclick="WB.rename(); return false;"><svg class="i"><use href="#i-gear"/></svg></a>
-      </div>
+      <a class="rbx" href="catalog.html#robux" title="ROBUX"><svg class="i"><use href="#i-robux"/></svg><span class="rbx-count"></span></a>
     </header>
-    <aside class="lnav">
-      <a class="who" href="profile.html" id="who"></a>
+    <aside class="lnav" aria-label="Menu">
+      <a class="who" href="profile.html"><span class="hs" id="who-hs"></span><span id="who-name"></span></a>
+      <label class="search"><svg class="o"><use href="#o-search"/></svg><input id="q" type="search" placeholder="${esc(searchPlaceholder || 'Search')}" autocomplete="off" aria-label="Search" /></label>
       <ul>
-        <li><a href="index.html"${on('home')}><svg class="i"><use href="#i-home"/></svg>Home</a></li>
-        <li><a href="profile.html"${on('profile')}><svg class="i"><use href="#i-user"/></svg>Profile</a></li>
-        <li><a href="index.html#feed"><svg class="i"><use href="#i-msg"/></svg>Messages<span class="count">3</span></a></li>
-        <li><a href="catalog.html?cat=wearing"${on('avatar')}><svg class="i"><use href="#i-avatar"/></svg>Avatar</a></li>
-        <li><a href="catalog.html?cat=inventory"${on('inventory')}><svg class="i"><use href="#i-inv"/></svg>Inventory</a></li>
-        <li><a href="catalog.html"><svg class="i"><use href="#i-trade"/></svg>Trade</a></li>
-        <li><a href="index.html#feed"><svg class="i"><use href="#i-forum"/></svg>Forum</a></li>
-        <li><a href="index.html#news"><svg class="i"><use href="#i-blog"/></svg>Blog</a></li>
-        <li><a href="catalog.html"${on('catalog')}><svg class="i"><use href="#i-shop"/></svg>Shop</a></li>
+        ${item('home', 'index.html', 'home', 'Home')}
+        ${item('profile', 'profile.html', 'profile', 'Profile')}
+        ${item('plus', 'catalog.html#robux', 'plus', 'WebBlox Plus')}
+        ${action('WB.chatWith()', 'msg', 'Messages', '<span class="count msg-count"></span>')}
+        ${action('WB.openFriends()', 'friends', 'Friends', '<span class="count req-count"></span>')}
+        ${item('avatar', 'catalog.html?cat=wearing', 'avatar', 'Avatar')}
+        ${item('inventory', 'catalog.html?cat=inventory', 'inv', 'Inventory')}
+        ${item('trade', 'catalog.html?cat=inventory', 'trade', 'Trade')}
+        ${item('communities', 'index.html#communities', 'groups', 'Communities')}
+        ${item('news', 'index.html#news', 'news', 'Newsroom')}
+        ${item('catalog', 'catalog.html', 'store', 'Official Store')}
       </ul>
-      <a class="upgrade" href="#" onclick="WB.pickPlace(); return false;">Upload a Place</a>
-      <h4>Events</h4>
-      <a class="event" href="index.html#game=nds">Disaster Weekend<small>Survive every disaster!</small></a>
+      <hr />
+      <ul>
+        ${item('robux', 'catalog.html#robux', 'robux', 'Robux', '<span class="bal rbx-count"></span>')}
+        ${action('WB.pickPlace()', 'create', 'Create')}
+        ${action('WB.rename()', 'settings', 'Settings')}
+      </ul>
+      <div class="brand"><img src="WebBlox.png" alt="" /><span>Fan-made. Not affiliated with Roblox.</span></div>
     </aside>
     <div class="scrim" onclick="document.body.classList.remove('nav-open')"></div>
+    <div class="chat" id="chat">
+      <button class="chat-bar" onclick="WB.toggleChat()" aria-label="Chat"><span class="t">Chat</span><span class="count msg-count"></span><svg class="o"><use href="#o-compose"/></svg></button>
+      <div class="chat-body" id="chat-body"></div>
+    </div>
     <div class="confirm launch" id="launch"><div class="box"><div class="spinner"></div><h3>WebBlox is now loading.</h3><p>Get ready to play!</p></div></div>
     <input type="file" id="rbxl" accept=".rbxl,.rbxlx" hidden />`;
     document.body.insertAdjacentHTML('afterbegin', html);
-    document.getElementById('who').textContent = WB.displayName();
+    WB.refreshMe();
     WB.updateRobux();
+    updateBadges();
     document.getElementById('rbxl').addEventListener('change', uploadPlace);
-    document.querySelectorAll('.lnav a').forEach(a => a.addEventListener('click', () => document.body.classList.remove('nav-open')));
+    document.querySelectorAll('.lnav a, .lnav button').forEach(a => a.addEventListener('click', () => document.body.classList.remove('nav-open')));
+    document.addEventListener('keydown', e => {
+      if (e.key !== 'Escape') return;
+      ['friend-card', 'friends-modal'].map(id => document.getElementById(id)).filter(m => m && m.classList.contains('open')).slice(0, 1).forEach(m => m.classList.remove('open'));
+    });
+  };
+  // mark a menu item as the current page
+  WB.setNav = k => document.querySelectorAll('.lnav a[data-k]').forEach(a => a.classList.toggle('on', a.dataset.k === k));
+  WB.refreshMe = function () {
+    document.querySelectorAll('#who-name, .my-name').forEach(e => { e.textContent = WB.displayName(); });
+    const hs = document.getElementById('who-hs');
+    if (hs) hs.innerHTML = WB.avatarImg(WB.look(), 'head', null, 96);
   };
 
   WB.rename = function () {
     const n = prompt('Pick your name (letters, numbers and spaces, up to 20). Other players see it above your head.', WB.name());
     if (n == null) return;
     WB.setName(n);
-    document.querySelectorAll('#who, .my-name').forEach(e => { e.textContent = WB.displayName(); });
+    WB.refreshMe();
   };
 
   WB.launch = function (url) {
     document.getElementById('launch').classList.add('open');
     setTimeout(() => { location.href = url; }, 900);
   };
+  // coming back with the browser's Back button: don't leave the loading box up
+  window.addEventListener('pageshow', () => { const l = document.getElementById('launch'); if (l) l.classList.remove('open'); });
 
   // Uploaded places go through IndexedDB: sessionStorage can't hold files bigger than a few MB.
   WB.pickPlace = function () { document.body.classList.remove('nav-open'); document.getElementById('rbxl').click(); };

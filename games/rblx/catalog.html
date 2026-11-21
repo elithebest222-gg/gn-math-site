@@ -3,9 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Catalog - WebBlox</title>
+  <title>Official Store - WebBlox</title>
   <link rel="icon" type="image/png" href="favicon.png" />
-  <link rel="stylesheet" crossorigin="anonymous" href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@300;400;600;700&display=swap" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&display=swap" />
   <link rel="stylesheet" href="site.css" />
   <script src="site.js"></script>
   <script src="three.min.js"></script>
@@ -13,44 +15,45 @@
   <style>
     .cat { display: grid; grid-template-columns: 190px 1fr; gap: 20px; align-items: start; }
     .side { position: sticky; top: calc(var(--header-h) + 16px); }
-    .side h3 { font-size: 14px; font-weight: 600; color: var(--muted); padding: 10px 12px 4px; }
-    .side a { display: flex; justify-content: space-between; padding: 7px 12px; font-size: 16px; }
-    .side a:hover { background: #f2f2f2; }
-    .side a.on { box-shadow: inset 4px 0 0 var(--blue); background: #f2f2f2; font-weight: 600; }
-    .side a span { color: var(--muted); font-size: 14px; }
-    .stipend { margin-top: 14px; padding: 12px; }
-    .stipend b { display: block; font-weight: 600; margin-bottom: 4px; }
+    #cats { padding: 6px; }
+    .side h3 { font-size: 13px; font-weight: 700; color: var(--muted); padding: 8px 10px 6px; text-transform: uppercase; letter-spacing: .04em; }
+    .side a { display: flex; justify-content: space-between; align-items: center; padding: 9px 10px; font-size: 15px; font-weight: 600; border-radius: 8px; }
+    .side a:hover { background: var(--soft); }
+    .side a.on { background: var(--soft-2); }
+    .side a span { color: var(--muted); font-size: 13px; font-weight: 600; }
+    .stipend { margin-top: 14px; padding: 14px; }
+    .stipend b { display: block; font-weight: 800; margin-bottom: 4px; }
     .stipend p { font-size: 14px; color: var(--muted); margin-bottom: 8px; }
     .stipend button { width: 100%; }
 
     .bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
-    .bar h2 { font-size: 24px; font-weight: 400; }
-    .bar select { border: 1px solid var(--border); border-radius: 3px; padding: 4px 8px; background: #fff; }
+    .bar h2 { font-size: 20px; font-weight: 700; }
+    .bar select { border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px; background: #fff; font-weight: 600; }
     .cards { grid-template-columns: repeat(5, minmax(0, 1fr)); }
-    .item .thumb { background: #ebebeb; }
-    .item .meta { padding: 6px 8px 8px; }
-    .item .nm { font-weight: 600; line-height: 20px; height: 40px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-    .item .by { font-size: 13px; color: var(--muted); }
-    .item .price { margin-top: 4px; font-size: 15px; }
-    .tag { position: absolute; top: 6px; left: 6px; padding: 1px 6px; border-radius: 2px; font-size: 12px; font-weight: 700; color: #fff; background: var(--green); }
+    .item .thumb { background: var(--soft); }
+    .item .meta { display: block; padding: 8px 2px 0; }
+    .item .nm { display: block; font-weight: 700; line-height: 20px; height: 40px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+    .item .by { display: block; font-size: 13px; color: var(--muted); }
+    .item .price { display: block; margin-top: 4px; font-size: 15px; }
+    .tag { position: absolute; top: 8px; left: 8px; z-index: 1; padding: 2px 8px; border-radius: 6px; font-size: 12px; font-weight: 700; color: #fff; background: var(--green); }
     .tag.limited { background: #191919; }
     .tag.wear { background: var(--blue); }
     .free { color: var(--muted); font-weight: 600; }
 
     .wearing { display: grid; grid-template-columns: 220px 1fr; gap: 20px; padding: 16px; margin-bottom: 18px; }
-    .wearing .fig { aspect-ratio: 112 / 148; background: #ebebeb; border-radius: 3px; }
-    .wearing h3 { font-size: 20px; font-weight: 400; margin-bottom: 8px; }
+    .wearing .fig { aspect-ratio: 112 / 148; background: var(--soft); border-radius: 12px; }
+    .wearing h3 { font-size: 20px; font-weight: 800; margin-bottom: 8px; }
     .worn { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line); }
-    .worn .t { width: 48px; height: 48px; border-radius: 3px; overflow: hidden; flex-shrink: 0; }
+    .worn .t { width: 48px; height: 48px; border-radius: 8px; overflow: hidden; flex-shrink: 0; }
     .worn span { flex: 1; }
     .wearing p { color: var(--muted); font-size: 14px; margin-top: 10px; }
 
     .ip { padding: 24px; display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
-    .ip .big { aspect-ratio: 1; border-radius: 3px; overflow: hidden; }
-    .ip h2 { font-size: 32px; font-weight: 400; line-height: 1.1; padding-right: 30px; }
+    .ip .big { aspect-ratio: 1; border-radius: 12px; overflow: hidden; }
+    .ip h2 { font-size: 28px; font-weight: 800; line-height: 1.1; padding-right: 30px; }
     .ip .by { color: var(--muted); margin-top: 4px; }
-    .ip .by b { color: var(--blue); font-weight: 600; }
-    .pricebox { display: flex; align-items: center; gap: 14px; margin-top: 18px; padding: 14px; border: 1px solid var(--line); border-radius: 3px; }
+    .ip .by b { color: var(--text); font-weight: 700; }
+    .pricebox { display: flex; align-items: center; gap: 14px; margin-top: 18px; padding: 14px; border: 1px solid var(--line); border-radius: 12px; }
     .pricebox .p { flex: 1; font-size: 15px; color: var(--muted); }
     .pricebox .p .robux, .pricebox .p .free { font-size: 22px; }
     .pricebox button { min-width: 110px; padding: 10px 16px; font-size: 18px; }
@@ -58,7 +61,7 @@
     .ip dl { display: grid; grid-template-columns: auto 1fr; gap: 6px 16px; margin-top: 16px; font-size: 15px; }
     .ip dt { color: var(--muted); }
     .tryon { display: flex; gap: 14px; align-items: center; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); }
-    .tryon .fig { width: 84px; aspect-ratio: 112 / 148; background: #ebebeb; border-radius: 3px; }
+    .tryon .fig { width: 84px; aspect-ratio: 112 / 148; background: var(--soft); border-radius: 10px; }
     .tryon p { color: var(--muted); font-size: 14px; }
 
     @media (max-width: 960px) { .cat { grid-template-columns: 1fr; } .side { position: static; } .cards { grid-template-columns: repeat(4, minmax(0, 1fr)); } .ip { grid-template-columns: 1fr; } }
@@ -71,12 +74,12 @@
 
   <main class="main" id="top">
     <div class="wrap">
-      <h1 class="page">Catalog</h1>
+      <h1 class="page">Official Store</h1>
       <div class="cat">
         <div class="side">
           <div class="panel" id="cats"></div>
           <div class="panel stipend" id="robux">
-            <b>Builders Club stipend</b>
+            <b>WebBlox Plus</b>
             <p id="stipend-text"></p>
             <button class="btn-green" id="stipend-btn" onclick="collect()">Collect R$ 100</button>
           </div>
@@ -91,7 +94,7 @@
       </div>
     </div>
     <footer class="ftr">
-      <nav><a href="index.html">Home</a><a href="index.html#games">Games</a><a href="catalog.html">Catalog</a></nav>
+      <nav><a href="index.html">Home</a><a href="index.html#games">Games</a><a href="index.html#news">Newsroom</a><a href="catalog.html">Official Store</a></nav>
       <p>WebBlox is a fan-made, unofficial classic-era game player. It is not affiliated with, endorsed by or sponsored by Roblox Corporation. ROBUX here are pretend and free.</p>
     </footer>
   </main>
@@ -140,7 +143,7 @@
       document.getElementById('grid').innerHTML = list.length ? list.map(i => {
         const tag = WB.wearing(i) && WB.owns(i.id) ? '<span class="tag wear">Wearing</span>' : WB.owns(i.id) && i.price ? '<span class="tag">Owned</span>' : i.collectible ? '<span class="tag limited">Collectible</span>' : '';
         return `<button class="card item" onclick="openItem('${i.id}')">${tag}<span class="thumb">${WB.itemThumb(i)}</span>
-          <span class="meta"><span class="nm">${esc(i.name)}</span><span class="by">By <b style="color:var(--blue);font-weight:600">WebBlox</b></span><span class="price">${priceHTML(i)}</span></span></button>`;
+          <span class="meta"><span class="nm">${esc(i.name)}</span><span class="by">By <b style="color:var(--text);font-weight:700">WebBlox</b></span><span class="price">${priceHTML(i)}</span></span></button>`;
       }).join('') : `<div class="empty">${cat === 'inventory' ? 'You don\'t own anything yet.' : q ? 'No items match "' + esc(q) + '".' : 'Nothing here yet.'}</div>`;
       renderWearing();
       renderStipend();
@@ -198,7 +201,7 @@
       if (!i.price) { WB.addItem(id); wear(id, true); return; }
       const balance = WB.robux();
       if (balance < i.price) {
-        dialog('Insufficient Funds', `You need <b>R$ ${(i.price - balance).toLocaleString('en-US')}</b> more to buy this item. Collect your Builders Club stipend to get more ROBUX.`, [['OK', 'btn-blue']]);
+        dialog('Insufficient Funds', `You need <b>R$ ${(i.price - balance).toLocaleString('en-US')}</b> more to buy this item. Collect your daily WebBlox Plus ROBUX to get more.`, [['OK', 'btn-blue']]);
         return;
       }
       dialog('Buy Item', `Would you like to buy the ${TYPE_NAME[i.type]} <b>${esc(i.name)}</b> from WebBlox for <b>R$ ${i.price.toLocaleString('en-US')}</b>?<br><br><span style="color:var(--muted)">Your balance after this transaction will be R$ ${(balance - i.price).toLocaleString('en-US')}</span>`, [
@@ -210,15 +213,15 @@
         }],
         ['Cancel', 'btn-white']]);
     }
-    function wear(id, reopen) { WB.wear(WB.item(id)); render(); if (reopen) openItem(id); }
-    function takeOff(id, reopen) { WB.takeOff(WB.item(id)); render(); if (reopen) openItem(id); }
+    function wear(id, reopen) { WB.wear(WB.item(id)); render(); WB.refreshMe(); if (reopen) openItem(id); }
+    function takeOff(id, reopen) { WB.takeOff(WB.item(id)); render(); WB.refreshMe(); if (reopen) openItem(id); }
 
     // Builders Club daily stipend (pretend ROBUX)
     const today = () => new Date().toISOString().slice(0, 10);
     function renderStipend() {
       let last = null; try { last = localStorage.getItem('webblox-stipend'); } catch (e) {}
       const done = last === today();
-      document.getElementById('stipend-text').textContent = done ? 'Collected today. Come back tomorrow for more!' : 'Builders Club members get free ROBUX every day.';
+      document.getElementById('stipend-text').textContent = done ? 'Collected today. Come back tomorrow for more!' : 'Plus members get free ROBUX every day.';
       const btn = document.getElementById('stipend-btn');
       btn.disabled = done;
       btn.textContent = done ? 'Collected' : 'Collect R$ 100';
