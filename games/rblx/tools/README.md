@@ -36,3 +36,15 @@ engine's own binary places, and the engine refuses a place whose property types 
 
 If those files are ever replaced with a fresh build, re-run
 `python3 patch_engine.py ../rblx.wasm ../rblx.js` and bump `VERSION` in `../play.html`.
+
+## Multiplayer
+
+`multiplayer-server/` is the small server behind WebBlox's lite multiplayer. Its README explains how to
+put it online for free and connect the site to it (`../config.js`). The in-game side is
+`../scripts/WebBloxPlayers.lua`.
+
+## Animations
+
+`build_animations.py` generates `../scripts/WebBloxAnimate.lua`, which gives characters their default
+2016 animations. The engine never runs the Animate script it puts into characters, and it can't load
+roblox.com animation assets.

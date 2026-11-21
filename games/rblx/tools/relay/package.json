@@ -1,9 +1,0 @@
-{
-  "name": "webblox-relay",
-  "version": "0.1.0",
-  "private": true,
-  "description": "Experimental in-memory network relay for WebBlox multiplayer (?replication=1)",
-  "main": "relay.js",
-  "scripts": { "start": "node relay.js" },
-  "dependencies": { "ws": "8.18.0" }
-}
