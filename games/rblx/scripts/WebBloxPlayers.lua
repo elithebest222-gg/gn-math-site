@@ -226,66 +226,12 @@ player.CharacterAdded:connect(function(c) dressMe(c) end)
 if player.Character then spawn(function() dressMe(player.Character) end) end
 
 ---------------------------------------------------------------------------------------------
--- Lite multiplayer
-local mp = WB.mp
-if not mp or not mp.url or mp.url == "" then return end
-
-local status = Instance.new("TextLabel")
-status.Name = "WebBloxMultiplayer"
-status.BackgroundTransparency = 0.5
-status.BackgroundColor3 = Color3.new(0, 0, 0)
-status.TextColor3 = Color3.new(1, 1, 1)
-status.BorderSizePixel = 0
-status.Size = UDim2.new(0, 230, 0, 22)
-status.Position = UDim2.new(0, 8, 1, -30)
-status.FontSize = Enum.FontSize.Size14
-status.Text = "Multiplayer: connecting..."
-status.Parent = game:GetService("CoreGui"):WaitForChild("RobloxGui")
-local function setStatus(text)
-	status.Text = text
-	status.Size = UDim2.new(0, math.max(150, status.TextBounds.X + 20), 0, 22)
-end
-
-local myId = mp.id or ""
-if not string.match(myId, "^[a-z0-9]+$") or #myId < 6 then
-	math.randomseed(tick() * 1000 % 2147483647)
-	myId = ""
-	for _ = 1, 10 do myId = myId .. string.char(math.random(97, 122)) end
-end
-
-local function enc(s)
-	return (string.gsub(tostring(s), "[^%w%-_%.]", function(c) return string.format("%%%02X", string.byte(c)) end))
-end
-
--- Chat. This engine build draws neither chat bubbles nor a chat log for local messages, so
--- show both here: a speech bubble over the speaker and a short message list. (In public
--- servers the hub masks swear words before passing a message on.)
-local feed = Instance.new("Frame")
-feed.Name = "WebBloxChat"
-feed.BackgroundTransparency = 1
-feed.Size = UDim2.new(0, 360, 0, 120)
-feed.Position = UDim2.new(0, 8, 1, -156)
-feed.Parent = status.Parent
-local feedLines = {}
-local function addFeed(who, text)
-	table.insert(feedLines, who .. ": " .. text)
-	if #feedLines > 5 then table.remove(feedLines, 1) end
-	for _, c in pairs(feed:GetChildren()) do c:Destroy() end
-	for i, line in ipairs(feedLines) do
-		local t = Instance.new("TextLabel")
-		t.BackgroundTransparency = 0.5
-		t.BackgroundColor3 = Color3.new(0, 0, 0)
-		t.BorderSizePixel = 0
-		t.TextColor3 = Color3.new(1, 1, 1)
-		t.FontSize = Enum.FontSize.Size14
-		t.TextXAlignment = Enum.TextXAlignment.Left
-		t.Size = UDim2.new(1, 0, 0, 22)
-		t.Position = UDim2.new(0, 0, 1, -24 * (#feedLines - i + 1))
-		t.Text = " " .. line
-		t.Parent = feed
-	end
-end
-
+-- Chat: yours and other players' messages go in the game's chat window (play.html hooks the
+-- engine's Chat module up to WebBlox.ChatMessage), with a speech bubble over the speaker. (In
+-- public servers the hub masks swear words before passing a message on.)
+local chatEvent = Instance.new("BindableEvent")
+chatEvent.Name = "ChatMessage"
+chatEvent.Parent = shared
 local function speechBubble(head, text)
 	local old = head:FindFirstChild("WebBloxBubble")
 	if old then old:Destroy() end
@@ -306,16 +252,74 @@ local function speechBubble(head, text)
 	bb.Parent = head
 	delay(7, function() if bb.Parent then bb:Destroy() end end)
 end
-
+local myName = mpInfo.name or "Player"
 local outbox = {}
 player.Chatted:connect(function(msg)
 	if string.sub(msg, 1, 1) == "/" then return end
 	msg = string.sub(msg, 1, 120)
-	table.insert(outbox, msg)
-	addFeed(mp.name, msg)
+	if online then table.insert(outbox, msg) end
+	chatEvent:Fire(myName, msg)
 	local head = player.Character and player.Character:FindFirstChild("Head")
 	if head then speechBubble(head, msg) end
 end)
+
+-- Bottom left: multiplayer status, ping and frame rate. The frame rate also goes to the page
+-- every 2 seconds, where Auto graphics uses it.
+local status = Instance.new("TextLabel")
+status.Name = "WebBloxMultiplayer"
+status.BackgroundTransparency = 0.5
+status.BackgroundColor3 = Color3.new(0, 0, 0)
+status.TextColor3 = Color3.new(1, 1, 1)
+status.BorderSizePixel = 0
+status.Size = UDim2.new(0, 230, 0, 22)
+status.Position = UDim2.new(0, 8, 1, -30)
+status.FontSize = Enum.FontSize.Size14
+status.Parent = game:GetService("CoreGui"):WaitForChild("RobloxGui")
+local netText = online and "Multiplayer: connecting..." or "Single player"
+local ping, fps = nil, nil
+local function refreshStatus()
+	local text = netText
+	if ping then text = text .. "   |   Ping: " .. ping .. " ms" end
+	if fps then text = text .. "   |   " .. fps .. " FPS" end
+	status.Text = text
+	status.Size = UDim2.new(0, math.max(150, status.TextBounds.X + 20), 0, 22)
+end
+local function setStatus(text)
+	netText = text
+	refreshStatus()
+end
+refreshStatus()
+do
+	local frames = 0
+	RunService.RenderStepped:connect(function() frames = frames + 1 end)
+	spawn(function()
+		while true do
+			local t0 = tick()
+			frames = 0
+			wait(2)
+			fps = math.floor(frames / math.max(0.5, tick() - t0) + 0.5)
+			refreshStatus()
+			local n = fps
+			spawn(function() pcall(function() game:HttpGetAsync("https://webblox.signal/fps/" .. n) end) end)
+		end
+	end)
+end
+
+---------------------------------------------------------------------------------------------
+-- Lite multiplayer
+local mp = WB.mp
+if not online then return end
+
+local myId = mp.id or ""
+if not string.match(myId, "^[a-z0-9]+$") or #myId < 6 then
+	math.randomseed(tick() * 1000 % 2147483647)
+	myId = ""
+	for _ = 1, 10 do myId = myId .. string.char(math.random(97, 122)) end
+end
+
+local function enc(s)
+	return (string.gsub(tostring(s), "[^%w%-_%.]", function(c) return string.format("%%%02X", string.byte(c)) end))
+end
 
 local function myState()
 	local c = player.Character
@@ -506,10 +510,10 @@ local function update(id, name, state, stats)
 	setRemoteStats(o, name, stats or "")
 end
 
-local function bubble(id, text)
+local function bubble(id, name, text)
 	local o = others[id]
 	local head = o and o.model:FindFirstChild("Head")
-	addFeed(o and o.model.Name or "Someone", text)
+	chatEvent:Fire(name ~= "" and name or (o and o.model.Name) or "Someone", text)
 	if head then speechBubble(head, text) end
 end
 
@@ -527,16 +531,20 @@ while true do
 	local url = mp.url .. "/sync?room=" .. enc(mp.room) .. "&id=" .. myId .. "&name=" .. enc(mp.name)
 		.. "&ack=" .. lastSeq .. (state and ("&s=" .. enc(state)) or "") .. "&l=" .. enc(myStats())
 		.. (chat and ("&c=" .. enc(chat)) or "")
+	local sent = tick()
 	local ok, body = pcall(function() return game:HttpGetAsync(url) end)
 	if ok and type(body) == "string" and string.find(body, "S|") then
 		failures = 0
-		local count, note, serverNo = 0, nil, nil
+		local count, note, serverNo, latency = 0, nil, nil, nil
 		for line in string.gmatch(body, "[^\n]+") do
 			local kind = string.sub(line, 1, 2)
 			if kind == "M|" then
 				note = string.sub(line, 3)
 			elseif kind == "N|" then
 				serverNo = tonumber(string.sub(line, 3))
+			elseif kind == "L|" then
+				-- peer-to-peer: the round trip to the server's host (0 if that's you)
+				latency = tonumber(string.sub(line, 3))
 			elseif kind == "P|" then
 				local id, name, st, stats = string.match(line, "^P|([^|]+)|([^|]*)|([^|]*)|?(.*)$")
 				if id then count = count + 1 update(id, name ~= "" and name or "Guest", st, stats) end
@@ -549,17 +557,19 @@ while true do
 					clockReady.Value = true
 				end
 			elseif kind == "C|" then
-				local seq, oid, text = string.match(line, "^C|(%d+)|([^|]+)|[^|]*|(.*)$")
+				local seq, oid, name, text = string.match(line, "^C|(%d+)|([^|]+)|([^|]*)|(.*)$")
 				seq = tonumber(seq)
 				if seq and lastSeq >= 0 and not seenChat[seq] then
 					seenChat[seq] = true
-					bubble(oid, text)
+					bubble(oid, name, text)
 				end
 			elseif kind == "S|" then
 				local seq = tonumber(string.sub(line, 3))
 				if seq and seq > lastSeq then lastSeq = seq end
 			end
 		end
+		-- with a multiplayer server, the request itself is the round trip
+		ping = latency or (not string.find(mp.url, "/peer-sync/", 1, true) and math.floor((tick() - sent) * 1000 + 0.5)) or nil
 		local word = count == 1 and " other player" or " other players"
 		local where = mp.private and "Private server: " or (serverNo and ("Server " .. serverNo .. ": ") or "Online: ")
 		setStatus(note or (where .. count .. word))
@@ -572,6 +582,7 @@ while true do
 		end
 	else
 		failures = failures + 1
+		ping = nil
 		local p2p = string.find(mp.url, "/peer-sync/", 1, true)
 		setStatus(failures > 3 and (p2p and "Multiplayer: reconnecting..." or "Multiplayer: waking up the server...") or "Multiplayer: connecting...")
 		-- don't hold up timed rounds forever if we can't reach anyone

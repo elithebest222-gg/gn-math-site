@@ -52,6 +52,7 @@
     let attempt = 0;                            // bumped on every new search; older callbacks give up
     const avoid = new Map();                    // server -> skip it until (ms)
     let snapshot = { p: [], c: [], q: 0, h: '' };      // what a non-hub player last heard from the hub
+    let rtt = null, lastPing = 0;               // round trip to the hub (ms)
     let heard = 0;                              // when that was
     let outChat = [];
     // hub state
@@ -102,6 +103,7 @@
       const out = [];
       if (NOTES[conn]) out.push('M|' + NOTES[conn]);
       if (!privateRoom && server) out.push('N|' + server);
+      if (isHub) out.push('L|0'); else if (toHub && rtt != null) out.push('L|' + rtt);
       for (const [pid, name, st, stats] of view.p) if (pid !== id) out.push(`P|${pid}|${name}|${st}|${statsOf(stats)}`);
       if (Number.isFinite(ack) && ack >= 0) {
         for (const [mseq, mid, name, text] of view.c) if (mseq > ack && mid !== id) out.push(`C|${mseq}|${mid}|${name}|${text}`);
@@ -199,6 +201,7 @@
         c.on('data', d => {
           c.wbSeen = Date.now();
           if (d && d.t === 'who') { try { c.send({ t: 'who', n: hubSnapshot().p.length }); } catch (e) {} return; }
+          if (d && d.t === 'ping') { try { c.send({ t: 'pong', ts: d.ts }); } catch (e) {} return; }
           if (!d || d.t !== 'u' || !/^[a-z0-9]{6,16}$/.test(String(d.id))) return;
           if (!players.has(d.id) && players.size >= MAX_PLAYERS) { try { c.send({ t: 'full' }); } catch (e) {} setTimeout(() => c.close(), 200); return; }
           const name = clean(d.n, 20) || 'Guest';
@@ -267,7 +270,7 @@
     }
 
     function adoptClient(p, c, k, first) {
-      peer = p; isHub = false; toHub = c; server = k; heard = Date.now();
+      peer = p; isHub = false; toHub = c; server = k; heard = Date.now(); rtt = null;
       setConn('joined');
       c.on('data', d => onHubData(c, d));
       c.on('close', () => { if (toHub === c) lostHub(); });
@@ -276,6 +279,11 @@
     }
     function onHubData(c, d) {
       if (toHub !== c || !d) return;
+      if (d.t === 'pong') {
+        const ms = performance.now() - d.ts;
+        if (ms >= 0 && ms < 60000) rtt = Math.round(rtt == null ? ms : rtt * 0.6 + ms * 0.4);
+        return;
+      }
       if (d.t === 'r') {
         snapshot = { p: Array.isArray(d.p) ? d.p : [], c: Array.isArray(d.c) ? d.c : [], q: d.q | 0, h: String(d.h || '') };
         heard = Date.now();
@@ -381,6 +389,9 @@
         if (SERVERS > 1) consolidate();
       } else if (toHub && now - heard > HUB_SILENT_MS) {
         lostHub();
+      } else if (toHub && toHub.open && now - lastPing > 2000) {
+        lastPing = now;
+        try { toHub.send({ t: 'ping', ts: performance.now() }); } catch (e) {}
       } else if (toHub && toHub.open && now - lastSent > KEEPALIVE_MS) {
         // still here (our game may not be sending yet, e.g. while it loads)
         lastSent = now;
