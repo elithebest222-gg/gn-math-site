@@ -7,6 +7,7 @@
   <link rel="icon" href="favicon.png" />
   <link rel="stylesheet" crossorigin="anonymous" href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600;700&display=swap" />
   <script src="config.js"></script>
+  <script src="site.js"></script>
   <script src="peerjs.min.js"></script>
   <script src="p2p.js"></script>
   <style>
@@ -38,11 +39,15 @@
     #error button, #error a { min-width: 120px; padding: 8px 14px; border-radius: 3px; border: 1px solid transparent; font: inherit; font-size: 16px; font-weight: 600; cursor: pointer; text-decoration: none; text-align: center; }
     #error .primary { background: var(--blue); color: #fff; }
     #error .secondary { background: #fff; color: #191919; border-color: #b8b8b8; }
-    @media (max-width: 600px) { #leave { left: auto; right: 8px; top: auto; bottom: 8px; } #loading .tip { display: none; } }
+    #sound { position: fixed; top: 4px; left: 236px; z-index: 30; display: flex; align-items: center; gap: 6px; height: 28px; padding: 0 12px; border-radius: 3px; background: rgba(0,0,0,.5); color: #fff; font: inherit; font-size: 14px; font-weight: 600; border: 1px solid rgba(255,255,255,.25); cursor: pointer; }
+    #sound[hidden] { display: none; }
+    #sound svg { width: 16px; height: 16px; fill: currentColor; }
+    @media (max-width: 600px) { #leave { left: auto; right: 8px; top: auto; bottom: 8px; } #sound { left: auto; right: 90px; top: auto; bottom: 8px; } #loading .tip { display: none; } }
   </style>
 </head>
 <body>
   <a id="leave" href="./index.html" onclick="if (document.exitPointerLock) document.exitPointerLock();">&#8592; Leave</a>
+  <button id="sound" hidden title="Your browser is keeping the game quiet until you click"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9v6h4l5 5V4L7 9zm13.6 3 2.7-2.7-1.4-1.4-2.7 2.7-2.7-2.7-1.4 1.4 2.7 2.7-2.7 2.7 1.4 1.4 2.7-2.7 2.7 2.7 1.4-1.4z"/></svg>Click for sound</button>
   <div id="loading">
     <div class="title" id="game-title">WebBlox</div>
     <div class="by" id="game-by">Getting ready to play</div>
@@ -65,7 +70,7 @@
     try { Object.defineProperty(navigator, 'hardwareConcurrency', { get: () => 32 }); } catch (e) {}
 
     (async function () {
-      const VERSION = '39';                       // bump when rblx.js / rblx.wasm change
+      const VERSION = '40';                       // bump when rblx.js / rblx.wasm change
       const CHUNKS = 12, CHUNK_SIZE = 25165824, DATA_SIZE = 289418733;
       const $ = id => document.getElementById(id);
       const canvas = $('canvas'), loading = $('loading');
@@ -94,9 +99,28 @@
         $('err-detail').style.display = detail ? 'block' : 'none';
         $('error').style.display = 'flex';
       };
+      // Browsers keep a page's audio paused until you click or press a key. The engine resumes it
+      // then; until it does, offer a button (any click works, this one just says so).
+      const soundBtn = $('sound');
+      const updateSound = () => { soundBtn.hidden = !(ready && window.__wbAudio && window.__wbAudio.state !== 'running'); };
+      const RealAudioContext = window.AudioContext || window.webkitAudioContext;
+      if (RealAudioContext) {
+        const Tracked = function (...args) {
+          const ac = new RealAudioContext(...args);
+          window.__wbAudio = ac;
+          ac.addEventListener('statechange', updateSound);
+          updateSound();
+          return ac;
+        };
+        Tracked.prototype = RealAudioContext.prototype;
+        window.AudioContext = Tracked;
+        if (window.webkitAudioContext) window.webkitAudioContext = Tracked;
+      }
+      soundBtn.addEventListener('click', () => { if (window.__wbAudio) window.__wbAudio.resume().then(updateSound, updateSound); canvas.focus(); });
       const show = () => {
         if (ready || failed) return;
         ready = true;
+        setTimeout(updateSound, 300);
         $('bar').style.width = '100%';
         setTimeout(() => { loading.style.display = 'none'; canvas.focus(); }, 250);
       };
@@ -133,8 +157,8 @@
       // Warm the HTTP cache for the engine while the game data downloads.
       fetch('rblx.js?v=' + VERSION).catch(() => {});
       fetch('rblx.wasm?v=' + VERSION).catch(() => {});
-      // Client scripts: default character animations (the engine never runs Animate), and the
-      // Catalog outfit + lite multiplayer.
+      // Client scripts: default character animations (the engine never runs the character's
+      // Animate script), and the Catalog outfit + lite multiplayer.
       const luaP = Promise.all(['WebBloxAnimate', 'WebBloxPlayers'].map(n =>
         fetch('scripts/' + n + '.lua?v=' + VERSION).then(r => r.ok ? r.text() : null).catch(() => null)));
 
@@ -311,9 +335,20 @@
         try { outfit = JSON.parse(store('webblox-outfit')) || {}; } catch (e) {}
         const name = playerName();
         const id = Array.from(crypto.getRandomValues(new Uint8Array(10)), b => 'abcdefghijklmnopqrstuvwxyz0123456789'[b % 36]).join('');
+        // hats and gear as parts (site.js), the same ones the website draws in 3D
+        const lua = v => Array.isArray(v) ? '{' + v.map(lua).join(',') + '}'
+          : v && typeof v === 'object' ? '{' + Object.entries(v).filter(([k]) => /^[A-Za-z][A-Za-z0-9]*$/.test(k)).map(([k, x]) => k + '=' + lua(x)).join(',') + '}'
+          : typeof v === 'number' ? (Number.isFinite(v) ? String(v) : '0')
+          : typeof v === 'boolean' ? String(v) : str(v);
+        const W = window.WB || {};
+        const gear = {};
+        for (const [k, g] of Object.entries(W.GEAR || {})) gear[k] = Object.assign({ name: ((W.ITEMS || []).find(i => i.value === k) || {}).name || k }, g);
+        const carried = (Array.isArray(outfit.gear) ? outfit.gear : []).filter(g => gear[g]);
         return 'local WEBBLOX = {\n' +
           '  mp = { url = ' + str(mp.url, /[^A-Za-z0-9.:\/_\-]/g) + ', room = ' + str(mp.room) + ', name = ' + str(name) + ', id = ' + str(id) + ', private = ' + (mp.code ? 'true' : 'false') + ' },\n' +
-          '  look = { skin = ' + int(outfit.skin) + ', shirt = ' + int(outfit.shirt) + ', pants = ' + int(outfit.pants) + ', hat = ' + (outfit.hat ? str(outfit.hat, /[^a-z]/g) : 'nil') + ' },\n' +
+          '  look = { skin = ' + int(outfit.skin) + ', shirt = ' + int(outfit.shirt) + ', pants = ' + int(outfit.pants) + ', hat = ' + (outfit.hat ? str(outfit.hat, /[^a-z]/g) : 'nil') + ', gear = ' + lua(carried) + ' },\n' +
+          '  hats = ' + lua(W.HATS || {}) + ',\n' +
+          '  gear = ' + lua(gear) + ',\n' +
           '}';
       }
 

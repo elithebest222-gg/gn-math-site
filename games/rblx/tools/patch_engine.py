@@ -36,6 +36,12 @@ repeatable on a fresh copy of the original files).
    at an unaligned address; WebAssembly handles that fine (the instrumented
    store still happens after the check), but the check aborted the engine.
 
+8. Sounds that load before your first click or key press play. The WebAudio
+   bridge only created its AudioContext inside that first gesture, and threw
+   away every sound loaded before it -- including your character's footsteps,
+   jump and landing sounds, which load when you spawn. The context is now made
+   right away (browsers start it paused) and resumed by the first gesture.
+
 usage: python3 patch_engine.py ../rblx.wasm ../rblx.js
 """
 import sys
@@ -265,6 +271,15 @@ def patch_js(s, PUSHSTRING_TABLE_INDEX):
     old_align = 'function alignfault(){abort("alignment fault")}'
     assert s.count(old_align) == 1
     s = s.replace(old_align, 'function alignfault(){}')
+
+    # 8. Create the AudioContext right away (paused until the first gesture) so early sounds decode.
+    old_ctx = 'ensureContext:function(){if(!this.supported)return null;this.installUnlock();return this.ctx}'
+    assert s.count(old_ctx) == 1
+    s = s.replace(old_ctx, 'ensureContext:function(){if(!this.supported)return null;this.installUnlock();return this.createContextNow()}')
+    #    and resume it on every kind of gesture browsers accept (a touch only counts on touchend/pointerup)
+    old_ev = 'var events=["pointerdown","keydown","touchstart","mousedown"];'
+    assert s.count(old_ev) == 1
+    s = s.replace(old_ev, 'var events=["pointerdown","pointerup","keydown","keyup","touchstart","touchend","mousedown","click"];')
     return s
 
 

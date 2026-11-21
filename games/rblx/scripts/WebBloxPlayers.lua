@@ -67,33 +67,39 @@ local function newPart(class, name, size, color)
 	return p
 end
 
--- Hats from the Catalog, built from plain parts (the engine can't download real hat meshes).
--- Each piece: part class, size, BrickColor, offset from the head's center, rotate cylinder upright?
+-- Hats and gear from the Catalog, built from plain parts (the engine can't download real hat
+-- meshes). The parts come from site.js (WB.HATS / WB.GEAR) through play.html:
+--   { c = class, s = {size}, p = {offset}, color = BrickColor, shape = "cyl" | "ball",
+--     r = {extra rotation, degrees}, neon = bool, spin = turns per second }
 local UP = CFrame.Angles(0, 0, math.pi / 2)
-local HATS = {
-	tophat = {
-		{ "Part", Vector3.new(0.2, 2.3, 2.3), 26, Vector3.new(0, 0.62, 0), "cyl" },
-		{ "Part", Vector3.new(1.3, 1.6, 1.6), 26, Vector3.new(0, 1.35, 0), "cyl" },
-		{ "Part", Vector3.new(0.25, 1.65, 1.65), 21, Vector3.new(0, 0.85, 0), "cyl" },
-	},
-	cheese = { { "WedgePart", Vector3.new(1.6, 0.8, 1.4), 24, Vector3.new(0, 0.9, 0) } },
-	cap = {
-		{ "Part", Vector3.new(1.35, 1.35, 1.35), 21, Vector3.new(0, 0.5, 0.05), "ball" },
-		{ "Part", Vector3.new(1.2, 0.12, 0.9), 21, Vector3.new(0, 0.55, -0.85) },
-	},
-	crown = {
-		{ "Part", Vector3.new(1.5, 0.35, 0.15), 24, Vector3.new(0, 0.72, -0.68) },
-		{ "Part", Vector3.new(1.5, 0.35, 0.15), 24, Vector3.new(0, 0.72, 0.68) },
-		{ "Part", Vector3.new(0.15, 0.35, 1.5), 24, Vector3.new(-0.68, 0.72, 0) },
-		{ "Part", Vector3.new(0.15, 0.35, 1.5), 24, Vector3.new(0.68, 0.72, 0) },
-		{ "Part", Vector3.new(0.25, 0.35, 0.25), 24, Vector3.new(-0.62, 1.05, -0.62) },
-		{ "Part", Vector3.new(0.25, 0.35, 0.25), 24, Vector3.new(0.62, 1.05, -0.62) },
-		{ "Part", Vector3.new(0.25, 0.35, 0.25), 24, Vector3.new(-0.62, 1.05, 0.62) },
-		{ "Part", Vector3.new(0.25, 0.35, 0.25), 24, Vector3.new(0.62, 1.05, 0.62) },
-	},
-	halo = { { "Part", Vector3.new(0.12, 1.8, 1.8), 1009, Vector3.new(0, 1.45, 0), "cyl", true } },
-	box = { { "Part", Vector3.new(2.3, 1.3, 1.3), 192, Vector3.new(0, 0.05, 0) } },
-}
+local HATS = WB.hats or {}
+local GEAR = WB.gear or {}
+local spinning = {}
+
+local function buildPiece(piece, name)
+	local s = piece.s or { 1, 1, 1 }
+	local p = newPart(piece.c == "WedgePart" and "WedgePart" or "Part", name, Vector3.new(s[1], s[2], s[3]), piece.color)
+	if piece.shape == "cyl" then p.Shape = Enum.PartType.Cylinder
+	elseif piece.shape == "ball" then p.Shape = Enum.PartType.Ball end
+	if piece.neon then pcall(function() p.Material = Enum.Material.Neon end) end
+	return p
+end
+local function pieceC0(piece)
+	local o = piece.p or { 0, 0, 0 }
+	local cf = CFrame.new(o[1], o[2], o[3])
+	if piece.shape == "cyl" then cf = cf * UP end
+	local r = piece.r
+	if r then cf = cf * CFrame.Angles(math.rad(r[1]), math.rad(r[2]), math.rad(r[3])) end
+	return cf
+end
+local function weldTo(base, part, c0, spin)
+	local weld = Instance.new("Weld")
+	weld.Part0 = base
+	weld.Part1 = part
+	weld.C0 = c0
+	weld.Parent = part
+	if spin then table.insert(spinning, { weld = weld, base = c0, speed = spin * 2 * math.pi }) end
+end
 
 local function setHat(character, hatName)
 	local old = character:FindFirstChild("WebBloxHat")
@@ -104,19 +110,78 @@ local function setHat(character, hatName)
 	local model = Instance.new("Model")
 	model.Name = "WebBloxHat"
 	for i, piece in ipairs(spec) do
-		local p = newPart(piece[1], "Handle" .. i, piece[2], piece[3])
-		if piece[5] == "cyl" then p.Shape = Enum.PartType.Cylinder
-		elseif piece[5] == "ball" then p.Shape = Enum.PartType.Ball end
-		if piece[6] then pcall(function() p.Material = Enum.Material.Neon end) end
-		local weld = Instance.new("Weld")
-		weld.Part0 = head
-		weld.Part1 = p
-		weld.C0 = CFrame.new(piece[4]) * (piece[5] == "cyl" and UP or CFrame.new())
-		weld.Parent = p
+		local p = buildPiece(piece, "Handle" .. i)
+		weldTo(head, p, pieceC0(piece), piece.spin)
 		p.Parent = model
 	end
 	model.Parent = character
 end
+
+RunService.RenderStepped:connect(function()
+	local t = tick()
+	for i = #spinning, 1, -1 do
+		local s = spinning[i]
+		if s.weld.Parent then
+			s.weld.C0 = s.base * CFrame.Angles(0, (t * s.speed) % (2 * math.pi), 0)
+		else
+			table.remove(spinning, i)
+		end
+	end
+end)
+
+-- Gear: a Tool in your Backpack for each one you carry; it works while you hold it.
+local activeGear = nil
+local function gearEffect(effect, on)
+	local char = player.Character
+	local hum = char and char:FindFirstChild("Humanoid")
+	local torso = char and char:FindFirstChild("Torso")
+	if not hum or not effect then return end
+	hum.WalkSpeed = (on and effect.speed) or 16
+	local old = torso and torso:FindFirstChild("WebBloxGearForce")
+	if old then old:Destroy() end
+	if on and effect.antigravity and torso then
+		local mass = 0
+		local function add(obj)
+			for _, c in pairs(obj:GetChildren()) do
+				if c:IsA("BasePart") then mass = mass + c:GetMass() end
+				if c:IsA("Tool") or c:IsA("Model") then add(c) end
+			end
+		end
+		add(char)
+		local bf = Instance.new("BodyForce")
+		bf.Name = "WebBloxGearForce"
+		local g = 196.2
+		pcall(function() g = workspace.Gravity end)
+		bf.force = Vector3.new(0, mass * g * effect.antigravity, 0)
+		bf.Parent = torso
+	end
+end
+local function giveGear()
+	local backpack = player:FindFirstChild("Backpack") or player:WaitForChild("Backpack", 10)
+	if not backpack or not WB.look or not WB.look.gear then return end
+	for _, id in ipairs(WB.look.gear) do
+		local spec = GEAR[id]
+		if spec and spec.pieces and not backpack:FindFirstChild(spec.name or id) then
+			local tool = Instance.new("Tool")
+			tool.Name = spec.name or id
+			pcall(function() tool.CanBeDropped = false end)
+			local handle
+			for i, piece in ipairs(spec.pieces) do
+				local p = buildPiece(piece, i == 1 and "Handle" or ("Part" .. i))
+				p.Parent = tool
+				if i == 1 then handle = p else weldTo(handle, p, pieceC0(piece), piece.spin) end
+			end
+			-- switching tools can fire the new tool's Equipped before the old one's Unequipped
+			tool.Equipped:connect(function() activeGear = tool gearEffect(spec.effect, true) end)
+			tool.Unequipped:connect(function()
+				if activeGear == tool then activeGear = nil gearEffect(spec.effect, false) end
+			end)
+			tool.Parent = backpack
+		end
+	end
+end
+player.CharacterAdded:connect(function() wait(0.5) giveGear() end)
+if player.Character then spawn(giveGear) end
 
 local function colorFor(look, partName)
 	local n = look and tonumber(look[SLOT[partName]])
@@ -368,9 +433,34 @@ local function makeAvatar(name)
 	return m, root, hum
 end
 
+-- footsteps and jumps for other players' avatars (your own character's sounds come from the
+-- engine's character Sound script)
+local function puppetSounds(o, animName)
+	local head = o.model:FindFirstChild("Head")
+	if not head then return end
+	if not o.steps then
+		o.steps = Instance.new("Sound")
+		o.steps.SoundId = "rbxasset://sounds/action_footsteps_plastic.mp3"
+		o.steps.Looped = true
+		o.steps.Volume = 0.45
+		o.steps.Parent = head
+	end
+	local walking = animName == "walk" or animName == "climb"
+	if walking and not o.steps.IsPlaying then o.steps:Play() elseif not walking and o.steps.IsPlaying then o.steps:Stop() end
+	if animName == "jump" then
+		local s = Instance.new("Sound")
+		s.SoundId = "rbxasset://sounds/action_jump.mp3"
+		s.Volume = 0.45
+		s.Parent = head
+		s:Play()
+		delay(2, function() s:Destroy() end)
+	end
+end
+
 local function playOn(o, animName)
 	if o.animName == animName then return end
 	o.animName = animName
+	pcall(puppetSounds, o, animName)
 	if o.track then pcall(function() o.track:Stop(0.2) end) o.track = nil end
 	local id = WB.anims and WB.anims[animName]
 	if not id then return end

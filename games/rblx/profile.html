@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Profile - WebBlox</title>
+  <link rel="icon" type="image/png" href="favicon.png" />
+  <link rel="stylesheet" crossorigin="anonymous" href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@300;400;600;700&display=swap" />
+  <link rel="stylesheet" href="site.css" />
+  <script src="site.js"></script>
+  <script src="three.min.js"></script>
+  <script src="avatar3d.js"></script>
+  <style>
+    .prof-head { display: flex; align-items: center; gap: 20px; padding: 20px; margin-bottom: 20px; }
+    .prof-head .hs { width: 128px; height: 128px; border-radius: 50%; overflow: hidden; background: #e3e3e3; flex: none; }
+    .prof-head h1 { font-size: 34px; font-weight: 600; line-height: 1.1; word-break: break-word; }
+    .prof-head .bc { display: inline-block; margin-left: 6px; padding: 1px 6px; border-radius: 3px; background: #191919; color: #fff; font-size: 13px; font-weight: 700; vertical-align: middle; }
+    .prof-head .status { margin-top: 6px; color: var(--muted); font-size: 16px; font-style: italic; }
+    .prof-head .btns { margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap; }
+    .prof-head .btns a { display: inline-block; }
+    .prof-grid { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+    .avatar-box { padding: 16px; }
+    .avatar-box h2, .box h2 { font-size: 20px; font-weight: 600; margin-bottom: 10px; }
+    .stage { position: relative; aspect-ratio: 1 / 1; max-width: 520px; margin: 0 auto; border-radius: 3px; background: radial-gradient(circle at 50% 38%, #ffffff 0%, #e6e6e6 62%, #d4d4d4 100%); overflow: hidden; }
+    .stage .hint { position: absolute; left: 0; right: 0; bottom: 10px; text-align: center; font-size: 13px; color: var(--muted); pointer-events: none; }
+    .stage .flat { position: absolute; inset: 8%; }
+    .box { padding: 16px; margin-bottom: 20px; }
+    .worn { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+    .worn a { display: block; text-align: center; font-size: 13px; color: var(--text); }
+    .worn .t { display: block; aspect-ratio: 1 / 1; border-radius: 3px; overflow: hidden; background: #ebebeb; margin-bottom: 4px; }
+    .worn .n { display: block; line-height: 16px; height: 32px; overflow: hidden; }
+    .stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 16px; }
+    .stats dt { font-size: 13px; color: var(--muted); }
+    .stats dd { font-size: 18px; font-weight: 600; }
+    .empty-note { color: var(--muted); font-size: 15px; }
+    @media (max-width: 900px) { .prof-grid { grid-template-columns: 1fr; } }
+    @media (max-width: 520px) { .prof-head { flex-direction: column; text-align: center; } .prof-head .btns { justify-content: center; } .worn { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+  </style>
+</head>
+<body>
+  <script>WB.chrome('profile');</script>
+
+  <main class="main" id="top">
+    <div class="wrap">
+      <div class="panel prof-head">
+        <div class="hs" id="headshot"></div>
+        <div>
+          <h1><span class="my-name"></span><span class="bc">BC</span></h1>
+          <div class="status" id="status"></div>
+          <div class="btns">
+            <a class="btn-blue" href="catalog.html?cat=wearing">Edit Avatar</a>
+            <button class="btn-white" onclick="WB.rename(); refresh();">Change Name</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="prof-grid">
+        <div class="panel avatar-box">
+          <h2>Avatar</h2>
+          <div class="stage" id="stage"><div class="hint" id="hint">Drag to turn</div></div>
+        </div>
+        <div>
+          <div class="panel box">
+            <h2>Currently Wearing</h2>
+            <div class="worn" id="worn"></div>
+          </div>
+          <div class="panel box">
+            <h2>Gear</h2>
+            <div class="worn" id="gear"></div>
+          </div>
+          <div class="panel box">
+            <h2>Statistics</h2>
+            <dl class="stats" id="stats"></dl>
+          </div>
+        </div>
+      </div>
+    </div>
+    <footer class="ftr">
+      <nav><a href="index.html">Home</a><a href="index.html#games">Games</a><a href="catalog.html">Catalog</a></nav>
+      <p>WebBlox is a fan-made, unofficial classic-era game player. It is not affiliated with, endorsed by or sponsored by Roblox Corporation. ROBUX here are pretend and free.</p>
+    </footer>
+  </main>
+
+  <script>
+    const esc = WB.esc;
+    let view = null;
+    // when you first visited (for "Join Date")
+    let joined = null;
+    try { joined = localStorage.getItem('webblox-joined'); if (!joined) { joined = new Date().toISOString().slice(0, 10); localStorage.setItem('webblox-joined', joined); } } catch (e) {}
+
+    function itemTile(i) {
+      return `<a href="catalog.html?cat=${i.type === 'gear' ? 'gear' : 'wearing'}" title="${esc(i.name)}"><span class="t">${WB.itemThumb(i)}</span><span class="n">${esc(i.name)}</span></a>`;
+    }
+    function refresh() {
+      const look = WB.look();
+      document.querySelectorAll('.my-name').forEach(e => { e.textContent = WB.displayName(); });
+      document.getElementById('headshot').innerHTML = WB.avatarImg(look, 'head', '#e3e3e3', 256);
+      let status = null;
+      try { status = JSON.parse(localStorage.getItem('webblox-status')); } catch (e) {}
+      document.getElementById('status').textContent = Array.isArray(status) && status[1] ? '"' + status[1] + '"' : '';
+      // the avatar: 3D you can turn, or the drawing without WebGL
+      const stage = document.getElementById('stage');
+      if (window.WB3D) {
+        if (view) view.update(look); else view = WB3D.viewer(stage, look);
+        stage.appendChild(document.getElementById('hint'));
+      } else {
+        stage.innerHTML = `<div class="flat">${WB.avatarSVG(look, 'full')}</div>`;
+      }
+      const worn = WB.ITEMS.filter(i => i.type !== 'gear' && WB.wearing(i) && WB.owns(i.id));
+      document.getElementById('worn').innerHTML = worn.length ? worn.map(itemTile).join('') : '<p class="empty-note">The classic look. Visit the <a href="catalog.html">Catalog</a> to change it.</p>';
+      const gear = WB.ITEMS.filter(i => i.type === 'gear' && WB.wearing(i) && WB.owns(i.id));
+      document.getElementById('gear').innerHTML = gear.length ? gear.map(itemTile).join('') : '<p class="empty-note">No gear yet. Gear from the <a href="catalog.html?cat=gear">Catalog</a> shows up in your Backpack in every game.</p>';
+      const owned = WB.ITEMS.filter(i => WB.owns(i.id) && i.price);
+      document.getElementById('stats').innerHTML = [
+        ['Join Date', joined ? new Date(joined + 'T12:00:00').toLocaleDateString('en-US') : 'Today'],
+        ['ROBUX', 'R$ ' + WB.robux().toLocaleString('en-US')],
+        ['Items Owned', owned.length],
+        ['Collectibles', owned.filter(i => i.collectible).length],
+      ].map(([k, v]) => `<div><dt>${k}</dt><dd>${esc(v)}</dd></div>`).join('');
+    }
+    refresh();
+    // pick up outfit changes made in another tab
+    window.addEventListener('storage', e => { if (/^webblox-(outfit|name|inventory|robux|status)$/.test(e.key || '')) refresh(); });
+  </script>
+</body>
+</html>
