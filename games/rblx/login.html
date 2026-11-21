@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Log In - WebBlox</title>
+  <link rel="icon" type="image/png" href="favicon.png" />
+  <link rel="stylesheet" crossorigin="anonymous" href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@300;400;600;700&display=swap" />
+  <link rel="stylesheet" href="site.css" />
+  <script src="site.js"></script>
+  <style>
+    .auth { max-width: 420px; margin: 20px auto 40px; }
+    .auth .tabs { display: grid; grid-template-columns: 1fr 1fr; border-bottom: 1px solid var(--line); }
+    .auth .tabs button { padding: 14px 0; font: inherit; font-size: 18px; font-weight: 600; color: var(--muted); background: none; border: 0; cursor: pointer; border-bottom: 3px solid transparent; }
+    .auth .tabs button.on { color: var(--text); border-bottom-color: var(--blue); }
+    .auth form { padding: 22px 24px 24px; display: grid; gap: 14px; }
+    .auth label { display: grid; gap: 5px; font-size: 14px; font-weight: 600; }
+    .auth input { font: inherit; font-size: 16px; padding: 9px 10px; border: 1px solid var(--border); border-radius: 3px; background: #fff; color: var(--text); }
+    .auth input:focus { outline: 2px solid var(--blue); outline-offset: -1px; border-color: var(--blue); }
+    .auth .go { font-size: 17px; padding: 10px; }
+    .auth .msg { min-height: 20px; font-size: 14px; color: #c4281c; }
+    .auth .note { font-size: 13px; color: var(--muted); line-height: 1.4; }
+    .auth .who { padding: 24px; text-align: center; }
+    .auth .who p { margin: 8px 0 16px; }
+    .auth .who .av { width: 120px; height: 120px; margin: 0 auto; border-radius: 50%; overflow: hidden; background: #e3e3e3; }
+  </style>
+</head>
+<body>
+  <script>WB.chrome('login');</script>
+  <main class="main">
+    <div class="wrap">
+      <div class="panel auth" id="auth"></div>
+    </div>
+    <footer class="ftr">
+      <nav><a href="index.html">Home</a><a href="index.html#games">Games</a><a href="catalog.html">Catalog</a></nav>
+      <p>WebBlox is a fan-made, unofficial classic-era game player. It is not affiliated with, endorsed by or sponsored by Roblox Corporation. ROBUX here are pretend and free.</p>
+    </footer>
+  </main>
+  <script>
+    const esc = WB.esc;
+    const NOTE = 'WebBlox accounts are saved in this browser, on this device only. They are not Roblox accounts: never type your Roblox password here.';
+    let mode = location.hash === '#signup' ? 'signup' : 'login';
+    function render() {
+      const box = document.getElementById('auth');
+      if (WB.session()) {
+        box.innerHTML = `<div class="who"><div class="av">${WB.avatarImg(WB.look(), 'head', '#e3e3e3')}</div>
+          <h2 style="margin-top:12px">${esc(WB.displayName())}</h2>
+          <p>You're logged in as <b>${esc(WB.accountName())}</b>.</p>
+          <div style="display:flex;gap:8px;justify-content:center"><a class="btn-green" href="index.html">Play</a>
+          <button class="btn-white" onclick="WB.logOut(); location.reload()">Log Out</button></div></div>`;
+        return;
+      }
+      const signup = mode === 'signup';
+      box.innerHTML = `<div class="tabs"><button class="${signup ? '' : 'on'}" data-m="login">Log In</button><button class="${signup ? 'on' : ''}" data-m="signup">Sign Up</button></div>
+        <form id="f" autocomplete="on">
+          <label>Username<input name="user" autocomplete="username" required maxlength="20" ${signup ? 'pattern="[A-Za-z0-9_]{3,20}" title="3 to 20 letters, numbers or underscores"' : ''} /></label>
+          <label>Password<input name="pass" type="password" autocomplete="${signup ? 'new-password' : 'current-password'}" required minlength="${signup ? 6 : 1}" /></label>
+          ${signup ? '<label>Confirm password<input name="pass2" type="password" autocomplete="new-password" required minlength="6" /></label>' : ''}
+          <div class="msg" id="msg" role="alert"></div>
+          <button class="btn-green go" type="submit">${signup ? 'Sign Up' : 'Log In'}</button>
+          <p class="note">${signup ? 'Everything you have now (ROBUX, items, outfit) comes with your new account. ' : ''}${NOTE}</p>
+        </form>`;
+      box.querySelectorAll('.tabs button').forEach(b => b.addEventListener('click', () => { mode = b.dataset.m; history.replaceState(null, '', mode === 'signup' ? '#signup' : '#login'); render(); }));
+      document.getElementById('f').addEventListener('submit', async e => {
+        e.preventDefault();
+        const f = e.target, msg = document.getElementById('msg');
+        msg.textContent = '';
+        try {
+          if (signup) {
+            if (f.pass.value !== f.pass2.value) throw new Error('The passwords don\'t match.');
+            await WB.signUp(f.user.value, f.pass.value);
+          } else {
+            await WB.logIn(f.user.value, f.pass.value);
+          }
+          location.href = 'index.html';
+        } catch (err) {
+          msg.textContent = err.message;
+        }
+      });
+      setTimeout(() => { const u = document.querySelector('#f input'); if (u) u.focus(); }, 0);
+    }
+    render();
+  </script>
+</body>
+</html>

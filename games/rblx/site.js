@@ -252,6 +252,9 @@
       <div class="hright">
         <a href="catalog.html#robux" title="ROBUX"><svg class="i"><use href="#i-robux"/></svg><span class="rbx-count"></span></a>
         <a class="gear" href="#" title="Change your name" onclick="WB.rename(); return false;"><svg class="i"><use href="#i-gear"/></svg></a>
+        ${WB.session()
+          ? `<a class="acct" href="#" onclick="WB.logOut(); location.reload(); return false;" title="Log out of ${esc(WB.accountName())}">Log Out</a>`
+          : `<a class="acct" href="login.html">Log In</a><a class="acct signup" href="login.html#signup">Sign Up</a>`}
       </div>
     </header>
     <aside class="lnav">
@@ -279,6 +282,61 @@
     WB.updateRobux();
     document.getElementById('rbxl').addEventListener('change', uploadPlace);
     document.querySelectorAll('.lnav a').forEach(a => a.addEventListener('click', () => document.body.classList.remove('nav-open')));
+  };
+
+  // ---------- accounts ----------
+  // WebBlox accounts live in this browser only (there's no server behind this site): each one keeps
+  // its own name, ROBUX, items and outfit. Passwords are stored as salted SHA-256 hashes. The
+  // active account's data sits in the usual webblox-* keys, so every page and game just reads those.
+  const ACCOUNT_KEYS = ['webblox-robux', 'webblox-inventory', 'webblox-outfit', 'webblox-name', 'webblox-stipend', 'webblox-status', 'webblox-joined'];
+  const raw = k => { try { return localStorage.getItem(k); } catch (e) { return null; } };
+  const setRaw = (k, v) => { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) {} };
+  const current = () => { const o = {}; for (const k of ACCOUNT_KEYS) o[k] = raw(k); return o; };
+  const restore = o => { for (const k of ACCOUNT_KEYS) setRaw(k, o && o[k] != null ? o[k] : null); };
+  const accounts = () => { const a = load('webblox-accounts', {}); return a && typeof a === 'object' ? a : {}; };
+  const stash = key => setRaw('webblox-acct:' + key, JSON.stringify(current()));
+  const hex = bytes => Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
+  async function hashPassword(salt, password) {
+    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(salt + ':' + password));
+    return hex(new Uint8Array(buf));
+  }
+  WB.session = () => { const s = raw('webblox-session'); return s && accounts()[s] ? s : null; };
+  WB.accountName = () => { const s = WB.session(); return s ? accounts()[s].name : null; };
+  WB.signUp = async function (username, password) {
+    username = String(username || '').trim();
+    if (!/^[A-Za-z0-9_]{3,20}$/.test(username)) throw new Error('Usernames are 3 to 20 letters, numbers or underscores.');
+    if (String(password || '').length < 6) throw new Error('Pick a password with at least 6 characters.');
+    if (!window.crypto || !crypto.subtle) throw new Error('This browser can\'t make accounts here (it needs a secure https page).');
+    const all = accounts(), key = username.toLowerCase();
+    if (all[key]) throw new Error('That username is already taken on this device. Log in instead?');
+    const salt = hex(crypto.getRandomValues(new Uint8Array(16)));
+    all[key] = { name: username, salt, hash: await hashPassword(salt, password), created: new Date().toISOString().slice(0, 10) };
+    save('webblox-accounts', all);
+    const was = WB.session();
+    if (was) { stash(was); restore(null); }     // switching accounts: the new one starts fresh
+    // (from a guest, everything you have so far comes with you)
+    setRaw('webblox-session', key);
+    setRaw('webblox-name', username);
+    if (!raw('webblox-joined')) setRaw('webblox-joined', all[key].created);
+  };
+  WB.logIn = async function (username, password) {
+    const key = String(username || '').trim().toLowerCase();
+    const a = accounts()[key];
+    if (!a || !window.crypto || !crypto.subtle || await hashPassword(a.salt, String(password || '')) !== a.hash) throw new Error('Wrong username or password.');
+    const was = WB.session();
+    if (was === key) return;
+    if (was) stash(was); else setRaw('webblox-guest', JSON.stringify(current()));
+    restore(load('webblox-acct:' + key, null));
+    if (!raw('webblox-name')) setRaw('webblox-name', a.name);
+    setRaw('webblox-session', key);
+  };
+  WB.logOut = function () {
+    const was = WB.session();
+    if (!was) return;
+    stash(was);
+    restore(load('webblox-guest', null));
+    setRaw('webblox-guest', null);
+    setRaw('webblox-session', null);
   };
 
   WB.rename = function () {

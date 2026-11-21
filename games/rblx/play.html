@@ -18,17 +18,19 @@
     #leave { position: fixed; top: 4px; left: 150px; z-index: 30; display: flex; align-items: center; gap: 6px; height: 28px; padding: 0 12px; border-radius: 3px; background: rgba(0,0,0,.5); color: #fff; text-decoration: none; font-size: 14px; font-weight: 600; border: 1px solid rgba(255,255,255,.25); }
     #leave:hover { background: rgba(0,0,0,.75); }
 
-    /* 2016-style in-game loading screen */
-    #loading { position: fixed; inset: 0; z-index: 20; background: var(--panel); display: flex; flex-direction: column; justify-content: center; padding: 0 9vw; }
-    #loading .title { font-size: clamp(30px, 5vw, 52px); font-weight: 600; line-height: 1.1; max-width: 900px; word-break: break-word; }
-    #loading .by { margin-top: 6px; font-size: 20px; color: var(--muted); }
-    #loading .bar { margin-top: 34px; width: min(560px, 100%); height: 6px; border-radius: 3px; background: rgba(255,255,255,.14); overflow: hidden; }
-    #loading .bar i { display: block; height: 100%; width: 0; background: var(--blue); transition: width .25s; }
-    #loading .status { margin-top: 10px; font-size: 15px; color: var(--muted); min-height: 20px; }
-    #loading .tip { position: absolute; left: 9vw; bottom: 30px; right: 220px; font-size: 14px; color: #8a8a8a; }
-    #loading .spin { position: absolute; right: 34px; bottom: 26px; display: flex; align-items: center; gap: 12px; font-size: 20px; font-weight: 600; }
-    #loading .spin span { width: 36px; height: 36px; border: 5px solid #fff; border-radius: 4px; transform: rotate(15deg); animation: spin 1.4s cubic-bezier(.6,0,.4,1) infinite; }
-    @keyframes spin { to { transform: rotate(375deg); } }
+    /* 2016-style in-game loading screen: the game's picture, dimmed; name bottom left; spinner bottom right */
+    #loading { position: fixed; inset: 0; z-index: 20; background: #3d3f41 center / cover no-repeat; overflow: hidden; }
+    #loading::before { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(40,42,44,.72) 0%, rgba(40,42,44,.82) 55%, rgba(25,26,27,.95) 100%); }
+    #loading > * { position: absolute; }
+    #loading .tip { top: 18px; left: 0; right: 0; text-align: center; font-size: 15px; color: #c9c9c9; padding: 0 16px; }
+    #loading .info { left: 32px; bottom: 34px; right: 140px; }
+    #loading .title { font-size: clamp(24px, 3.4vw, 36px); font-weight: 400; line-height: 1.15; word-break: break-word; text-shadow: 0 1px 3px rgba(0,0,0,.5); }
+    #loading .by { margin-top: 4px; font-size: 16px; color: #d0d0d0; }
+    #loading .status { margin-top: 10px; font-size: 14px; color: #a9a9a9; min-height: 18px; }
+    #loading .ring { right: 34px; bottom: 30px; width: 58px; height: 58px; border-radius: 50%; border: 6px solid rgba(255,255,255,.18); border-top-color: #00a2ff; border-right-color: #00a2ff; animation: ring 1s linear infinite; }
+    #loading .bar { left: 0; right: 0; bottom: 0; height: 3px; background: rgba(255,255,255,.08); }
+    #loading .bar i { display: block; height: 100%; width: 0; background: #00a2ff; transition: width .25s; }
+    @keyframes ring { to { transform: rotate(360deg); } }
 
     #error { display: none; position: fixed; inset: 0; z-index: 40; background: rgba(0,0,0,.7); align-items: center; justify-content: center; padding: 16px; }
     #error .box { width: min(460px, 100%); background: #fff; color: #191919; border-radius: 4px; overflow: hidden; box-shadow: 0 8px 30px rgba(0,0,0,.5); }
@@ -39,22 +41,27 @@
     #error button, #error a { min-width: 120px; padding: 8px 14px; border-radius: 3px; border: 1px solid transparent; font: inherit; font-size: 16px; font-weight: 600; cursor: pointer; text-decoration: none; text-align: center; }
     #error .primary { background: var(--blue); color: #fff; }
     #error .secondary { background: #fff; color: #191919; border-color: #b8b8b8; }
-    #sound { position: fixed; top: 4px; left: 236px; z-index: 30; display: flex; align-items: center; gap: 6px; height: 28px; padding: 0 12px; border-radius: 3px; background: rgba(0,0,0,.5); color: #fff; font: inherit; font-size: 14px; font-weight: 600; border: 1px solid rgba(255,255,255,.25); cursor: pointer; }
+    #sound { position: fixed; top: 4px; left: 372px; z-index: 30; display: flex; align-items: center; gap: 6px; height: 28px; padding: 0 12px; border-radius: 3px; background: rgba(0,0,0,.5); color: #fff; font: inherit; font-size: 14px; font-weight: 600; border: 1px solid rgba(255,255,255,.25); cursor: pointer; }
     #sound[hidden] { display: none; }
     #sound svg { width: 16px; height: 16px; fill: currentColor; }
-    @media (max-width: 600px) { #leave { left: auto; right: 8px; top: auto; bottom: 8px; } #sound { left: auto; right: 90px; top: auto; bottom: 8px; } #loading .tip { display: none; } }
+    #gfx { position: fixed; top: 4px; left: 236px; z-index: 30; height: 28px; padding: 0 10px; border-radius: 3px; background: rgba(0,0,0,.45); color: #fff; font: inherit; font-size: 13px; font-weight: 600; border: 1px solid rgba(255,255,255,.25); cursor: pointer; }
+    #gfx:hover, #sound:hover { background: rgba(0,0,0,.75); }
+    @media (max-width: 600px) { #leave { left: auto; right: 8px; top: auto; bottom: 8px; } #sound { left: auto; right: 90px; top: auto; bottom: 8px; } #gfx { display: none; } #loading .tip { display: none; } #loading .info { left: 18px; right: 96px; bottom: 26px; } #loading .ring { right: 20px; bottom: 26px; width: 46px; height: 46px; } }
   </style>
 </head>
 <body>
   <a id="leave" href="./index.html" onclick="if (document.exitPointerLock) document.exitPointerLock();">&#8592; Leave</a>
   <button id="sound" hidden title="Your browser is keeping the game quiet until you click"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9v6h4l5 5V4L7 9zm13.6 3 2.7-2.7-1.4-1.4-2.7 2.7-2.7-2.7-1.4 1.4 2.7 2.7-2.7 2.7 1.4 1.4 2.7-2.7 2.7 2.7 1.4-1.4z"/></svg>Click for sound</button>
+  <button id="gfx" title="Graphics: Fast draws fewer pixels (smoothest), Sharp uses your screen's full resolution"></button>
   <div id="loading">
-    <div class="title" id="game-title">WebBlox</div>
-    <div class="by" id="game-by">Getting ready to play</div>
-    <div class="bar"><i id="bar"></i></div>
-    <div class="status" id="status">Starting&hellip;</div>
     <div class="tip" id="tip"></div>
-    <div class="spin"><span></span>Loading&hellip;</div>
+    <div class="info">
+      <div class="title" id="game-title">WebBlox</div>
+      <div class="by" id="game-by">By WebBlox</div>
+      <div class="status" id="status">Starting&hellip;</div>
+    </div>
+    <div class="ring" aria-label="Loading"></div>
+    <div class="bar"><i id="bar"></i></div>
   </div>
 
   <div id="error"><div class="box">
@@ -70,7 +77,7 @@
     try { Object.defineProperty(navigator, 'hardwareConcurrency', { get: () => 32 }); } catch (e) {}
 
     (async function () {
-      const VERSION = '40';                       // bump when rblx.js / rblx.wasm change
+      const VERSION = '41';                       // bump when rblx.js / rblx.wasm change
       const CHUNKS = 12, CHUNK_SIZE = 25165824, DATA_SIZE = 289418733;
       const $ = id => document.getElementById(id);
       const canvas = $('canvas'), loading = $('loading');
@@ -82,8 +89,30 @@
 
       document.title = title + ' - WebBlox';
       $('game-title').textContent = title;
-      $('game-by').textContent = params.get('by') ? 'By ' + params.get('by') : 'Getting ready to play';
+      $('game-by').textContent = 'By ' + (params.get('by') || 'WebBlox');
       $('tip').textContent = TIPS[Math.floor(Math.random() * TIPS.length)];
+      // the game's picture behind the loading screen (thumbs/<id>-wide.jpg)
+      const gameId = (params.get('id') || (params.get('map') || params.get('custom') ? '' : 'nds')).replace(/[^a-z0-9-]/g, '');
+      if (gameId) loading.style.backgroundImage = `url("thumbs/${gameId}-wide.jpg")`;
+
+      // Graphics: how many pixels the game draws. The engine renders at the screen's pixel ratio, so a
+      // high-DPI screen meant 4x the pixels and a quarter of the frame rate (and slow-motion physics).
+      // Normal draws one pixel per CSS pixel; Sharp uses the full ratio; Fast draws even fewer.
+      const realRatio = window.devicePixelRatio || 1;
+      const GFX = { fast: ['Fast', () => Math.min(realRatio, 0.7)], normal: ['Normal', () => Math.min(realRatio, 1)], sharp: ['Sharp', () => realRatio] };
+      let gfx = 'normal';
+      try { gfx = GFX[localStorage.getItem('webblox-graphics')] ? localStorage.getItem('webblox-graphics') : 'normal'; } catch (e) {}
+      try { Object.defineProperty(window, 'devicePixelRatio', { get: () => GFX[gfx][1](), configurable: true }); } catch (e) {}
+      const gfxBtn = $('gfx');
+      const showGfx = () => { gfxBtn.textContent = 'Graphics: ' + GFX[gfx][0]; };
+      showGfx();
+      gfxBtn.addEventListener('click', () => {
+        gfx = { fast: 'normal', normal: 'sharp', sharp: 'fast' }[gfx];
+        try { localStorage.setItem('webblox-graphics', gfx); } catch (e) {}
+        showGfx();
+        window.dispatchEvent(new Event('resize'));
+        canvas.focus();
+      });
 
       let failed = false, ready = false;
       const status = (text, pct) => {
@@ -186,12 +215,29 @@
         return bytes;
       })();
 
-      // Game data: 12 chunks written straight into one buffer (no second 290 MB copy).
+      // Game data: 12 chunks written straight into one buffer (no second 290 MB copy). They're kept
+      // on this device (Cache Storage) after the first visit, so later visits skip the download.
       const data = new Uint8Array(DATA_SIZE);
       const got = new Array(CHUNKS).fill(0);
+      const DATA_CACHE = 'webblox-data-' + DATA_SIZE;
+      const store = await (async () => {
+        try {
+          if (!window.caches) return null;
+          for (const k of await caches.keys()) if (k.startsWith('webblox-data-') && k !== DATA_CACHE) caches.delete(k);
+          return await caches.open(DATA_CACHE);
+        } catch (e) { return null; }
+      })();
+      let fromDisk = 0;
       const dataP = Promise.all(Array.from({ length: CHUNKS }, async (_, i) => {
-        const res = await fetch('rblx.data.' + i);
-        if (!res.ok) throw new Error('HTTP ' + res.status + ' on rblx.data.' + i);
+        const url = new URL('rblx.data.' + i, location.href).href;
+        let res = null;
+        try { res = store && await store.match(url); } catch (e) {}
+        if (res) fromDisk++;
+        else {
+          res = await fetch(url);
+          if (!res.ok) throw new Error('HTTP ' + res.status + ' on rblx.data.' + i);
+          if (store) { const copy = res.clone(); store.put(url, copy).catch(() => {}); }
+        }
         const reader = res.body.getReader();
         let off = i * CHUNK_SIZE;
         for (;;) {
@@ -199,7 +245,7 @@
           if (done) break;
           data.set(value, off); off += value.length; got[i] += value.length;
           const sum = got.reduce((a, b) => a + b, 0);
-          status('Downloading game files… ' + Math.floor(sum / 1048576) + ' / ' + Math.round(DATA_SIZE / 1048576) + ' MB', sum / DATA_SIZE * 80);
+          status((fromDisk === CHUNKS ? 'Loading game files… ' : 'Downloading game files… ') + Math.floor(sum / 1048576) + ' / ' + Math.round(DATA_SIZE / 1048576) + ' MB', sum / DATA_SIZE * 80);
         }
       }));
 
