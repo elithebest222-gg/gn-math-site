@@ -56,6 +56,16 @@ repeatable on a fresh copy of the original files).
    move that comes with the lock turning on or off and impossible jumps, and a refused
    lock no longer leaves an unhandled promise error.
 
+11. DataStores work in uploaded places. DataStoreService refused every place whose PlaceId is 0
+   ("Place has to be opened with Edit button to access DataStores") and GetDataStore returned nil,
+   so any game that saves data broke on its first SetAsync. The check is skipped; play.html answers
+   the DataStore web requests itself and keeps the data on this device (webapi.js).
+
+12. Scripts no longer freeze on web requests. The engine's requests to its web server (DataStores,
+   game passes, asset ownership, groups, friends, product info) go to wb-api/ instead; the service
+   worker hands them to the game page (webapi.js), which answers them. A failed request used to
+   leave the waiting script asleep forever.
+
 usage: python3 patch_engine.py ../rblx.wasm ../rblx.js
 """
 import sys
@@ -243,6 +253,18 @@ LOCK_HOLD_OLD = bytes.fromhex('a1' '440000000000004940' '64044010')
 LOCK_HOLD_NEW = bytes.fromhex('a1' '440000000000406f40' '64044010')
 
 
+# 11. DataStoreService::getDataStoreInternal: `if (getPlaceID() == 0)` is inlined as
+#    `load(dm+3528) -> p; load(p) ; local.get p; i32.eq; if` (the id is stored xor its address).
+#    `local.get 7; i32.eq` -> `drop; i32.const 0`, so the "open with Edit" branch is never taken.
+DS_OLD = bytes.fromhex('41c81b' '10dbe401' '2207' '4100' '10dbe401' '2007' '46' '0440' '4100' '41f0f7e702')
+DS_NEW = bytes.fromhex('41c81b' '10dbe401' '2207' '4100' '10dbe401' '1a' '4100' '0440' '4100' '41f0f7e702')
+
+
+def patch_datastore(d):
+    assert d.count(DS_OLD) == 1, 'DataStore place check not found'
+    return d.replace(DS_OLD, DS_NEW)
+
+
 def patch_mouselock(d):
     assert d.count(LOCK_COUNT_OLD) == 1 and d.count(LOCK_HOLD_OLD) == 1, 'pointer lock code not found'
     return d.replace(LOCK_COUNT_OLD, LOCK_COUNT_NEW).replace(LOCK_HOLD_OLD, LOCK_HOLD_NEW)
@@ -315,7 +337,21 @@ def patch_js(s, PUSHSTRING_TABLE_INDEX):
     assert s.count(old_xhr) == 1
     s = s.replace(old_xhr, 'if(url_.indexOf("https://webblox.signal/")===0){try{(globalThis.__wbSignal||(globalThis.__wbSignal=new BroadcastChannel("webblox-page"))).postMessage(url_.slice(23))}catch(e){}url_="data:text/plain,ok"}' + old_xhr)
     s = patch_js_mouselock(s)
+    s = patch_js_webapi(s)
     return s
+
+
+# 12. Requests to the engine's web server (http://localhost:4015) other than content files go to
+#     wb-api/<path> next to the page instead; the service worker hands them to webapi.js. When
+#     such a request failed, the engine never resumed the script waiting on it.
+API_JS = ('if(/^https?:\\/\\/localhost:4015\\//i.test(url_)){var wbPath=url_.replace(/^https?:\\/\\/[^\\/]+/,"");'
+          'if(!/^\\/asset\\/?\\?/i.test(wbPath)||/modulePlaceId=/i.test(wbPath))url_=location.href.replace(/[?#].*$/,"").replace(/[^\\/]*$/,"")+"wb-api"+wbPath}')
+
+
+def patch_js_webapi(s):
+    old = 'if(url_.indexOf("https://webblox.signal/")===0)'
+    assert s.count(old) == 1
+    return s.replace(old, API_JS + old)
 
 
 def patch_js_mouselock(s):
@@ -344,6 +380,7 @@ if __name__ == '__main__':
     wasm, idx = patch(open(wasm_path, 'rb').read())
     wasm = patch_join(wasm)
     wasm = patch_mouselock(wasm)
+    wasm = patch_datastore(wasm)
     js = patch_js(open(js_path).read(), idx[2])
     open(wasm_path, 'wb').write(wasm)
     open(js_path, 'w').write(js)

@@ -12,6 +12,7 @@
   <script src="p2p.js"></script>
   <script src="vendor/fzstd.js"></script>
   <script src="rbxfile.js"></script>
+  <script src="webapi.js"></script>
   <style>
     :root { --panel: #232527; --text: #fff; --muted: #b8b8b8; --blue: #00a2ff; --green: #02b757; --red: #d86868; }
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -74,7 +75,7 @@
     try { Object.defineProperty(navigator, 'hardwareConcurrency', { get: () => 32 }); } catch (e) {}
 
     (async function () {
-      const VERSION = '43';                       // bump when rblx.js / rblx.wasm change
+      const VERSION = '44';                       // bump when rblx.js / rblx.wasm change
       const CHUNKS = 12, CHUNK_SIZE = 25165824, DATA_SIZE = 289418733;
       const $ = id => document.getElementById(id);
       const canvas = $('canvas'), loading = $('loading');
@@ -231,6 +232,11 @@
       if (!window.SharedArrayBuffer) {
         return fail('This browser can\'t run WebBlox here.', 'SharedArrayBuffer is unavailable (the page is not cross-origin isolated). Try reloading, or use a recent Chrome, Edge or Firefox outside private/incognito mode.');
       }
+
+      // The Roblox web services the game's scripts call (DataStores, game passes, groups...) are
+      // answered by this page (webapi.js); each game's DataStores are kept on this device.
+      try { GNWebApi.start({ game: String(params.get('map') || (params.get('custom') ? 'custom:' + title : 'natural-disaster-survival.rbxl')), debug: DEBUG }); }
+      catch (e) { console.warn('GN-BLOX web API unavailable:', e); }
 
       // Multiplayer: a server from config.js (tools/multiplayer-server) if one is set, otherwise
       // peer-to-peer over PeerJS (p2p.js), started now so it connects while the game downloads.

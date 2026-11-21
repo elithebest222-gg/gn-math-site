@@ -61,6 +61,17 @@ The converter also:
 `typemap.json` lists the property types the engine expects. It was read out of the
 engine's own binary places, and the engine refuses a place whose property types don't match.
 
+## Game scripts and the Roblox web services
+
+Everything 2014-2016 game scripts use runs: Scripts in ServerScriptService and Workspace, LocalScripts in
+StarterGui ScreenGuis, StarterPack, tools, StarterPlayerScripts/StarterCharacterScripts and ReplicatedFirst,
+RemoteEvents/RemoteFunctions, ModuleScripts, GUI buttons and input. What used to break them was the web:
+the engine asks a Roblox web server for DataStores, game passes, asset ownership, groups and friends,
+and a failed request left the waiting script asleep forever. `../webapi.js` answers those requests in the
+page (the engine sends them to `wb-api/`, `../coi-serviceworker.js` passes them over): DataStores and
+OrderedDataStores work and are saved on the device per game; nobody owns passes or assets, nobody is in
+a group, and products have plain info, so scripts carry on.
+
 ## Studio
 
 `../studio.html` (Develop on the site) is a place editor in the style of 2016 Roblox Studio: Explorer,
