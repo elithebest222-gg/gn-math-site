@@ -1,4 +1,9 @@
-# WebBlox multiplayer server
+# WebBlox multiplayer server (optional)
+
+**You don't need this.** WebBlox multiplayer works peer-to-peer over PeerJS with nothing to host
+(see `../README.md`, *Multiplayer*). This server is an alternative for sites that would rather relay
+everything through a server of their own: set `multiplayerServer` in `games/rblx/config.js` and the
+games use it instead of peer-to-peer.
 
 Lets players in the same game see each other. Each player's game sends its avatar's position, animation,
 outfit and (in private servers) chat to this server a few times a second and gets everyone else's back.
@@ -15,9 +20,9 @@ source). Only the engine's developers can fix that by rebuilding it.
 - Players with the same invite code (`play.html?...&room=CODE`) are in a private server together, with
   chat. The game page's **Servers** tab makes these links.
 
-## Put it online (free, about 5 minutes)
+## Put it online
 
-The site is static (GitHub Pages), so the server has to run somewhere else. Render's free plan works:
+The site is static (GitHub Pages), so the server has to run somewhere else, for example Render's free plan:
 
 1. Make an account at https://render.com and click **New → Web Service**.
 2. Connect your GitHub account and pick the `gn-math-site` repository.

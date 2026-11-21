@@ -3,6 +3,7 @@ self.addEventListener("activate", (e) => e.waitUntil(self.clients.claim()));
 
 const mpChan = new BroadcastChannel("webblox-mp");
 const pending = new Map();
+const swId = Math.random().toString(36).slice(2, 8);
 let reqSeq = 0;
 
 mpChan.onmessage = (e) => {
@@ -29,24 +30,23 @@ self.addEventListener("fetch", (e) => {
   const url = e.request.url;
   if (!url.startsWith(self.location.origin)) return;
 
-  // Intercept Lua HttpGet sync calls from the game worker thread
-  if (url.includes("/peer-sync")) {
+  // Multiplayer: the game's sync requests (scripts/WebBloxPlayers.lua -> /peer-sync/<sid>/sync?...)
+  // are answered by the play page that owns <sid> (p2p.js), which talks to the other players
+  // over PeerJS. Nothing goes to the network.
+  if (url.includes("/peer-sync/")) {
     e.respondWith(
       new Promise((resolve) => {
-        const id = ++reqSeq;
-        const u = new URL(url);
-        const out = u.searchParams.get("d") || "";
+        const id = swId + "-" + ++reqSeq;
+        const headers = addHeaders({ "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" });
         const timer = setTimeout(() => {
           pending.delete(id);
-          resolve(new Response("0|", { status: 200, headers: addHeaders() }));
-        }, 400);
-
+          resolve(new Response("busy\n", { status: 503, headers }));
+        }, 2000);
         pending.set(id, (reply) => {
           clearTimeout(timer);
-          resolve(new Response(reply || "0|", { status: 200, headers: addHeaders() }));
+          resolve(new Response(String(reply || ""), { status: 200, headers }));
         });
-
-        mpChan.postMessage({ id, out });
+        mpChan.postMessage({ id, url });
       })
     );
     return;
