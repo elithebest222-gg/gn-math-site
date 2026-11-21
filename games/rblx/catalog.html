@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Catalog - WebBlox</title>
+  <title>Catalog - GN-BLOX</title>
   <link rel="icon" type="image/png" href="favicon.png" />
   <link rel="stylesheet" crossorigin="anonymous" href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@300;400;600;700&display=swap" />
   <link rel="stylesheet" href="site.css" />
@@ -92,7 +92,7 @@
     </div>
     <footer class="ftr">
       <nav><a href="index.html">Home</a><a href="index.html#games">Games</a><a href="catalog.html">Catalog</a></nav>
-      <p>WebBlox is a fan-made, unofficial classic-era game player. It is not affiliated with, endorsed by or sponsored by Roblox Corporation. ROBUX here are pretend and free.</p>
+      <p>GN-BLOX is a fan-made, unofficial classic-era game player. It is not affiliated with, endorsed by or sponsored by Roblox Corporation. ROBUX here are pretend and free.</p>
     </footer>
   </main>
 
@@ -140,7 +140,7 @@
       document.getElementById('grid').innerHTML = list.length ? list.map(i => {
         const tag = WB.wearing(i) && WB.owns(i.id) ? '<span class="tag wear">Wearing</span>' : WB.owns(i.id) && i.price ? '<span class="tag">Owned</span>' : i.collectible ? '<span class="tag limited">Collectible</span>' : '';
         return `<button class="card item" onclick="openItem('${i.id}')">${tag}<span class="thumb">${WB.itemThumb(i)}</span>
-          <span class="meta"><span class="nm">${esc(i.name)}</span><span class="by">By <b style="color:var(--blue);font-weight:600">WebBlox</b></span><span class="price">${priceHTML(i)}</span></span></button>`;
+          <span class="meta"><span class="nm">${esc(i.name)}</span><span class="by">By <b style="color:var(--blue);font-weight:600">GN-BLOX</b></span><span class="price">${priceHTML(i)}</span></span></button>`;
       }).join('') : `<div class="empty">${cat === 'inventory' ? 'You don\'t own anything yet.' : q ? 'No items match "' + esc(q) + '".' : 'Nothing here yet.'}</div>`;
       renderWearing();
       renderStipend();
@@ -169,7 +169,7 @@
         <div class="big">${WB.itemThumb(i, 360)}</div>
         <div>
           <h2 id="ip-name">${esc(i.name)}</h2>
-          <div class="by">By <b>WebBlox</b></div>
+          <div class="by">By <b>GN-BLOX</b></div>
           <div class="pricebox"><div class="p">${owned ? 'You own this item' : 'Price<br>' + priceHTML(i)}</div>${action}</div>
           <div class="desc">${esc(i.desc)}</div>
           <dl><dt>Type</dt><dd>${TYPE_NAME[i.type]}${i.collectible ? ' (Collectible)' : ''}</dd><dt>Updated</dt><dd>Nov 21, 2026</dd></dl>
@@ -201,7 +201,7 @@
         dialog('Insufficient Funds', `You need <b>R$ ${(i.price - balance).toLocaleString('en-US')}</b> more to buy this item. Collect your Builders Club stipend to get more ROBUX.`, [['OK', 'btn-blue']]);
         return;
       }
-      dialog('Buy Item', `Would you like to buy the ${TYPE_NAME[i.type]} <b>${esc(i.name)}</b> from WebBlox for <b>R$ ${i.price.toLocaleString('en-US')}</b>?<br><br><span style="color:var(--muted)">Your balance after this transaction will be R$ ${(balance - i.price).toLocaleString('en-US')}</span>`, [
+      dialog('Buy Item', `Would you like to buy the ${TYPE_NAME[i.type]} <b>${esc(i.name)}</b> from GN-BLOX for <b>R$ ${i.price.toLocaleString('en-US')}</b>?<br><br><span style="color:var(--muted)">Your balance after this transaction will be R$ ${(balance - i.price).toLocaleString('en-US')}</span>`, [
         ['Buy Now', 'btn-green', () => {
           WB.setRobux(WB.robux() - i.price);
           WB.addItem(id);

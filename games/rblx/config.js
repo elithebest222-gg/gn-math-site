@@ -1,4 +1,4 @@
-// WebBlox site settings.
+// GN-BLOX site settings.
 window.WEBBLOX_CONFIG = {
   // Multiplayer works out of the box: players connect straight to each other over PeerJS
   // (peer-to-peer, see p2p.js). PeerJS's free cloud only introduces the browsers; nothing to host.

@@ -1,4 +1,4 @@
-/* WebBlox place files: read any Roblox place or model (XML or binary, 2008 to today, LZ4 or Zstd
+/* GN-BLOX place files: read any Roblox place or model (XML or binary, 2008 to today, LZ4 or Zstd
  * compressed), turn it into what the 2016 engine expects, and write the binary format it loads.
  *
  *   const doc = RBXFile.read(bytes)            // { roots: [Inst], insts: [Inst], meta, format }

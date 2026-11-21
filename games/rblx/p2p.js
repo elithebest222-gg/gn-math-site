@@ -1,4 +1,4 @@
-// WebBlox peer-to-peer multiplayer over PeerJS (WebRTC). No server of our own needed.
+// GN-BLOX peer-to-peer multiplayer over PeerJS (WebRTC). No server of our own needed.
 //
 // The game's client script (scripts/WebBloxPlayers.lua) asks
 //   <site>/games/rblx/peer-sync/<sid>/sync?room=&id=&name=&s=&l=&c=&ack=

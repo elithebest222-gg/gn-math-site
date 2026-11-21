@@ -1,6 +1,6 @@
-# WebBlox tools
+# GN-BLOX tools
 
-## WebBlox's own games
+## GN-BLOX's own games
 
 `build_games.py` builds Rainbow Obby, Sky Tower, The Floor is Lava, Speed Run and Pizza Shift into `../places/`.
 The levels are generated from code (Roblox XML, then `xml2bin.py`), and their behavior comes from the

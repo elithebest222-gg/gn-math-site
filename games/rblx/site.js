@@ -1,4 +1,4 @@
-// WebBlox site: shared header/menu, saved player state (Robux, inventory, outfit, name),
+// GN-BLOX site: shared header/menu, saved player state (Robux, inventory, outfit, name),
 // the Catalog's items, and 2016-style avatar drawings. Used by index.html and catalog.html.
 (function () {
   'use strict';
@@ -79,7 +79,7 @@
     { id: 'beanie', name: 'Blue Beanie', type: 'hat', value: 'beanie', price: 60, desc: 'A cozy knit beanie with a white pom-pom.' },
     { id: 'cowboy', name: 'Cowboy Hat', type: 'hat', value: 'cowboy', price: 180, desc: 'Yeehaw! A wide-brimmed brown cowboy hat.' },
     { id: 'bunny', name: 'Bunny Ears', type: 'hat', value: 'bunny', price: 80, desc: 'Fluffy white bunny ears on a pink headband.' },
-    { id: 'shades', name: 'Cool Shades', type: 'hat', value: 'shades', price: 110, featured: true, desc: 'The coolest sunglasses in WebBlox.' },
+    { id: 'shades', name: 'Cool Shades', type: 'hat', value: 'shades', price: 110, featured: true, desc: 'The coolest sunglasses in GN-BLOX.' },
     { id: 'hardhat', name: 'Construction Hard Hat', type: 'hat', value: 'hardhat', price: 70, desc: 'Safety first! A yellow hard hat for builders.' },
     { id: 'speedcoil', name: 'Speed Coil', type: 'gear', value: 'speedcoil', price: 300, featured: true, desc: 'Hold it to run twice as fast. Shows up in your Backpack in every game.' },
     { id: 'gravitycoil', name: 'Gravity Coil', type: 'gear', value: 'gravitycoil', price: 300, featured: true, desc: 'Hold it to jump way higher and fall slowly. Shows up in your Backpack in every game.' },
@@ -134,7 +134,7 @@
     look: () => Object.assign({}, DEFAULT_LOOK, WB.outfit()),
     name() { try { return (localStorage.getItem('webblox-name') || '').replace(/[^A-Za-z0-9_ ]/g, '').slice(0, 20); } catch (e) { return ''; } },
     setName(n) { try { localStorage.setItem('webblox-name', String(n).replace(/[^A-Za-z0-9_ ]/g, '').trim().slice(0, 20)); } catch (e) {} },
-    displayName() { return WB.name() || 'WebBloxPlayer'; },
+    displayName() { return WB.name() || 'GNBloxPlayer'; },
     // gear: you can carry several (outfit.gear is a list); everything else is one per slot
     gear: () => { const g = WB.outfit().gear; return Array.isArray(g) ? g.filter(v => GEAR[v]) : []; },
     wearing(item) {
@@ -241,7 +241,7 @@
     const html = ICONS + `
     <header class="hdr">
       <button class="burger" aria-label="Menu" onclick="document.body.classList.toggle('nav-open')"><svg class="i"><use href="#i-menu"/></svg></button>
-      <a class="logo" href="index.html" aria-label="WebBlox home"><img src="WebBlox.png" alt="WebBlox" /></a>
+      <a class="logo" href="index.html" aria-label="GN-BLOX home"><img src="GN-BLOX.png" alt="GN-BLOX" /></a>
       <nav class="hnav">
         <a href="index.html#games">Games</a>
         <a href="catalog.html"${on('catalog')}>Catalog</a>
@@ -276,7 +276,7 @@
       <a class="event" href="index.html#game=nds">Disaster Weekend<small>Survive every disaster!</small></a>
     </aside>
     <div class="scrim" onclick="document.body.classList.remove('nav-open')"></div>
-    <div class="confirm launch" id="launch"><div class="box"><div class="spinner"></div><h3>WebBlox is now loading.</h3><p>Get ready to play!</p></div></div>
+    <div class="confirm launch" id="launch"><div class="box"><div class="spinner"></div><h3>GN-BLOX is now loading.</h3><p>Get ready to play!</p></div></div>
     <input type="file" id="rbxl" accept=".rbxl,.rbxlx,.rbxm,.rbxmx" hidden />`;
     document.body.insertAdjacentHTML('afterbegin', html);
     document.getElementById('who').textContent = WB.displayName();
@@ -286,7 +286,7 @@
   };
 
   // ---------- accounts ----------
-  // WebBlox accounts live in this browser only (there's no server behind this site): each one keeps
+  // GN-BLOX accounts live in this browser only (there's no server behind this site): each one keeps
   // its own name, ROBUX, items and outfit. Passwords are stored as salted SHA-256 hashes. The
   // active account's data sits in the usual webblox-* keys, so every page and game just reads those.
   const ACCOUNT_KEYS = ['webblox-robux', 'webblox-inventory', 'webblox-outfit', 'webblox-name', 'webblox-stipend', 'webblox-status', 'webblox-joined'];
