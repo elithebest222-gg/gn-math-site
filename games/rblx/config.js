@@ -16,6 +16,6 @@ window.WEBBLOX_CONFIG = {
   // Log In page show yours). They get admin commands in games (:kick, :ban, :m ... type :cmds in
   // chat) and an [Owner] / [Mod] tag. An ID is made from the account's username and password, so
   // only someone who knows that password can use it. Example: owners: ['AbC...43 characters'].
-  owners: [],
+  owners: ['as9j3gPFONpREj678qIwrB2lw2U_sv7o1MiJj8HmHbE'],
   mods: []
 };
