@@ -63,7 +63,7 @@
     try { Object.defineProperty(navigator, 'hardwareConcurrency', { get: () => 32 }); } catch (e) {}
 
     (async function () {
-      const VERSION = '34';                       // bump when rblx.js / rblx.wasm change
+      const VERSION = '35';                       // bump when rblx.js / rblx.wasm change
       const CHUNKS = 12, CHUNK_SIZE = 25165824, DATA_SIZE = 289418733;
       const $ = id => document.getElementById(id);
       const canvas = $('canvas'), loading = $('loading');
@@ -123,6 +123,8 @@
       // Warm the HTTP cache for the engine while the game data downloads.
       fetch('rblx.js?v=' + VERSION).catch(() => {});
       fetch('rblx.wasm?v=' + VERSION).catch(() => {});
+      // Core script that plays the default character animations (the engine never adds Animate).
+      const animateP = fetch('scripts/WebBloxAnimate.lua?v=' + VERSION).then(r => r.ok ? r.text() : null).catch(() => null);
 
       // The place to load: an uploaded file (IndexedDB) or one of places/.
       const placeP = (async () => {
@@ -161,11 +163,12 @@
 
       let custom, results;
       try {
-        results = await Promise.all([placeP, dataP]);
+        results = await Promise.all([placeP, dataP, animateP]);
       } catch (e) {
         return fail('Couldn\'t download the game.', e.message);
       }
       custom = results[0];
+      const animateSource = results[2];
       status('Starting game engine…', 84);
 
       let placeStarted = false;
@@ -191,6 +194,16 @@
           if (custom) {
             try { FS.writeFile('/content/game.rbxl', custom); }
             catch (e) { fail('Couldn\'t open the place file.', e.message); }
+          }
+          if (animateSource) {
+            // Run it inside the client's StarterScript, which always runs.
+            try {
+              const starter = '/content/scripts/StarterScript.lua';
+              const marker = 'local RobloxGui = game:GetService("CoreGui"):WaitForChild("RobloxGui")';
+              const src = FS.readFile(starter, { encoding: 'utf8' });
+              const inject = '\n-- WebBlox: default character animations\nspawn(function()\n' + animateSource + '\nend)\n';
+              FS.writeFile(starter, src.includes(marker) ? src.replace(marker, marker + inject) : src + inject);
+            } catch (e) { console.warn('Animations unavailable:', e); }
           }
           status('Loading place…', 88);
           // Safety net: never keep the overlay up forever if the engine is running.
