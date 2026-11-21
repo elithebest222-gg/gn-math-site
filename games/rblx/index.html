@@ -9,6 +9,8 @@
   <link rel="stylesheet" href="site.css" />
   <script src="config.js"></script>
   <script src="site.js"></script>
+  <script src="three.min.js"></script>
+  <script src="avatar3d.js"></script>
   <style>
     .hello { display: flex; align-items: center; gap: 18px; margin-bottom: 22px; }
     .hello .av { width: 128px; height: 128px; border-radius: 50%; background: #fff; overflow: hidden; flex-shrink: 0; box-shadow: 0 1px 4px rgba(25,25,25,.15); }
@@ -77,7 +79,7 @@
   <main class="main" id="top">
     <div class="wrap">
       <div class="hello">
-        <a class="av" id="me-av" href="catalog.html?cat=wearing" title="Change your look in the Catalog"></a>
+        <a class="av" id="me-av" href="profile.html" title="Your profile"></a>
         <div>
           <h1>Hello, <span class="my-name"></span>!</h1>
           <div class="sub"><span class="bc"><b>BC</b>Builders Club</span><a href="#" onclick="WB.rename(); return false;">Change name</a><a href="catalog.html?cat=wearing">Change look</a></div>
@@ -155,29 +157,21 @@
   <script>
     const GAMES = [
       { id: 'nds', title: 'Natural Disaster Survival', by: 'WebBlox', genre: 'Adventure', playing: 4127, visits: '1.2M', up: 95,
-        desc: 'Survive natural disasters on a randomly chosen island. Each round brings a new map and a new disaster: floods, tsunamis, tornadoes, volcanoes, meteor showers and more.\n\nThis is the built-in version that ships with WebBlox.' },
-      { id: 'speeding-wall', map: 'Be crushed by speeding wall.rbxl', title: 'Be Crushed by a Speeding Wall', genre: 'Comedy', playing: 2381, visits: '845K', up: 91,
-        desc: 'Stand in front of the wall. Wait for it. Try to survive, or just accept your fate.' },
-      { id: 'hide-seek', map: 'Hide and seek - Lance7.rbxl', title: 'Hide and Seek', by: 'Lance7', genre: 'Town and City', playing: 2803, visits: '967K', up: 94,
-        desc: 'One player seeks, everyone else hides. Find the best spot in town before time runs out!' },
-      { id: 'lumber', map: 'Lumber-Tycoon.rbxl', title: 'Lumber Tycoon', genre: 'Building', playing: 3512, visits: '1.1M', up: 96,
-        desc: 'Grab your axe, chop trees and build up your lumber business.' },
-      { id: 'zombie', map: 'Zombie Defence II.rbxl', title: 'Zombie Defence II', genre: 'Horror', playing: 1408, visits: '512K', up: 93,
-        desc: 'Hold the base against waves of zombies. Pick a team, grab your gear and defend!' },
-      { id: 'downhill', map: '▄▀▄▀▄ Down Hill Extreme▄▀▄▀▄.rbxl', title: 'Down Hill Extreme', genre: 'Sports', playing: 982, visits: '330K', up: 90,
-        desc: 'Ride all the way down the extreme hill without wiping out.' },
-      { id: 'war-tycoon', map: 'Two Player War Tycoon.rbxl', title: 'Two Player War Tycoon', genre: 'Fighting', playing: 1716, visits: '604K', up: 92,
-        desc: 'Build your base, buy weapons and battle the other tycoon owner.' },
-      { id: 'restaurant', map: 'Eat Or Make The Food For Mc.Donalds Or PizzaHut!.rbxl', title: 'Eat or Make Food: Burgers or Pizza!', genre: 'Town and City', playing: 1934, visits: '711K', up: 89,
-        desc: 'Work the counter or order a meal. Make the food, serve it up, or just eat it.' },
-      { id: 'coaster', map: 'The Killer ROLLER COASTER!! [Un-COPY LOCKED!!!!!!].rbxl', title: 'The Killer Roller Coaster!!', genre: 'Adventure', playing: 1203, visits: '420K', up: 88,
-        desc: 'Hop in the cart and take a ride on the killer coaster. Keep your arms inside!' },
-      { id: 'nds-classic', map: 'Natural Disaster Survival.rbxl', title: 'Natural Disaster Survival (Classic)', genre: 'Adventure', playing: 655, visits: '208K', up: 92,
-        desc: 'An older copy of Natural Disaster Survival, with its own set of maps.' }
+        desc: 'Survive natural disasters on a randomly chosen island. Each round brings a new map and a new disaster: floods, tsunamis, tornadoes, volcanoes, meteor showers and more.\n\nEveryone in a server gets the same map and the same disaster at the same time. How many can you survive?' },
+      { id: 'obby', map: 'rainbow-obby.rbxl', title: 'Rainbow Obby', by: 'WebBlox', genre: 'Adventure', playing: 3864, visits: '987K', up: 94,
+        desc: '30 stages of obby fun! Jump across stepping stones, dodge spinning lava bars, ride moving platforms, bounce on trampolines, climb trusses and run across a belt that pushes you back.\n\nCheckpoints save your stage, so you only go back to the last one you reached. Reach the golden trophy to win!' },
+      { id: 'tower', map: 'sky-tower.rbxl', title: 'Sky Tower', by: 'WebBlox', genre: 'Adventure', playing: 2296, visits: '640K', up: 93,
+        desc: 'A tower in the clouds, ten floors high. Jump from platform to platform as they spiral up around it. The higher you go, the smaller they get, and some of them vanish or move.\n\nEvery floor has a checkpoint. Make it to the roof to win!' },
+      { id: 'lava', map: 'floor-is-lava.rbxl', title: 'The Floor is Lava', by: 'WebBlox', genre: 'Funny', playing: 2941, visits: '812K', up: 95,
+        desc: 'THE FLOOR IS LAVA! Every minute the lava rises out of the floor of a giant living room. Climb the couches, shelves, bunk beds and the tower before it gets you.\n\nEveryone who survives the round gets a win. Everyone in a server faces the same lava at the same time.' },
+      { id: 'speedrun', map: 'speed-run.rbxl', title: 'Speed Run', by: 'WebBlox', genre: 'Sports', playing: 1527, visits: '433K', up: 92,
+        desc: 'How fast can you go? Cross the line and race over speed pads, gaps, trampolines, stepping stones and a balance beam to the finish.\n\nYour best time goes on the leaderboard. Fall off and you start again!' }
     ];
-    const RECENT = ['nds', 'speeding-wall', 'hide-seek', 'lumber', 'zombie', 'downhill'];
-    const FAVS = ['war-tycoon', 'restaurant', 'coaster', 'nds-classic', 'lumber', 'nds'];
+    const RECENT = ['nds', 'obby', 'lava', 'tower', 'speedrun'];
+    const FAVS = ['obby', 'nds', 'speedrun', 'lava', 'tower'];
     const NEWS = [
+      ['New games: obbies and more!', 'Try the Rainbow Obby, climb the Sky Tower, survive The Floor is Lava and race the clock in Speed Run.', 'Nov 21, 2026'],
+      ['New in the Catalog', '14 new hats and the first gear: Speed Coil, Gravity Coil, Fusion Coil and the Red Balloon. Check out your new 3D avatar on your Profile!', 'Nov 21, 2026'],
       ['Leaderboards are back', 'Cash, KOs, points and every other leaderboard stat works again, and you can see the other players in your server on it, under your own name.', 'Nov 21, 2026'],
       ['Disasters for everyone', 'In Natural Disaster Survival everyone in a server now gets the same map and the same disaster at the same time. How many can you survive?', 'Nov 21, 2026'],
       ['Play together', 'Open a game\'s Servers tab to join the public server or make a private one with chat for you and your friends.', 'Nov 21, 2026'],
@@ -339,10 +333,10 @@
     try { const saved = JSON.parse(localStorage.getItem('webblox-status')); if (Array.isArray(saved)) FEED.unshift(saved); } catch (err) {}
     function renderFeed() {
       document.getElementById('posts').innerHTML = FEED.slice(0, 4).map(([who, text, when, look]) =>
-        `<div class="post"><div class="av">${WB.avatarSVG(look || WB.look(), 'head', '#e3e3e3')}</div><div><b>${esc(who)}</b><p>${esc(text)}</p><time>${esc(when)}</time></div></div>`).join('');
+        `<div class="post"><div class="av">${WB.avatarImg(look || WB.look(), 'head', '#e3e3e3', 96)}</div><div><b>${esc(who)}</b><p>${esc(text)}</p><time>${esc(when)}</time></div></div>`).join('');
     }
 
-    document.getElementById('me-av').innerHTML = WB.avatarSVG(WB.look(), 'head', '#fff');
+    document.getElementById('me-av').innerHTML = WB.avatarImg(WB.look(), 'head', '#fff', 256);
     document.querySelectorAll('.my-name').forEach(e => { e.textContent = WB.displayName(); });
     document.getElementById('news-list').innerHTML = NEWS.slice(0, 4).map(([t, p, d]) => `<a href="#news"><h3>${esc(t)}</h3><p>${esc(p)}</p><p>${d}</p></a>`).join('');
     document.getElementById('q').addEventListener('input', render);

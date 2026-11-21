@@ -8,6 +8,8 @@
   <link rel="stylesheet" crossorigin="anonymous" href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@300;400;600;700&display=swap" />
   <link rel="stylesheet" href="site.css" />
   <script src="site.js"></script>
+  <script src="three.min.js"></script>
+  <script src="avatar3d.js"></script>
   <style>
     .cat { display: grid; grid-template-columns: 190px 1fr; gap: 20px; align-items: start; }
     .side { position: sticky; top: calc(var(--header-h) + 16px); }
@@ -111,16 +113,15 @@
     const esc = WB.esc;
     const params = new URLSearchParams(location.search);
     let cat = params.get('cat') || 'featured';
-    const CATS = [['featured', 'Featured'], ['all', 'All Items'], ['hat', 'Hats'], ['shirt', 'Shirts'], ['pants', 'Pants'], ['skin', 'Body Colors'], ['wearing', 'Currently Wearing'], ['inventory', 'Inventory']];
-    const TYPE_NAME = { hat: 'Hat', shirt: 'Shirt', pants: 'Pants', skin: 'Body Color' };
+    const CATS = [['featured', 'Featured'], ['all', 'All Items'], ['hat', 'Hats'], ['gear', 'Gear'], ['shirt', 'Shirts'], ['pants', 'Pants'], ['skin', 'Body Colors'], ['wearing', 'Currently Wearing'], ['inventory', 'Inventory']];
+    const TYPE_NAME = { hat: 'Hat', gear: 'Gear', shirt: 'Shirt', pants: 'Pants', skin: 'Body Color' };
     const priceHTML = item => item.price ? `<span class="robux"><svg class="i"><use href="#i-robux"/></svg>${item.price.toLocaleString('en-US')}</span>` : '<span class="free">Free</span>';
 
     function itemsFor(c) {
-      const o = WB.outfit();
       if (c === 'featured') return WB.ITEMS.filter(i => i.featured);
       if (c === 'all') return WB.ITEMS.slice();
       if (c === 'inventory') return WB.ITEMS.filter(i => WB.owns(i.id));
-      if (c === 'wearing') return WB.ITEMS.filter(i => o[i.type] === i.value && WB.owns(i.id));
+      if (c === 'wearing') return WB.ITEMS.filter(i => WB.wearing(i) && WB.owns(i.id));
       return WB.ITEMS.filter(i => i.type === c);
     }
 
@@ -149,30 +150,30 @@
       const box = document.getElementById('wearing');
       if (cat !== 'wearing') { box.innerHTML = ''; return; }
       const worn = itemsFor('wearing');
-      box.innerHTML = `<div class="panel wearing"><div class="fig">${WB.avatarSVG(WB.look(), 'full')}</div><div>
+      box.innerHTML = `<div class="panel wearing"><div class="fig">${WB.avatarImg(WB.look(), 'full')}</div><div>
         <h3>My Avatar</h3>
         ${worn.length ? worn.map(i => `<div class="worn"><span class="t">${WB.itemThumb(i)}</span><span>${esc(i.name)}</span><button class="btn-white" onclick="takeOff('${i.id}')">Take Off</button></div>`).join('')
           : '<p>You\'re wearing the classic look. Pick something below to change it.</p>'}
-        <p>Your outfit shows up in every game, and other players see it in multiplayer.</p></div></div>`;
+        <p>Your outfit shows up in every game, and other players see it in multiplayer. Gear goes in your Backpack: press its number key in a game to hold it.</p></div></div>`;
     }
 
     function openItem(id) {
       const i = WB.item(id); if (!i) return;
       const owned = WB.owns(i.id), wearing = owned && WB.wearing(i);
-      const preview = Object.assign({}, WB.look(), { [i.type]: i.value });
+      const preview = i.type === 'gear' ? WB.look() : Object.assign({}, WB.look(), { [i.type]: i.value });
       let action;
       if (!owned) action = `<button class="btn-green" onclick="buy('${i.id}')">${i.price ? 'Buy' : 'Get'}</button>`;
       else if (wearing) action = `<button class="btn-white" onclick="takeOff('${i.id}', true)">Take Off</button>`;
       else action = `<button class="btn-blue" onclick="wear('${i.id}', true)">Wear</button>`;
       document.getElementById('ip').innerHTML = `
-        <div class="big">${WB.itemThumb(i)}</div>
+        <div class="big">${WB.itemThumb(i, 360)}</div>
         <div>
           <h2 id="ip-name">${esc(i.name)}</h2>
           <div class="by">By <b>WebBlox</b></div>
           <div class="pricebox"><div class="p">${owned ? 'You own this item' : 'Price<br>' + priceHTML(i)}</div>${action}</div>
           <div class="desc">${esc(i.desc)}</div>
           <dl><dt>Type</dt><dd>${TYPE_NAME[i.type]}${i.collectible ? ' (Collectible)' : ''}</dd><dt>Updated</dt><dd>Nov 21, 2026</dd></dl>
-          <div class="tryon"><div class="fig">${WB.avatarSVG(preview, 'full')}</div><p>${wearing ? 'You\'re wearing this.' : 'How it looks on you.'}</p></div>
+          <div class="tryon"><div class="fig">${WB.avatarImg(preview, 'full')}</div><p>${i.type === 'gear' ? (wearing ? 'In your Backpack in every game.' : 'Goes in your Backpack in every game.') : wearing ? 'You\'re wearing this.' : 'How it looks on you.'}</p></div>
         </div>`;
       document.getElementById('item-modal').classList.add('open');
     }

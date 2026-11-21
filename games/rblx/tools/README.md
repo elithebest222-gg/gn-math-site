@@ -1,5 +1,23 @@
 # WebBlox tools
 
+## WebBlox's own games
+
+`build_games.py` builds Rainbow Obby, Sky Tower, The Floor is Lava and Speed Run into `../places/`.
+The levels are generated from code (Roblox XML, then `xml2bin.py`), and their behavior comes from the
+Lua in `games/`:
+
+- `obby.lua` gives parts their behavior by name: `KillBrick`, `Checkpoint` (+ IntValue `Stage`),
+  `Vanish`, `Bounce`, `Speed`, `Spinner`, `Mover` (carries you), `Go` and `Finish`. It also keeps
+  Stage/Wins leaderstats (or Best/Runs in timer mode) and respawns you on your last checkpoint.
+- `lava.lua` runs The Floor is Lava's rounds on the multiplayer room's shared clock.
+
+```bash
+pip install lz4
+python3 build_games.py
+```
+
+Then add an entry to `GAMES` in `../index.html`, with `../thumbs/<id>.jpg` (300×300) and `<id>-wide.jpg` (640×360).
+
 ## Adding a game
 
 Old XML places (`<roblox xmlns...` at the top of the file) load very slowly in this engine:
@@ -37,6 +55,9 @@ this folder). The main ones:
    create your player first, so scripts that hand out leaderstats when a player joins never
    saw you: empty leaderboards, no Cash, no KOs.
 4. The build's debug alignment check no longer ends the game (leaderboard numbers tripped it).
+5. Game sound starts right away. The audio bridge used to wait for your first click to even set up,
+   and dropped any sound loaded before it; now it's set up at once and starts on your first click
+   or key press (`../play.html` shows a "Click for sound" button until then).
 
 If those files are ever replaced with a fresh build, re-run
 `python3 patch_engine.py ../rblx.wasm ../rblx.js` and bump `VERSION` in `../play.html`.
@@ -81,6 +102,13 @@ python3 nds_sync.py "in.rbxl" "out.rbxl"                                 # e.g. 
 `../config.js` can point at your own PeerJS server (`peerServer`) instead of the free cloud, or switch
 to the classic `multiplayer-server/` (`multiplayerServer`), which speaks the same protocol. Its README
 explains how to run it.
+
+## Hats and gear
+
+Catalog hats and gear are built from plain parts listed in `../site.js` (`HATS`, `GEAR`). The same list
+draws them on the website in 3D (`../avatar3d.js`, three.js) and builds them in games
+(`../scripts/WebBloxPlayers.lua`, which gets it from `../play.html`), so they always match. Gear becomes a
+Tool in your Backpack that changes your speed and/or gravity while you hold it.
 
 ## Animations
 

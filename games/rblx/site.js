@@ -9,12 +9,82 @@
   // BrickColor number -> color (the ones the Catalog uses)
   const BRICK = {
     1: '#f2f3f3', 18: '#cc8e69', 21: '#c4281c', 23: '#0d69ac', 24: '#f5cd30', 26: '#1b2a35', 28: '#287f47',
-    37: '#4b974b', 106: '#da8541', 125: '#eab892', 192: '#694028', 194: '#a3a2a5', 1031: '#6225d1', 1032: '#ff00bf',
+    37: '#4b974b', 102: '#6e99ca', 106: '#da8541', 119: '#a4bd47', 125: '#eab892', 192: '#694028', 194: '#a3a2a5',
+    199: '#635f62', 1001: '#f8f8f8', 1004: '#ff0000', 1009: '#ffff00', 1019: '#00ffff', 1031: '#6225d1', 1032: '#ff00bf',
+  };
+
+  // Hats and gear as the game builds them: parts relative to the head's center (studs; the face
+  // looks toward -Z), or for gear, to the Handle (the first part). Used by the game
+  // (scripts/WebBloxPlayers.lua, via play.html) and the 3D avatar (avatar3d.js), so they match.
+  //   s = size, p = position, color = BrickColor number, c = 'WedgePart', shape = 'cyl' (stood
+  //   upright; s[0] is its height) | 'ball', r = extra rotation (degrees), neon, spin (turns)
+  const cyl = (h, d, y, color, more) => Object.assign({ s: [h, d, d], p: [0, y, 0], color, shape: 'cyl' }, more);
+  const ball = (d, p, color, more) => Object.assign({ s: [d, d, d], p, color, shape: 'ball' }, more);
+  const box = (s, p, color, more) => Object.assign({ s, p, color }, more);
+  const HATS = {
+    tophat: [cyl(0.2, 2.3, 0.62, 26), cyl(1.3, 1.6, 1.35, 26), cyl(0.25, 1.65, 0.85, 21)],
+    cheese: [box([1.6, 0.8, 1.4], [0, 0.9, 0], 24, { c: 'WedgePart' })],
+    cap: [ball(1.35, [0, 0.5, 0.05], 21), box([1.2, 0.12, 0.9], [0, 0.55, -0.85], 21)],
+    crown: [
+      box([1.5, 0.35, 0.15], [0, 0.72, -0.68], 24), box([1.5, 0.35, 0.15], [0, 0.72, 0.68], 24),
+      box([0.15, 0.35, 1.5], [-0.68, 0.72, 0], 24), box([0.15, 0.35, 1.5], [0.68, 0.72, 0], 24),
+      box([0.25, 0.35, 0.25], [-0.62, 1.05, -0.62], 24), box([0.25, 0.35, 0.25], [0.62, 1.05, -0.62], 24),
+      box([0.25, 0.35, 0.25], [-0.62, 1.05, 0.62], 24), box([0.25, 0.35, 0.25], [0.62, 1.05, 0.62], 24)],
+    halo: [cyl(0.12, 1.8, 1.45, 1009, { neon: true })],
+    box: [box([2.3, 1.3, 1.3], [0, 0.05, 0], 192)],
+    fedora: [cyl(0.12, 2.2, 0.66, 199), cyl(0.8, 1.45, 1.05, 199), cyl(0.2, 1.5, 0.78, 26)],
+    viking: [ball(1.5, [0, 0.55, 0], 194), cyl(0.2, 1.55, 0.4, 192),
+      box([0.25, 0.9, 0.25], [-0.85, 0.95, 0], 1, { r: [0, 0, 25] }), box([0.25, 0.9, 0.25], [0.85, 0.95, 0], 1, { r: [0, 0, -25] })],
+    cone: [box([1.8, 0.15, 1.8], [0, 0.68, 0], 106), cyl(0.5, 1.3, 1.0, 106), cyl(0.45, 1.0, 1.45, 1), cyl(0.5, 0.7, 1.9, 106), cyl(0.3, 0.4, 2.25, 106)],
+    pirate: [cyl(0.15, 2.4, 0.66, 26), cyl(0.7, 1.45, 1.05, 26), cyl(0.15, 1.5, 0.8, 24),
+      box([1.6, 0.6, 0.15], [0, 1.0, -0.85], 26, { r: [-15, 0, 0] }), ball(0.35, [0, 1.05, -0.95], 1)],
+    wizard: [cyl(0.12, 2.4, 0.66, 1031), cyl(0.6, 1.3, 1.0, 1031), cyl(0.6, 0.95, 1.55, 1031), cyl(0.6, 0.6, 2.05, 1031),
+      cyl(0.5, 0.3, 2.45, 1031), ball(0.3, [0, 1.35, -0.66], 1009, { neon: true })],
+    party: [cyl(0.4, 1.1, 0.8, 1032), cyl(0.4, 0.85, 1.2, 1009), cyl(0.4, 0.6, 1.6, 1032), cyl(0.35, 0.35, 1.95, 1009), ball(0.4, [0, 2.25, 0], 1)],
+    headphones: [box([1.6, 0.18, 0.3], [0, 0.8, 0], 26), box([0.18, 0.6, 0.3], [-0.8, 0.5, 0], 26), box([0.18, 0.6, 0.3], [0.8, 0.5, 0], 26),
+      Object.assign(cyl(0.3, 0.75, 0, 21), { p: [-0.75, 0.05, 0], r: [0, 0, -90] }), Object.assign(cyl(0.3, 0.75, 0, 21), { p: [0.75, 0.05, 0], r: [0, 0, -90] })],
+    chef: [cyl(0.55, 1.4, 0.85, 1001), ball(1.7, [0, 1.45, 0], 1001), ball(1.2, [0.35, 1.75, 0.2], 1001)],
+    beanie: [ball(1.42, [0, 0.5, 0.02], 23), cyl(0.3, 1.45, 0.3, 102), ball(0.45, [0, 1.22, 0], 1)],
+    cowboy: [cyl(0.12, 2.8, 0.66, 192), cyl(0.75, 1.4, 1.05, 192), cyl(0.18, 1.45, 0.8, 26)],
+    bunny: [box([1.4, 0.12, 0.3], [0, 0.65, 0], 1032),
+      box([0.3, 1.3, 0.15], [-0.35, 1.25, 0], 1, { r: [0, 0, 8] }), box([0.3, 1.3, 0.15], [0.35, 1.25, 0], 1, { r: [0, 0, -8] }),
+      box([0.15, 1.0, 0.05], [-0.35, 1.25, -0.08], 1032, { r: [0, 0, 8] }), box([0.15, 1.0, 0.05], [0.35, 1.25, -0.08], 1032, { r: [0, 0, -8] })],
+    shades: [box([1.35, 0.32, 0.08], [0, 0.12, -0.66], 26), box([0.06, 0.1, 0.9], [-0.66, 0.15, -0.2], 26), box([0.06, 0.1, 0.9], [0.66, 0.15, -0.2], 26)],
+    hardhat: [ball(1.5, [0, 0.55, 0], 24), cyl(0.1, 1.85, 0.45, 24), box([0.18, 0.2, 1.5], [0, 1.2, 0], 24)],
+    propeller: [ball(1.35, [0, 0.5, 0.05], 23), box([1.2, 0.12, 0.9], [0, 0.55, -0.85], 23), cyl(0.35, 0.12, 1.25, 26),
+      box([1.6, 0.06, 0.25], [0, 1.42, 0], 21, { spin: 1.5 }), box([0.25, 0.06, 1.6], [0, 1.42, 0], 24, { spin: 1.5 })],
+  };
+  const coil = color => [box([0.3, 0.5, 0.3], [0, 0, 0], 26)].concat([-0.2, 0.05, 0.3, 0.55, 0.8].map(y => cyl(0.1, 0.85, y + 0.25, color)))
+    .concat([cyl(0.12, 0.25, 1.15, color, { neon: true })]);
+  // gear: pieces (held in the right hand) and what it does while you hold it
+  const GEAR = {
+    speedcoil: { pieces: coil(21), effect: { speed: 32 } },
+    gravitycoil: { pieces: coil(1031), effect: { antigravity: 0.75 } },
+    fusioncoil: { pieces: coil(37), effect: { speed: 26, antigravity: 0.6 } },
+    balloon: { pieces: [box([0.2, 0.2, 0.2], [0, 0, 0], 1), box([0.05, 3, 0.05], [0, 1.5, 0], 1), ball(2.2, [0, 4, 0], 21)], effect: { antigravity: 0.85 } },
   };
   const DEFAULT_LOOK = { skin: 24, shirt: 23, pants: 37 };   // the classic look
 
-  // Catalog. type: hat | shirt | pants | skin; value: hat name or BrickColor number.
+  // Catalog. type: hat | gear | shirt | pants | skin; value: hat/gear name or BrickColor number.
   const ITEMS = [
+    { id: 'propeller', name: 'Propeller Cap', type: 'hat', value: 'propeller', price: 250, featured: true, desc: 'A cap with a propeller on top. It really spins!' },
+    { id: 'wizard', name: 'Wizard Hat', type: 'hat', value: 'wizard', price: 400, featured: true, desc: 'A tall purple hat with a glowing star. Magic not included.' },
+    { id: 'viking', name: 'Viking Helmet', type: 'hat', value: 'viking', price: 300, desc: 'Horns up! For brave explorers of distant obbies.' },
+    { id: 'headphones', name: 'Red Headphones', type: 'hat', value: 'headphones', price: 120, featured: true, desc: 'Big red headphones for big beats.' },
+    { id: 'fedora', name: 'Grey Fedora', type: 'hat', value: 'fedora', price: 200, desc: 'A sharp grey fedora with a black band.' },
+    { id: 'cone', name: 'Traffic Cone', type: 'hat', value: 'cone', price: 30, desc: 'Caution: wearer may be hard to take seriously.' },
+    { id: 'pirate', name: 'Pirate Captain Hat', type: 'hat', value: 'pirate', price: 350, desc: 'Arr! A captain\'s hat with a skull on the front.' },
+    { id: 'party', name: 'Party Hat', type: 'hat', value: 'party', price: 40, desc: 'It\'s a party! A striped cone with a pom-pom on top.' },
+    { id: 'chef', name: 'Chef Hat', type: 'hat', value: 'chef', price: 90, desc: 'A tall, puffy white chef\'s hat. Pizza time.' },
+    { id: 'beanie', name: 'Blue Beanie', type: 'hat', value: 'beanie', price: 60, desc: 'A cozy knit beanie with a white pom-pom.' },
+    { id: 'cowboy', name: 'Cowboy Hat', type: 'hat', value: 'cowboy', price: 180, desc: 'Yeehaw! A wide-brimmed brown cowboy hat.' },
+    { id: 'bunny', name: 'Bunny Ears', type: 'hat', value: 'bunny', price: 80, desc: 'Fluffy white bunny ears on a pink headband.' },
+    { id: 'shades', name: 'Cool Shades', type: 'hat', value: 'shades', price: 110, featured: true, desc: 'The coolest sunglasses in WebBlox.' },
+    { id: 'hardhat', name: 'Construction Hard Hat', type: 'hat', value: 'hardhat', price: 70, desc: 'Safety first! A yellow hard hat for builders.' },
+    { id: 'speedcoil', name: 'Speed Coil', type: 'gear', value: 'speedcoil', price: 300, featured: true, desc: 'Hold it to run twice as fast. Shows up in your Backpack in every game.' },
+    { id: 'gravitycoil', name: 'Gravity Coil', type: 'gear', value: 'gravitycoil', price: 300, featured: true, desc: 'Hold it to jump way higher and fall slowly. Shows up in your Backpack in every game.' },
+    { id: 'fusioncoil', name: 'Fusion Coil', type: 'gear', value: 'fusioncoil', price: 600, collectible: true, desc: 'Speed and gravity in one coil: run fast and jump high. Shows up in your Backpack in every game.' },
+    { id: 'balloon', name: 'Red Balloon', type: 'gear', value: 'balloon', price: 150, desc: 'Float gently down from anywhere. Shows up in your Backpack in every game.' },
     { id: 'tophat', name: 'Top Hat', type: 'hat', value: 'tophat', price: 150, featured: true, desc: 'A classy black top hat with a red band. For the distinguished Robloxian.' },
     { id: 'crown', name: 'Golden Crown', type: 'hat', value: 'crown', price: 1000, featured: true, collectible: true, desc: 'Only royalty may wear this crown. Or anyone with 1,000 ROBUX.' },
     { id: 'halo', name: 'Glowing Halo', type: 'hat', value: 'halo', price: 500, collectible: true, desc: 'A neon halo that floats above your head. Angels only.' },
@@ -29,12 +99,18 @@
     { id: 'shirt-orange', name: 'Orange Shirt', type: 'shirt', value: 106, price: 15, desc: 'A plain orange shirt.' },
     { id: 'shirt-purple', name: 'Royal Purple Shirt', type: 'shirt', value: 1031, price: 25, desc: 'A royal purple shirt.' },
     { id: 'shirt-pink', name: 'Hot Pink Shirt', type: 'shirt', value: 1032, price: 25, featured: true, desc: 'A very pink shirt.' },
+    { id: 'shirt-yellow', name: 'Sunny Yellow Shirt', type: 'shirt', value: 24, price: 15, desc: 'A bright yellow shirt.' },
+    { id: 'shirt-cyan', name: 'Toothpaste Shirt', type: 'shirt', value: 1019, price: 25, desc: 'A shirt in the brightest cyan there is.' },
+    { id: 'shirt-grey', name: 'Dark Grey Shirt', type: 'shirt', value: 199, price: 15, desc: 'A plain dark grey shirt.' },
     { id: 'pants-green', name: 'Classic Green Pants', type: 'pants', value: 37, price: 0, desc: 'The classic green pants everybody starts with.' },
     { id: 'pants-black', name: 'Black Pants', type: 'pants', value: 26, price: 15, featured: true, desc: 'Plain black pants.' },
     { id: 'pants-blue', name: 'Blue Jeans', type: 'pants', value: 23, price: 15, desc: 'Comfy blue jeans.' },
     { id: 'pants-brown', name: 'Brown Pants', type: 'pants', value: 192, price: 15, desc: 'Plain brown pants.' },
     { id: 'pants-grey', name: 'Grey Pants', type: 'pants', value: 194, price: 15, desc: 'Plain grey pants.' },
     { id: 'pants-darkgreen', name: 'Dark Green Pants', type: 'pants', value: 28, price: 15, desc: 'Plain dark green pants.' },
+    { id: 'pants-white', name: 'White Pants', type: 'pants', value: 1, price: 15, desc: 'Plain white pants. Stay away from mud.' },
+    { id: 'pants-red', name: 'Red Pants', type: 'pants', value: 21, price: 15, desc: 'Plain bright red pants.' },
+    { id: 'pants-purple', name: 'Purple Pants', type: 'pants', value: 1031, price: 20, desc: 'Royal purple pants.' },
     { id: 'skin-yellow', name: 'Classic Yellow Skin', type: 'skin', value: 24, price: 0, desc: 'The classic bright yellow.' },
     { id: 'skin-light', name: 'Light Orange Skin', type: 'skin', value: 125, price: 0, desc: 'A light skin tone.' },
     { id: 'skin-nougat', name: 'Nougat Skin', type: 'skin', value: 18, price: 0, desc: 'A medium skin tone.' },
@@ -42,10 +118,10 @@
     { id: 'skin-robot', name: 'Robot Grey Skin', type: 'skin', value: 194, price: 10, desc: 'Beep boop.' },
     { id: 'skin-zombie', name: 'Zombie Green Skin', type: 'skin', value: 37, price: 10, featured: true, desc: 'For when you are not feeling your best.' },
   ];
-  const CATEGORY = { hat: 'Hats', shirt: 'Shirts', pants: 'Pants', skin: 'Body Colors' };
+  const CATEGORY = { hat: 'Hats', gear: 'Gear', shirt: 'Shirts', pants: 'Pants', skin: 'Body Colors' };
 
   const WB = {
-    esc, BRICK, ITEMS, CATEGORY, DEFAULT_LOOK,
+    esc, BRICK, ITEMS, CATEGORY, DEFAULT_LOOK, HATS, GEAR,
     item: id => ITEMS.find(i => i.id === id),
     colorHex: n => BRICK[n] || '#a3a2a5',
     robux: () => { const n = load('webblox-robux', 8451); return Number.isFinite(n) ? n : 8451; },
@@ -59,9 +135,25 @@
     name() { try { return (localStorage.getItem('webblox-name') || '').replace(/[^A-Za-z0-9_ ]/g, '').slice(0, 20); } catch (e) { return ''; } },
     setName(n) { try { localStorage.setItem('webblox-name', String(n).replace(/[^A-Za-z0-9_ ]/g, '').trim().slice(0, 20)); } catch (e) {} },
     displayName() { return WB.name() || 'WebBloxPlayer'; },
-    wearing(item) { const o = WB.outfit(); return item && o[item.type] === item.value; },
-    wear(item) { const o = WB.outfit(); o[item.type] = item.value; WB.setOutfit(o); },
-    takeOff(item) { const o = WB.outfit(); if (o[item.type] === item.value) delete o[item.type]; WB.setOutfit(o); },
+    // gear: you can carry several (outfit.gear is a list); everything else is one per slot
+    gear: () => { const g = WB.outfit().gear; return Array.isArray(g) ? g.filter(v => GEAR[v]) : []; },
+    wearing(item) {
+      if (!item) return false;
+      if (item.type === 'gear') return WB.gear().includes(item.value);
+      return WB.outfit()[item.type] === item.value;
+    },
+    wear(item) {
+      const o = WB.outfit();
+      if (item.type === 'gear') { o.gear = WB.gear().filter(v => v !== item.value).concat([item.value]); }
+      else o[item.type] = item.value;
+      WB.setOutfit(o);
+    },
+    takeOff(item) {
+      const o = WB.outfit();
+      if (item.type === 'gear') o.gear = WB.gear().filter(v => v !== item.value);
+      else if (o[item.type] === item.value) delete o[item.type];
+      WB.setOutfit(o);
+    },
     updateRobux() { document.querySelectorAll('.rbx-count').forEach(e => { e.textContent = WB.robux().toLocaleString('en-US'); }); },
   };
 
@@ -93,9 +185,29 @@
     const back = bg ? `<rect x="-20" y="-20" width="160" height="200" fill="${bg}"/>` : '';
     return `<svg viewBox="${vb}" width="100%" height="100%" aria-hidden="true">${back}${mode === 'hatonly' ? '' : body}${head}${hatSVG(look.hat)}</svg>`;
   };
-  WB.itemThumb = function (item) {
+  // Your avatar as a picture: a 3D render when the page loads avatar3d.js (and WebGL works),
+  // otherwise the 2D drawing. mode: 'full' | 'head'
+  WB.avatarImg = function (look, mode, bg, size) {
+    if (window.WB3D) {
+      try {
+        const src = window.WB3D.snapshot(Object.assign({}, WB.look(), look || {}), { mode: mode === 'head' ? 'head' : 'full', size: size || 300 });
+        return `<img src="${src}" alt="" style="width:100%;height:100%;object-fit:contain;display:block${bg ? ';background:' + bg : ''}" />`;
+      } catch (e) { /* fall back to the drawing */ }
+    }
+    return WB.avatarSVG(look, mode, bg);
+  };
+  WB.itemThumb = function (item, size) {
     const bg = '#ebebeb';
+    if (window.WB3D && /^(hat|gear|skin)$/.test(item.type)) {
+      try {
+        const src = item.type === 'skin'
+          ? window.WB3D.snapshot({ skin: item.value, shirt: 194, pants: 194 }, { mode: 'full', size: size || 200 })
+          : window.WB3D.snapshot(null, { mode: item.type, item: item.value, size: size || 200 });
+        return `<img src="${src}" alt="" style="width:100%;height:100%;object-fit:contain;display:block;background:${bg}" />`;
+      } catch (e) { /* fall back to the drawing */ }
+    }
     if (item.type === 'hat') return WB.avatarSVG({ hat: item.value }, 'hatonly', bg);
+    if (item.type === 'gear') return `<svg viewBox="0 0 100 100" width="100%" height="100%" aria-hidden="true"><rect width="100" height="100" fill="${bg}"/><text x="50" y="56" font-size="12" text-anchor="middle" fill="#555">${esc(item.name)}</text></svg>`;
     if (item.type === 'skin') return WB.avatarSVG({ skin: item.value, shirt: 194, pants: 194 }, 'full', bg);
     const c = WB.colorHex(item.value);
     const shape = item.type === 'shirt'
@@ -123,7 +235,7 @@
     <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 4v16l13-8z"/></symbol>
   </svg>`;
 
-  // active: 'home' | 'catalog' | 'avatar' | 'inventory'
+  // active: 'home' | 'profile' | 'catalog' | 'avatar' | 'inventory'
   WB.chrome = function (active, searchPlaceholder) {
     const on = k => active === k ? ' class="on"' : '';
     const html = ICONS + `
@@ -143,10 +255,10 @@
       </div>
     </header>
     <aside class="lnav">
-      <a class="who" href="index.html" id="who"></a>
+      <a class="who" href="profile.html" id="who"></a>
       <ul>
         <li><a href="index.html"${on('home')}><svg class="i"><use href="#i-home"/></svg>Home</a></li>
-        <li><a href="index.html#top"><svg class="i"><use href="#i-user"/></svg>Profile</a></li>
+        <li><a href="profile.html"${on('profile')}><svg class="i"><use href="#i-user"/></svg>Profile</a></li>
         <li><a href="index.html#feed"><svg class="i"><use href="#i-msg"/></svg>Messages<span class="count">3</span></a></li>
         <li><a href="catalog.html?cat=wearing"${on('avatar')}><svg class="i"><use href="#i-avatar"/></svg>Avatar</a></li>
         <li><a href="catalog.html?cat=inventory"${on('inventory')}><svg class="i"><use href="#i-inv"/></svg>Inventory</a></li>
