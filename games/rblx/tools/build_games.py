@@ -494,8 +494,75 @@ def speed_run():
     pl.save()
 
 
+# ------------------------------------------------------------------------------------------
+# Pizza Shift: a restaurant to run. Stations live in the Kitchen model (games/pizza.lua).
+def pizza_shift():
+    pl = Place('pizza-shift')
+    pl.lighting(ambient=(0.58, 0.56, 0.54))
+    pl.part((0, -1, 0), (400, 2, 400), 37, 'Grass', mat='grass', surface=SMOOTH)
+    pl.part((0, 0.05, -52), (400, 0.1, 24), 199, 'Road', mat='concrete', surface=SMOOTH)
+    pl.part((0, 0.1, -37), (400, 0.2, 6), 194, 'Sidewalk', mat='concrete', surface=SMOOTH)
+    k = pl.model('Kitchen')
+    b = pl.model('Building')
+    H = 16
+    # floor: checkered dining room, grey kitchen
+    for i in range(8):
+        for j in range(4):
+            pl.part((-28 + i * 8, 0.1, -28 + j * 7), (8, 0.2, 7), 1 if (i + j) % 2 else 26, 'Tile', b, mat='smooth', surface=SMOOTH)
+    pl.part((0, 0.1, 14), (64, 0.2, 36), 194, 'KitchenFloor', b, mat='concrete', surface=SMOOTH)
+    # walls (door in the front, windows either side of it)
+    wall = lambda pos, size: pl.part(pos, size, 21, 'Wall', b, mat='brick', surface=SMOOTH)
+    wall((0, H / 2, 32.5), (66, H, 1))
+    wall((-32.5, H / 2, 0), (1, H, 64))
+    wall((32.5, H / 2, 0), (1, H, 64))
+    wall((-28, H / 2, -32.5), (10, H, 1))
+    wall((28, H / 2, -32.5), (10, H, 1))
+    wall((-14.5, 1.5, -32.5), (17, 3, 1))
+    wall((14.5, 1.5, -32.5), (17, 3, 1))
+    wall((-14.5, 13.5, -32.5), (17, 5, 1))
+    wall((14.5, 13.5, -32.5), (17, 5, 1))
+    wall((0, 13, -32.5), (12, 6, 1))
+    for x in (-14.5, 14.5):
+        pl.part((x, 7, -32.5), (17, 8, 0.4), 1, 'Window', b, mat='smooth', transparency=0.55, surface=SMOOTH)
+    pl.part((0, H + 0.5, 0), (66, 1, 66), 194, 'Roof', b, mat='concrete', surface=SMOOTH)
+    pl.part((0, H - 0.6, 0), (64, 0.2, 64), 1001, 'Ceiling', b, mat='smooth', surface=SMOOTH)
+    pl.part((0, H + 3.5, -33.3), (30, 5, 0.6), 24, 'Sign', k, mat='smooth', surface=SMOOTH)
+    pl.part((0, 0.2, -38), (6, 0.2, 2), 194, 'Exit', k, mat='concrete', transparency=1, collide=False, r=(0, 180, 0), surface=SMOOTH)
+    # counter and register
+    pl.part((-8, 2, -6), (40, 4, 3), 192, 'Counter', b, mat='wood', surface=SMOOTH)
+    pl.part((-8, 4.15, -6), (41, 0.3, 3.6), 1, 'CounterTop', b, mat='marble', surface=SMOOTH)
+    pl.part((-18, 4.9, -6), (2.2, 1.2, 1.6), 26, 'Register', k, mat='metal', surface=SMOOTH)
+    pl.part((-18, 5.9, -6.2), (1.8, 0.9, 0.2), 23, 'Screen', k, mat='neon', surface=SMOOTH, r=(-15, 0, 0))
+    pl.part((-18, 0.2, -11), (4, 0.2, 4), 24, 'CustomerSpot', k, mat='smooth', transparency=1, collide=False, r=(0, 180, 0), surface=SMOOTH)
+    # kitchen stations along the back wall
+    pl.part((-22, 1.75, 27), (7, 3.5, 4), 192, 'Dough', k, mat='wood', surface=SMOOTH)
+    for dx in (-2, 0, 2):
+        pl.part((-22 + dx, 3.9, 27), (1.4, 1.4, 1.4), 1001, 'DoughBall', k, shape='ball', surface=SMOOTH)
+    pl.part((-8, 1.75, 27), (14, 3.5, 4), 194, 'ToppingTable', k, mat='metal', surface=SMOOTH)
+    for name, color, x in (('Cheese', 24, -13), ('Pepperoni', 21, -9.7), ('Veggie', 37, -6.3), ('Mushroom', 192, -3)):
+        pl.part((x, 3.95, 27), (0.8, 2.4, 2.4), color, 'Topping_' + name, k, shape='cyl', r=(0, 0, 90), surface=SMOOTH)
+    pl.part((8, 4, 28), (10, 8, 6), 199, 'Oven', k, mat='metal', surface=SMOOTH)
+    pl.part((8, 3.5, 24.9), (6.5, 3, 0.2), 26, 'OvenGlow', k, mat='smooth', surface=SMOOTH)
+    pl.part((8, 8.6, 28), (4, 1.2, 4), 1004, 'OvenTop', k, mat='brick', surface=SMOOTH)
+    pl.part((22, 1.75, 27), (8, 3.5, 4), 192, 'Box', k, mat='wood', surface=SMOOTH)
+    for i in range(4):
+        pl.part((22, 3.85 + i * 0.6, 27), (2.8, 0.6, 2.8), 1001, 'BoxStack', k, mat='smooth', surface=SMOOTH)
+    pl.part((27, 1.6, 12), (3.2, 2.6, 2.6), 199, 'Trash', k, mat='metal', shape='cyl', r=(0, 0, 90), surface=SMOOTH)
+    pl.part((-8, 10, 31.6), (14, 4, 0.4), 26, 'OrderBoard', k, mat='smooth', surface=SMOOTH)
+    # dining tables and chairs
+    for (x, z) in ((14, -24), (26, -24), (14, -14), (26, -14), (-26, -26)):
+        pl.part((x, 3, z), (0.4, 5, 5), 1001, 'Table', b, shape='cyl', r=(0, 0, 90), surface=SMOOTH)
+        pl.part((x, 1.4, z), (2.8, 0.8, 0.8), 199, 'TableLeg', b, mat='metal', shape='cyl', r=(0, 0, 90), surface=SMOOTH)
+        for dx in (-3.6, 3.6):
+            pl.part((x + dx, 1.3, z), (2, 0.5, 2), 21, 'Chair', b, cls='Seat', mat='smooth', surface=SMOOTH)
+    pl.part((24, 0.3, 4), (6, 0.2, 6), 23, 'Spawn', cls='SpawnLocation', mat='smooth', surface=SMOOTH)
+    pl.script('PizzaScript', open(os.path.join(HERE, 'games', 'pizza.lua')).read())
+    pl.save()
+
+
 if __name__ == '__main__':
     rainbow_obby()
     sky_tower()
     floor_is_lava()
     speed_run()
+    pizza_shift()

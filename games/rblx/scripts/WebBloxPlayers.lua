@@ -21,6 +21,9 @@
 --   Players (Folder)          a Folder per other player in the room, with their leaderstats
 
 local WB = WEBBLOX or {}
+-- Real-time physics: the engine slows physics down ("environmental throttle") whenever the frame
+-- rate drops, which in a browser meant everything fell and moved in slow motion.
+pcall(function() settings().Physics.PhysicsEnvironmentalThrottle = Enum.EnviromentalPhysicsThrottle.Disabled end)
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local player = Players.LocalPlayer

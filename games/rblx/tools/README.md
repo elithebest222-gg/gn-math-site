@@ -2,7 +2,7 @@
 
 ## WebBlox's own games
 
-`build_games.py` builds Rainbow Obby, Sky Tower, The Floor is Lava and Speed Run into `../places/`.
+`build_games.py` builds Rainbow Obby, Sky Tower, The Floor is Lava, Speed Run and Pizza Shift into `../places/`.
 The levels are generated from code (Roblox XML, then `xml2bin.py`), and their behavior comes from the
 Lua in `games/`:
 
@@ -10,6 +10,8 @@ Lua in `games/`:
   `Vanish`, `Bounce`, `Speed`, `Spinner`, `Mover` (carries you), `Go` and `Finish`. It also keeps
   Stage/Wins leaderstats (or Best/Runs in timer mode) and respawns you on your last checkpoint.
 - `lava.lua` runs The Floor is Lava's rounds on the multiplayer room's shared clock.
+- `pizza.lua` runs Pizza Shift: customers, the register, dough/topping/oven/box stations (ClickDetectors
+  on parts in the `Kitchen` model), the pizza you carry, and Money/Pizzas leaderstats.
 
 ```bash
 pip install lz4

@@ -164,12 +164,18 @@
         desc: 'A tower in the clouds, ten floors high. Jump from platform to platform as they spiral up around it. The higher you go, the smaller they get, and some of them vanish or move.\n\nEvery floor has a checkpoint. Make it to the roof to win!' },
       { id: 'lava', map: 'floor-is-lava.rbxl', title: 'The Floor is Lava', by: 'WebBlox', genre: 'Funny', playing: 2941, visits: '812K', up: 95,
         desc: 'THE FLOOR IS LAVA! Every minute the lava rises out of the floor of a giant living room. Climb the couches, shelves, bunk beds and the tower before it gets you.\n\nEveryone who survives the round gets a win. Everyone in a server faces the same lava at the same time.' },
+      { id: 'pizza', map: 'pizza-shift.rbxl', title: 'Pizza Shift', by: 'WebBlox', genre: 'Town and City', playing: 3318, visits: '904K', up: 94,
+        desc: 'Work a shift at the busiest pizza place in town! Take the order at the register, grab some dough, add the right topping, bake it, box it and hand it to the customer.\n\nFast service gets bigger tips. How much money can you make?' },
+      { id: 'speeding-wall', map: 'Be crushed by speeding wall.rbxl', title: 'Be Crushed by a Speeding Wall', genre: 'Comedy', playing: 2381, visits: '845K', up: 91,
+        desc: 'Stand in front of the wall. Wait for it. Try to survive, or just accept your fate.' },
       { id: 'speedrun', map: 'speed-run.rbxl', title: 'Speed Run', by: 'WebBlox', genre: 'Sports', playing: 1527, visits: '433K', up: 92,
         desc: 'How fast can you go? Cross the line and race over speed pads, gaps, trampolines, stepping stones and a balance beam to the finish.\n\nYour best time goes on the leaderboard. Fall off and you start again!' }
     ];
-    const RECENT = ['nds', 'obby', 'lava', 'tower', 'speedrun'];
-    const FAVS = ['obby', 'nds', 'speedrun', 'lava', 'tower'];
+    const RECENT = ['nds', 'pizza', 'obby', 'speeding-wall', 'lava', 'tower'];
+    const FAVS = ['pizza', 'obby', 'nds', 'speedrun', 'lava', 'speeding-wall'];
     const NEWS = [
+      ['Faster games, real physics', 'Games run much smoother on sharp screens (pick Fast, Normal or Sharp graphics in a game), things fall at full speed instead of slow motion, and games load from your device after the first time.', 'Nov 21, 2026'],
+      ['Now open: Pizza Shift', 'Take orders, bake pizzas and earn tips in our new restaurant game. Plus: Be Crushed by a Speeding Wall is back, and you can make a WebBlox account to keep your stuff.', 'Nov 21, 2026'],
       ['New games: obbies and more!', 'Try the Rainbow Obby, climb the Sky Tower, survive The Floor is Lava and race the clock in Speed Run.', 'Nov 21, 2026'],
       ['New in the Catalog', '14 new hats and the first gear: Speed Coil, Gravity Coil, Fusion Coil and the Red Balloon. Check out your new 3D avatar on your Profile!', 'Nov 21, 2026'],
       ['Leaderboards are back', 'Cash, KOs, points and every other leaderboard stat works again, and you can see the other players in your server on it, under your own name.', 'Nov 21, 2026'],
@@ -186,7 +192,7 @@
     const server = String(CFG.multiplayerServer || '').replace(/\/+$/, '');
     const thumbUrl = g => 'thumbs/' + g.id + '.jpg';
     const playUrl = (g, room, ps) => 'play.html?' + (g.map ? 'map=' + encodeURIComponent(g.map) + '&' : '') + 'title=' + encodeURIComponent(g.title)
-      + (g.by ? '&by=' + encodeURIComponent(g.by) : '') + (room ? '&room=' + room : '') + (ps > 1 ? '&ps=' + ps : '');
+      + (g.by ? '&by=' + encodeURIComponent(g.by) : '') + '&id=' + g.id + (room ? '&room=' + room : '') + (ps > 1 ? '&ps=' + ps : '');
 
     function card(g) {
       return `<button class="card" data-id="${g.id}" onclick="openGame('${g.id}')">
