@@ -1,4 +1,4 @@
-/* WebBlox Studio: build places in the browser, 2016 Roblox Studio style.
+/* GN-BLOX Studio: build places in the browser, 2016 Roblox Studio style.
  *
  * The place is an RBXFile document (rbxfile.js): a tree of instances with typed properties, in the
  * types the 2016 engine reads, so Save writes a .rbxl the engine (and Roblox Studio) can open and
@@ -1500,8 +1500,8 @@
       const r = b.isEmpty() ? 20 : Math.min(250, b.getSize(V()).length() / 3);
       cam.pos.set(c.x, c.y + r * 0.45 + 8, c.z + r + 16);
     } else { cam.pos.set(0, 18, 34); cam.yaw = 0; cam.pitch = -0.42; }
-    $('title').textContent = placeName + ' - WebBlox Studio';
-    document.title = placeName + ' - WebBlox Studio';
+    $('title').textContent = placeName + ' - GN-BLOX Studio';
+    document.title = placeName + ' - GN-BLOX Studio';
     selectionChanged();
   }
   async function openFile(file) {
@@ -1559,7 +1559,7 @@
       '-',
       { text: 'Play', key: 'F5', icon: 'ib-play', run: play },
       '-',
-      { text: 'Back to WebBlox', run: () => { location.href = 'index.html'; } },
+      { text: 'Back to GN-BLOX', run: () => { location.href = 'index.html'; } },
     ], 'filemenu');
   }
   function confirmLose(fn) {
@@ -1570,7 +1570,7 @@
     const wrap = document.createElement('div');
     wrap.innerHTML = '<p>Place name</p><input type="text" maxlength="50" aria-label="Place name"/>';
     const inp = wrap.querySelector('input'); inp.value = placeName;
-    const ok = () => { const v = inp.value.trim(); if (!v) return false; placeName = v; $('title').textContent = v + ' - WebBlox Studio'; document.title = v + ' - WebBlox Studio'; renderTabs(); autosave(); };
+    const ok = () => { const v = inp.value.trim(); if (!v) return false; placeName = v; $('title').textContent = v + ' - GN-BLOX Studio'; document.title = v + ' - GN-BLOX Studio'; renderTabs(); autosave(); };
     const d = dialog('Rename Place', wrap, [['Cancel', () => {}], ['OK', ok, true]]);
     inp.addEventListener('keydown', e => { if (e.key === 'Enter') { if (ok() !== false) d.remove(); } });
     inp.focus(); inp.select();
@@ -1587,7 +1587,7 @@
       ${tile('classic', 'Classic', 'Green studded baseplate', 'linear-gradient(#9cc6ef,#cfe3f7 55%,#287f47 55%)')}
       ${tile('open', 'Open File…', '.rbxl .rbxlx .rbxm', 'repeating-linear-gradient(45deg,#eee 0 6px,#e2e2e2 6px 12px)')}
     </div>`;
-    const d = dialog('WebBlox Studio', wrap, []);
+    const d = dialog('GN-BLOX Studio', wrap, []);
     d.querySelector('.btns').remove();
     wrap.addEventListener('click', async e => {
       const b = e.target.closest('[data-start]'); if (!b) return;
@@ -1704,7 +1704,7 @@
     handles.build();
     loadDoc(newPlace('baseplate'), 'Place1');
     resize();
-    log('Welcome to WebBlox Studio! Insert parts from the HOME tab, then press Play to try your place.', 'info');
+    log('Welcome to GN-BLOX Studio! Insert parts from the HOME tab, then press Play to try your place.', 'info');
     const params = new URLSearchParams(location.search);
     if (!params.has('new')) startDialog(false);
   })();

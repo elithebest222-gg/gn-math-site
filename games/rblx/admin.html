@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin - GN-BLOX</title>
+  <link rel="icon" type="image/png" href="favicon.png" />
+  <link rel="stylesheet" crossorigin="anonymous" href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@300;400;600;700&display=swap" />
+  <link rel="stylesheet" href="site.css" />
+  <script src="config.js"></script>
+  <script src="site.js"></script>
+  <style>
+    .adm h1 { font-size: 30px; font-weight: 600; margin-bottom: 14px; }
+    .adm .box { padding: 18px 20px; margin-bottom: 18px; }
+    .adm h2 { font-size: 20px; font-weight: 600; margin-bottom: 8px; }
+    .adm p { margin-bottom: 10px; line-height: 1.45; }
+    .adm .id { display: flex; gap: 8px; align-items: stretch; flex-wrap: wrap; margin: 8px 0 4px; }
+    .adm code, .adm .code { font: 14px/1.4 Consolas, "Courier New", monospace; background: #f2f2f2; border: 1px solid var(--line); border-radius: 3px; padding: 6px 8px; word-break: break-all; }
+    .adm .id code { flex: 1 1 300px; }
+    .adm pre.code { white-space: pre-wrap; margin: 8px 0; }
+    .adm .role { display: inline-block; padding: 2px 8px; border-radius: 3px; font-weight: 700; font-size: 13px; color: #fff; background: #7b1ae2; vertical-align: middle; }
+    .adm .role.mod { background: #0f8a3c; }
+    .adm .role.none { background: #8a8a8a; }
+    .adm table { width: 100%; border-collapse: collapse; font-size: 15px; }
+    .adm td { padding: 6px 8px; border-top: 1px solid var(--line); vertical-align: top; }
+    .adm td:first-child { white-space: nowrap; font-family: Consolas, monospace; color: #3a1580; }
+    .adm input[type=text] { width: 100%; height: 34px; padding: 0 10px; border: 1px solid var(--border); border-radius: 3px; font: inherit; }
+    .adm .row { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+    .adm .row input { flex: 1 1 260px; }
+    .adm .muted { color: var(--muted); font-size: 14px; }
+    .adm .mods li { display: flex; justify-content: space-between; gap: 8px; align-items: center; padding: 4px 0; border-top: 1px solid var(--line); }
+    .adm .mods li code { flex: 1; min-width: 0; }
+    .adm .mods { list-style: none; padding: 0; margin: 6px 0; }
+  </style>
+</head>
+<body>
+  <script>WB.chrome('admin');</script>
+  <main class="main">
+    <div class="wrap adm" id="adm"></div>
+    <footer class="ftr">
+      <nav><a href="index.html">Home</a><a href="index.html#games">Games</a><a href="catalog.html">Catalog</a></nav>
+      <p>GN-BLOX is a fan-made, unofficial classic-era game player. It is not affiliated with, endorsed by or sponsored by Roblox Corporation.</p>
+    </footer>
+  </main>
+  <script>
+    const esc = WB.esc, C = window.WEBBLOX_CONFIG || {};
+    const owners = (C.owners || []).filter(Boolean), mods = (C.mods || []).filter(Boolean);
+    const COMMANDS = [
+      [':kick <player> [reason]', 'Sends them out of the server.'],
+      [':ban <player> [reason]', 'Kicks them and keeps them out of that game for a day.'],
+      [':m <message>', 'A message across everyone\'s screen.'],
+      [':h <hint>', 'A hint bar at the top of everyone\'s screen.'],
+      [':kill <player>', 'Knocks them out (they respawn).'],
+      [':respawn <player>', 'Respawns them.'],
+      [':tp <player> <to player>', 'Teleports the first player to the second.'],
+      [':bring <player>', 'Teleports them to you.'],
+      [':to <player>', 'Teleports you to them.'],
+      [':speed <player> <number>', 'Walk speed (16 is normal).'],
+      [':god / :ungod <player>', 'Can\'t be hurt / back to normal.'],
+      [':freeze / :thaw <player>', 'Freezes them in place / lets them move.'],
+      [':cmds', 'Lists the commands in chat.'],
+    ];
+    function copyBtn(text, label) {
+      const b = document.createElement('button');
+      b.className = 'btn-white'; b.type = 'button'; b.textContent = label || 'Copy';
+      b.onclick = async () => { try { await navigator.clipboard.writeText(text); b.textContent = 'Copied!'; } catch (e) { prompt('Copy this:', text); } setTimeout(() => { b.textContent = label || 'Copy'; }, 1500); };
+      return b;
+    }
+    const configLines = (o, m) => `  owners: [${o.map(x => `'${x}'`).join(', ')}],\n  mods: [${m.map(x => `'${x}'`).join(', ')}]`;
+    function render() {
+      const box = document.getElementById('adm');
+      const id = WB.accountId(), role = WB.role(), name = WB.accountName();
+      let html = '<h1>Admin</h1>';
+      if (!WB.session()) {
+        box.innerHTML = html + `<div class="panel box"><h2>Log in first</h2><p>Owner and moderator powers belong to a GN-BLOX account. <a href="login.html">Log in or sign up</a>, then come back here to see your account ID.</p></div>`;
+        return;
+      }
+      if (!id) {
+        box.innerHTML = html + `<div class="panel box"><h2>Log in again</h2><p>Your account ID is made when you log in. Log out and log back in as <b>${esc(name)}</b> to get it.</p>
+          <button class="btn-white" onclick="WB.logOut(); location.href='login.html'">Log Out</button></div>`;
+        return;
+      }
+      const roleBadge = role === 'owner' ? '<span class="role">Owner</span>' : role === 'mod' ? '<span class="role mod">Moderator</span>' : '<span class="role none">Player</span>';
+      html += `<div class="panel box"><h2>${esc(name)} ${roleBadge}</h2>
+        <p class="muted">Your account ID. It's made from your username and password, so it's the same on any device you log in on, and nobody without your password can use it. It's safe to share: it can only check your signature, not make one.</p>
+        <div class="id"><code id="myid">${esc(id)}</code><span id="copy-id"></span></div></div>`;
+      if (!owners.length) {
+        html += `<div class="panel box"><h2>Become the owner</h2>
+          <p>This site has no owner yet. To make <b>${esc(name)}</b> the owner, put your account ID in <code>config.js</code> (in <code>games/rblx/</code>), or send it to whoever updates the site:</p>
+          <pre class="code" id="owner-snippet">${esc(configLines([id], mods))}</pre><span id="copy-owner"></span>
+          <p class="muted" style="margin-top:10px">Pick a strong password for this account: anyone who knows it can be the owner too.</p></div>`;
+      }
+      if (role === 'owner') {
+        html += `<div class="panel box"><h2>Moderators</h2>
+          <p>Moderators can use every command, but not on you. To add one, ask them for the account ID on their Admin page, paste it here, then put the new lines in <code>config.js</code>.</p>
+          <ul class="mods" id="mods"></ul>
+          <div class="row"><input type="text" id="new-mod" placeholder="Their account ID (43 characters)" maxlength="43" /><button class="btn-green" type="button" id="add-mod">Add moderator</button></div>
+          <div id="mod-out"></div></div>`;
+      }
+      if (role) {
+        html += `<div class="panel box"><h2>Commands</h2><p>Type them in the chat in any game (press <b>/</b> to chat). Players can be a name (or the start of one), <b>me</b>, <b>all</b> or <b>others</b>. You get an <b>[${role === 'owner' ? 'Owner' : 'Mod'}]</b> tag in chat and the player list.</p>
+          <table>${COMMANDS.map(([c, d]) => `<tr><td>${esc(c)}</td><td>${esc(d)}</td></tr>`).join('')}</table>
+          <p class="muted" style="margin-top:10px">Commands are checked by every player's game against the IDs in config.js, so nobody can fake them. Bans are kept on the banned player's device and by the server's host.</p></div>`;
+      } else if (owners.length) {
+        html += `<div class="panel box"><h2>Want to be a moderator?</h2><p>Send your account ID to the site's owner. Once it's added, you'll get commands like <code>:kick</code> and <code>:m</code> in every game.</p></div>`;
+      }
+      box.innerHTML = html;
+      document.getElementById('copy-id').appendChild(copyBtn(id, 'Copy ID'));
+      const os = document.getElementById('owner-snippet');
+      if (os) document.getElementById('copy-owner').appendChild(copyBtn(os.textContent, 'Copy lines'));
+      const list = document.getElementById('mods');
+      if (list) {
+        let wanted = mods.slice();
+        const draw = () => {
+          list.innerHTML = wanted.length ? '' : '<li class="muted">No moderators yet.</li>';
+          for (const m of wanted) {
+            const li = document.createElement('li');
+            li.innerHTML = `<code>${esc(m)}</code>`;
+            const rm = document.createElement('button'); rm.className = 'btn-white'; rm.textContent = 'Remove';
+            rm.onclick = () => { wanted = wanted.filter(x => x !== m); draw(); };
+            li.appendChild(rm); list.appendChild(li);
+          }
+          const out = document.getElementById('mod-out');
+          out.innerHTML = '';
+          if (wanted.join() !== mods.join()) {
+            out.innerHTML = `<p style="margin-top:12px">Put these lines in <code>config.js</code> (in place of the old <code>owners</code> and <code>mods</code> lines):</p><pre class="code">${esc(configLines(owners, wanted))}</pre>`;
+            out.appendChild(copyBtn(configLines(owners, wanted), 'Copy lines'));
+          }
+        };
+        draw();
+        document.getElementById('add-mod').onclick = () => {
+          const inp = document.getElementById('new-mod'), v = inp.value.trim();
+          if (!/^[A-Za-z0-9_-]{43}$/.test(v)) { inp.setCustomValidity('An account ID is 43 letters, numbers, - or _'); inp.reportValidity(); return; }
+          inp.setCustomValidity('');
+          if (!wanted.includes(v) && !owners.includes(v)) wanted.push(v);
+          inp.value = '';
+          draw();
+        };
+      }
+    }
+    render();
+  </script>
+</body>
+</html>

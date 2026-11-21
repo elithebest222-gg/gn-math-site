@@ -1,6 +1,6 @@
-# WebBlox tools
+# GN-BLOX tools
 
-## WebBlox's own games
+## GN-BLOX's own games
 
 `build_games.py` builds Rainbow Obby, Sky Tower, The Floor is Lava, Speed Run and Pizza Shift into `../places/`.
 The levels are generated from code (Roblox XML, then `xml2bin.py`), and their behavior comes from the
@@ -60,6 +60,32 @@ The converter also:
 
 `typemap.json` lists the property types the engine expects. It was read out of the
 engine's own binary places, and the engine refuses a place whose property types don't match.
+
+## Game scripts and the Roblox web services
+
+Everything 2014-2016 game scripts use runs: Scripts in ServerScriptService and Workspace, LocalScripts in
+StarterGui ScreenGuis, StarterPack, tools, StarterPlayerScripts/StarterCharacterScripts and ReplicatedFirst,
+RemoteEvents/RemoteFunctions, ModuleScripts, GUI buttons and input. What used to break them was the web:
+the engine asks a Roblox web server for DataStores, game passes, asset ownership, groups and friends,
+and a failed request left the waiting script asleep forever. `../webapi.js` answers those requests in the
+page (the engine sends them to `wb-api/`, `../coi-serviceworker.js` passes them over): DataStores and
+OrderedDataStores work and are saved on the device per game; nobody owns passes or assets, nobody is in
+a group, and products have plain info, so scripts carry on.
+
+## Accounts, owner and moderators
+
+There's no server behind the site, so accounts work like this: your account ID is a signing key made
+from your username and password (PBKDF2, then Ed25519, in `../site.js`). The same username and password
+give the same ID on any device; nobody without the password can make it. ROBUX, items and outfits stay on
+the device you use.
+
+`../config.js` lists the owner's and moderators' account IDs (`owners`, `mods`); `../admin.html` shows
+yours and writes the lines to paste. Owners and moderators get admin commands in chat (`:kick`, `:ban`,
+`:m`, `:h`, `:kill`, `:respawn`, `:tp`, `:bring`, `:to`, `:speed`, `:god`, `:freeze`... `:cmds` lists them)
+and an [Owner] / [Mod] tag. A command is signed with the account's key; `../p2p.js` passes it to everyone
+through the server's host, and each player's game checks the signature against `config.js` before doing
+anything. Moderators can't act on the owner or each other. Bans keep the player out of that game for a day
+(kept on their device and by the server's host).
 
 ## Studio
 

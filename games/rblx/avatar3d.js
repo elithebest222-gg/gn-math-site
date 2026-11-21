@@ -1,4 +1,4 @@
-// WebBlox 3D avatars (three.js, three.min.js): your avatar the way the game builds it, with the
+// GN-BLOX 3D avatars (three.js, three.min.js): your avatar the way the game builds it, with the
 // classic R6 body, your Catalog colors, and hats and gear from WB.HATS / WB.GEAR in site.js
 // (the same parts scripts/WebBloxPlayers.lua builds in-game).
 //

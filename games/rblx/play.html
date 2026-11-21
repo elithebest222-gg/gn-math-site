@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
-  <title>WebBlox</title>
+  <title>GN-BLOX</title>
   <link rel="icon" href="favicon.png" />
   <link rel="stylesheet" crossorigin="anonymous" href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600;700&display=swap" />
   <script src="config.js"></script>
@@ -12,6 +12,7 @@
   <script src="p2p.js"></script>
   <script src="vendor/fzstd.js"></script>
   <script src="rbxfile.js"></script>
+  <script src="webapi.js"></script>
   <style>
     :root { --panel: #232527; --text: #fff; --muted: #b8b8b8; --blue: #00a2ff; --green: #02b757; --red: #d86868; }
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -53,8 +54,8 @@
   <div id="loading">
     <div class="tip" id="tip"></div>
     <div class="info">
-      <div class="title" id="game-title">WebBlox</div>
-      <div class="by" id="game-by">By WebBlox</div>
+      <div class="title" id="game-title">GN-BLOX</div>
+      <div class="by" id="game-by">By GN-BLOX</div>
       <div class="status" id="status">Starting&hellip;</div>
     </div>
     <div class="ring" aria-label="Loading"></div>
@@ -74,7 +75,7 @@
     try { Object.defineProperty(navigator, 'hardwareConcurrency', { get: () => 32 }); } catch (e) {}
 
     (async function () {
-      const VERSION = '43';                       // bump when rblx.js / rblx.wasm change
+      const VERSION = '45';                       // bump when rblx.js / rblx.wasm change
       const CHUNKS = 12, CHUNK_SIZE = 25165824, DATA_SIZE = 289418733;
       const $ = id => document.getElementById(id);
       const canvas = $('canvas'), loading = $('loading');
@@ -84,9 +85,9 @@
       const TIPS = ['Tip: hold right mouse button to turn the camera.', 'Tip: use W A S D to walk and Space to jump.',
                     'Tip: press / to chat.', 'Tip: scroll or use I / O to zoom in and out.'];
 
-      document.title = title + ' - WebBlox';
+      document.title = title + ' - GN-BLOX';
       $('game-title').textContent = title;
-      $('game-by').textContent = 'By ' + (params.get('by') || 'WebBlox');
+      $('game-by').textContent = 'By ' + (params.get('by') || 'GN-BLOX');
       $('tip').textContent = TIPS[Math.floor(Math.random() * TIPS.length)];
       // the game's picture behind the loading screen (thumbs/<id>-wide.jpg)
       const gameId = (params.get('id') || (params.get('map') || params.get('custom') ? '' : 'nds')).replace(/[^a-z0-9-]/g, '');
@@ -171,7 +172,7 @@
         if (custom1 && !params.has('safe') && !ready && /deserializ|Malformed|Invalid|runtime_error|uncaught exception/i.test(detail || '')) {
           status('Trying again in safe mode…', 0);
           failed = true;
-          console.warn('WebBlox: the place failed to load (' + detail + '), retrying in safe mode');
+          console.warn('GN-BLOX: the place failed to load (' + detail + '), retrying in safe mode');
           location.replace(location.href + '&safe=1');
           return;
         }
@@ -180,6 +181,7 @@
           detail = (detail || '') + ' (if it keeps happening, send this message to whoever runs this site)';
         }
         failed = true;
+        try { if (document.pointerLockElement) document.exitPointerLock(); } catch (e) {}
         $('err-msg').textContent = msg;
         $('err-detail').textContent = detail || '';
         $('err-detail').style.display = detail ? 'block' : 'none';
@@ -229,14 +231,29 @@
       }
       sessionStorage.removeItem('coiReloaded');
       if (!window.SharedArrayBuffer) {
-        return fail('This browser can\'t run WebBlox here.', 'SharedArrayBuffer is unavailable (the page is not cross-origin isolated). Try reloading, or use a recent Chrome, Edge or Firefox outside private/incognito mode.');
+        return fail('This browser can\'t run GN-BLOX here.', 'SharedArrayBuffer is unavailable (the page is not cross-origin isolated). Try reloading, or use a recent Chrome, Edge or Firefox outside private/incognito mode.');
       }
+
+      // The Roblox web services the game's scripts call (DataStores, game passes, groups...) are
+      // answered by this page (webapi.js); each game's DataStores are kept on this device.
+      try { GNWebApi.start({ game: String(params.get('map') || (params.get('custom') ? 'custom:' + title : 'natural-disaster-survival.rbxl')), debug: DEBUG }); }
+      catch (e) { console.warn('GN-BLOX web API unavailable:', e); }
 
       // Multiplayer: a server from config.js (tools/multiplayer-server) if one is set, otherwise
       // peer-to-peer over PeerJS (p2p.js), started now so it connects while the game downloads.
       const mp = multiplayerSettings();
       if (mp.mode === 'p2p') {
-        try { WebBloxP2P.start({ room: mp.room, sid: mp.sid, peer: mp.peer, server: +params.get('ps') || 1 }); }
+        // your account ID (if you're logged in) for owner / moderator commands and tags
+        const W = window.WB || {};
+        const me = W.identity && W.identity();
+        const identity = me ? { pub: me.pub, sign: W.sign } : null;
+        const onKick = info => {
+          const by = info.by ? ' by ' + info.by : '';
+          const why = info.reason ? 'Reason: ' + info.reason : '';
+          if (info.ban) fail('You are banned from this game' + by + '.', [why, 'You can play it again ' + (info.until ? new Date(info.until).toLocaleString() : 'tomorrow') + '.'].filter(Boolean).join(' '));
+          else fail('You were kicked from this server' + by + '.', why);
+        };
+        try { WebBloxP2P.start({ room: mp.room, sid: mp.sid, peer: mp.peer, server: +params.get('ps') || 1, identity, verify: W.verify, roleOf: W.roleOf, onKick }); }
         catch (e) { console.warn('Multiplayer unavailable:', e); mp.url = ''; }
       }
 
@@ -344,10 +361,10 @@
             const starter = '/content/scripts/StarterScript.lua';
             const marker = 'local RobloxGui = game:GetService("CoreGui"):WaitForChild("RobloxGui")';
             const src = FS.readFile(starter, { encoding: 'utf8' });
-            let inject = '\n-- WebBlox client scripts\n' + webbloxLua() + '\n';
+            let inject = '\n-- GN-BLOX client scripts\n' + webbloxLua() + '\n';
             for (const code of [animateSource, playersSource]) if (code) inject += 'spawn(function()\n' + code + '\nend)\n';
             FS.writeFile(starter, src.includes(marker) ? src.replace(marker, marker + inject) : src + inject);
-          } catch (e) { console.warn('WebBlox client scripts unavailable:', e); }
+          } catch (e) { console.warn('GN-BLOX client scripts unavailable:', e); }
           const holders = { __WEBBLOX_NAME__: '"' + playerName() + '"', __WEBBLOX_GFX__: String(gfxLevel()), __WEBBLOX_FULLSCREEN__: document.fullscreenElement ? 'true' : 'false' };
           for (const [file, list] of Object.entries(CORE_EDITS)) {
             try {
@@ -357,7 +374,7 @@
                 src = src.replace(from, () => Object.entries(holders).reduce((t, [k, v]) => t.split(k).join(v), to));
               }
               FS.writeFile(file, src);
-            } catch (e) { console.warn('WebBlox: left ' + file + ' unchanged:', e.message); }
+            } catch (e) { console.warn('GN-BLOX: left ' + file + ' unchanged:', e.message); }
           }
           status('Loading place…', 88);
           setTimeout(show, placeStarted ? 120000 : 90000);
@@ -368,8 +385,8 @@
       s.onerror = () => fail('Couldn\'t download the game engine.', 'rblx.js failed to load');
       document.body.appendChild(s);
 
-      // WebBlox: the player list also shows the other players in your multiplayer room, and you
-      // appear under your WebBlox name (the engine names every local player "Player"). Leave Game
+      // GN-BLOX: the player list also shows the other players in your multiplayer room, and you
+      // appear under your GN-BLOX name (the engine names every local player "Player"). Leave Game
       // in the menu takes you home, and chat (yours and other players') shows in the chat window.
       // Settings has 2016's Graphics Mode / Graphics Quality and Fullscreen on every computer.
       // Each edit must match the engine's script exactly once, or that script is left alone.
@@ -390,29 +407,29 @@
           ["local function createPlayerEntry(player, isTopStat)\n\tlocal playerEntry = {}\n\tlocal name = player.Name",
            "local function createPlayerEntry(player, isTopStat)\n\tlocal playerEntry = {}\n\tlocal name = (player == Player and __WEBBLOX_NAME__) or player.Name"],
           ["for _,player in pairs(Players:GetPlayers()) do\n\tinsertPlayerEntry(player)\nend\n",
-           "for _,player in pairs(Players:GetPlayers()) do\n\tinsertPlayerEntry(player)\nend\n-- WebBlox: the other players in this multiplayer room (Folders with their leaderstats, kept up\n-- to date by WebBloxPlayers.lua in ReplicatedStorage.WebBlox.Players)\nspawn(function()\n\tlocal remote = game:GetService(\"ReplicatedStorage\"):WaitForChild(\"WebBlox\"):WaitForChild(\"Players\")\n\tlocal function add(child) if child:IsA(\"Folder\") then insertPlayerEntry(child) end end\n\tremote.ChildAdded:connect(add)\n\tremote.ChildRemoved:connect(function(child) removePlayerEntry(child) end)\n\tfor _, child in pairs(remote:GetChildren()) do add(child) end\nend)\n"]
+           "for _,player in pairs(Players:GetPlayers()) do\n\tinsertPlayerEntry(player)\nend\n-- GN-BLOX: the other players in this multiplayer room (Folders with their leaderstats, kept up\n-- to date by WebBloxPlayers.lua in ReplicatedStorage.WebBlox.Players)\nspawn(function()\n\tlocal remote = game:GetService(\"ReplicatedStorage\"):WaitForChild(\"WebBlox\"):WaitForChild(\"Players\")\n\tlocal function add(child) if child:IsA(\"Folder\") then insertPlayerEntry(child) end end\n\tremote.ChildAdded:connect(add)\n\tremote.ChildRemoved:connect(function(child) removePlayerEntry(child) end)\n\tfor _, child in pairs(remote:GetChildren()) do add(child) end\nend)\n"]
         ],
         '/content/scripts/Modules/Settings/Pages/LeaveGame.lua': [
           ["\tthis.LeaveGameButton:SetVerb(\"Exit\")\n",
-           "\t-- WebBlox: leaving goes back to the WebBlox home page (play.html listens for this signal)\n\tthis.LeaveGameButton.MouseButton1Click:connect(function()\n\t\tspawn(function() pcall(function() game:HttpGetAsync(\"https://webblox.signal/leave\") end) end)\n\tend)\n"]
+           "\t-- GN-BLOX: leaving goes back to the GN-BLOX home page (play.html listens for this signal)\n\tthis.LeaveGameButton.MouseButton1Click:connect(function()\n\t\tspawn(function() pcall(function() game:HttpGetAsync(\"https://webblox.signal/leave\") end) end)\n\tend)\n"]
         ],
         '/content/scripts/Modules/Chat.lua': [
           ["\tlocal ChatInstance = CreateChat()\n\tChatInstance:Initialize()\n",
-           "\tlocal ChatInstance = CreateChat()\n\tChatInstance:Initialize()\n\t-- WebBlox: your chat and other players' chat (from WebBloxPlayers.lua) go in this window\n\tspawn(function()\n\t\tlocal ev = game:GetService(\"ReplicatedStorage\"):WaitForChild(\"WebBlox\"):WaitForChild(\"ChatMessage\")\n\t\tev.Event:connect(function(name, text)\n\t\t\tif ChatInstance.ChatWindowWidget then\n\t\t\t\tpcall(function()\n\t\t\t\t\tChatInstance.ChatWindowWidget:AddChatMessage(Enum.PlayerChatType.All, { Name = tostring(name), Neutral = true, TeamColor = BrickColor.new(\"White\") }, tostring(text), nil)\n\t\t\t\tend)\n\t\t\tend\n\t\tend)\n\tend)\n"]
+           "\tlocal ChatInstance = CreateChat()\n\tChatInstance:Initialize()\n\t-- GN-BLOX: your chat and other players' chat (from WebBloxPlayers.lua) go in this window\n\tspawn(function()\n\t\tlocal ev = game:GetService(\"ReplicatedStorage\"):WaitForChild(\"WebBlox\"):WaitForChild(\"ChatMessage\")\n\t\tev.Event:connect(function(name, text)\n\t\t\tif ChatInstance.ChatWindowWidget then\n\t\t\t\tpcall(function()\n\t\t\t\t\tChatInstance.ChatWindowWidget:AddChatMessage(Enum.PlayerChatType.All, { Name = tostring(name), Neutral = true, TeamColor = BrickColor.new(\"White\") }, tostring(text), nil)\n\t\t\t\tend)\n\t\t\tend\n\t\tend)\n\tend)\n"]
         ],
         '/content/scripts/Modules/Settings/Pages/GameSettings.lua': [
           ["\tif platform == Enum.Platform.Windows or platform == Enum.Platform.OSX then\n\t\tcreateGraphicsOptions()\n\tend\n",
-           "\t-- WebBlox: graphics options on every computer (play.html scales the picture to match)\n\tcreateGraphicsOptions()\n"],
+           "\t-- GN-BLOX: graphics options on every computer (play.html scales the picture to match)\n\tcreateGraphicsOptions()\n"],
           ["\t\tlocal fullScreenInit = 1\n\t\tif not GameSettings:InFullScreen() then\n\t\t\tfullScreenInit = 2\n\t\tend\n",
            "\t\tlocal fullScreenInit = __WEBBLOX_FULLSCREEN__ and 1 or 2\n"],
           ["\t\tthis.FullscreenEnabler.IndexChanged:connect(function(newIndex)\n\t\t\tGuiService:ToggleFullscreen()\n\t\tend)\n",
-           "\t\tthis.FullscreenEnabler.IndexChanged:connect(function(newIndex)\n\t\t\t-- WebBlox: the page goes fullscreen (or back)\n\t\t\tspawn(function() pcall(function() game:HttpGetAsync(\"https://webblox.signal/fullscreen/\" .. (newIndex == 1 and \"1\" or \"0\")) end) end)\n\t\tend)\n"],
+           "\t\tthis.FullscreenEnabler.IndexChanged:connect(function(newIndex)\n\t\t\t-- GN-BLOX: the page goes fullscreen (or back)\n\t\t\tspawn(function() pcall(function() game:HttpGetAsync(\"https://webblox.signal/fullscreen/\" .. (newIndex == 1 and \"1\" or \"0\")) end) end)\n\t\tend)\n"],
           ["\t\tfunction SetGraphicsQuality(newValue, automaticSettingAllowed)\n",
-           "\t\t-- WebBlox: tell the page (it draws fewer or more pixels: Automatic follows the frame rate)\n\t\tlocal wbGfxReady = false\n\t\tlocal function wbGfx(v)\n\t\t\tif not wbGfxReady then return end\n\t\t\tspawn(function() pcall(function() game:HttpGetAsync(\"https://webblox.signal/gfx/\" .. tostring(math.floor(tonumber(v) or 0))) end) end)\n\t\tend\n\t\tfunction SetGraphicsQuality(newValue, automaticSettingAllowed)\n"],
+           "\t\t-- GN-BLOX: tell the page (it draws fewer or more pixels: Automatic follows the frame rate)\n\t\tlocal wbGfxReady = false\n\t\tlocal function wbGfx(v)\n\t\t\tif not wbGfxReady then return end\n\t\t\tspawn(function() pcall(function() game:HttpGetAsync(\"https://webblox.signal/gfx/\" .. tostring(math.floor(tonumber(v) or 0))) end) end)\n\t\tend\n\t\tfunction SetGraphicsQuality(newValue, automaticSettingAllowed)\n"],
           ["\t\t\tGameSettings.SavedQualityLevel = newValue\n\t\t\tsettings().Rendering.QualityLevel = newQualityLevel\n\t\tend\n",
            "\t\t\tGameSettings.SavedQualityLevel = newValue\n\t\t\tsettings().Rendering.QualityLevel = newQualityLevel\n\t\t\twbGfx(newValue)\n\t\tend\n"],
           ["\t\t-- initialize the slider position\n\t\tif GameSettings.SavedQualityLevel == Enum.SavedQualitySetting.Automatic then\n\t\t\tthis.GraphicsQualitySlider:SetValue(5)\n\t\t\tthis.GraphicsQualityEnabler:SetSelectionIndex(1)\n\t\telse\n\t\t\tlocal graphicsLevel = tostring(GameSettings.SavedQualityLevel)\n\t\t\tif GRAPHICS_QUALITY_TO_INT[graphicsLevel] then\n\t\t\t\tgraphicsLevel = GRAPHICS_QUALITY_TO_INT[graphicsLevel]\n\t\t\telse\n\t\t\t\tgraphicsLevel = GRAPHICS_QUALITY_LEVELS\n\t\t\tend\n\n\t\t\tspawn(function()\n\t\t\t\tthis.GraphicsQualitySlider:SetValue(graphicsLevel)\n\t\t\t\tthis.GraphicsQualityEnabler:SetSelectionIndex(2)\n\t\t\tend)\n\t\tend\n",
-           "\t\t-- initialize the slider position (WebBlox: from the setting saved on this device)\n\t\tif __WEBBLOX_GFX__ == 0 then\n\t\t\tthis.GraphicsQualitySlider:SetValue(5)\n\t\t\tthis.GraphicsQualityEnabler:SetSelectionIndex(1)\n\t\t\tsetGraphicsToAuto()\n\t\telse\n\t\t\tspawn(function()\n\t\t\t\tthis.GraphicsQualitySlider:SetValue(__WEBBLOX_GFX__)\n\t\t\t\tthis.GraphicsQualityEnabler:SetSelectionIndex(2)\n\t\t\tend)\n\t\tend\n\t\tdelay(2, function() wbGfxReady = true end)\n"]
+           "\t\t-- initialize the slider position (GN-BLOX: from the setting saved on this device)\n\t\tif __WEBBLOX_GFX__ == 0 then\n\t\t\tthis.GraphicsQualitySlider:SetValue(5)\n\t\t\tthis.GraphicsQualityEnabler:SetSelectionIndex(1)\n\t\t\tsetGraphicsToAuto()\n\t\telse\n\t\t\tspawn(function()\n\t\t\t\tthis.GraphicsQualitySlider:SetValue(__WEBBLOX_GFX__)\n\t\t\t\tthis.GraphicsQualityEnabler:SetSelectionIndex(2)\n\t\t\tend)\n\t\tend\n\t\tdelay(2, function() wbGfxReady = true end)\n"]
         ],
         '/content/scripts/CoreScripts/Topbar.lua': [
           ["\t\tText = Player.Name;\n",
@@ -430,11 +447,11 @@
           const doc = RBXFile.read(bytes);
           const notes = RBXFile.toEngine(doc, typemap, { safe: params.has('safe') });
           const out = RBXFile.write(doc);
-          console.log('WebBlox: converted the place (' + doc.format + ', ' + doc.insts.length + ' objects, ' +
+          console.log('GN-BLOX: converted the place (' + doc.format + ', ' + doc.insts.length + ' objects, ' +
             Math.round(performance.now() - t0) + ' ms' + (params.has('safe') ? ', safe mode' : '') + ')' + (notes.length ? ': ' + notes.join('; ') : ''));
           return out;
         } catch (e) {
-          console.warn('WebBlox: couldn\'t convert the place, giving it to the engine as it is:', e);
+          console.warn('GN-BLOX: couldn\'t convert the place, giving it to the engine as it is:', e);
           if (!isBinaryPlace(bytes)) bytes = new TextEncoder().encode(new TextDecoder().decode(bytes).replace(/<float name="FogEnd">0(\.0+)?<\/float>/g, '<float name="FogEnd">100000</float>'));
           return bytes;
         }

@@ -1,4 +1,4 @@
-// WebBlox peer-to-peer multiplayer over PeerJS (WebRTC). No server of our own needed.
+// GN-BLOX peer-to-peer multiplayer over PeerJS (WebRTC). No server of our own needed.
 //
 // The game's client script (scripts/WebBloxPlayers.lua) asks
 //   <site>/games/rblx/peer-sync/<sid>/sync?room=&id=&name=&s=&l=&c=&ack=
@@ -15,6 +15,12 @@
 // that's full) is skipped for a while and you join the next one. A hub left alone on a higher
 // server moves down when a lower one is free or reachable again, so players gather together.
 // Private rooms (invite links) are a single server.
+//
+// The site's owner and moderators (config.js, by account ID) can use admin commands in chat
+// (:kick, :ban, :m ... :cmds lists them). A command is signed with the account's key and passed
+// to everyone through the hub; each player's game checks the signature against config.js before
+// doing anything, so nobody else can send one. Players also prove their account ID with a
+// signature, which gives owners and moderators an [Owner] / [Mod] tag in chat and the player list.
 (function () {
   'use strict';
   const STALE_MS = 5000, MAX_PLAYERS = 30, CHAT_KEEP = 50, SEND_MS = 120, HUB_SILENT_MS = 4000;
@@ -42,7 +48,7 @@
     let conn = 'connecting';
     function setConn(c) { conn = c; onStatus(c); }
 
-    const me = { id: '', name: 'Guest', state: '', stats: '' };
+    const me = { id: '', name: 'Guest', state: '', stats: '', k: '', pr: '' };
     // The room's shared clock (ms): the hub's Date.now() + offset. Games use it to run
     // timed rounds together (Natural Disaster Survival). Kept across hub handovers.
     let offset = 0;
@@ -70,9 +76,160 @@
       const now = Date.now(), p = [];
       for (const [id, pl] of players) {
         if (now - pl.t > STALE_MS) { players.delete(id); continue; }
-        if (pl.state) p.push([id, pl.name, pl.state, pl.stats || '']);
+        if (pl.state) p.push([id, pl.name, pl.state, pl.stats || '', pl.k || '', pl.pr || '']);
       }
-      return { t: 'r', p, c: chat.slice(-20).map(m => [m.seq, m.id, m.name, m.text]), q: seq, h: me.id, T: roomNow() };
+      trimActs();
+      return { t: 'r', p, c: chat.slice(-20).map(m => [m.seq, m.id, m.name, m.text]), q: seq, h: me.id, T: roomNow(), a: acts };
+    }
+
+    // ---- owners and moderators ---------------------------------------------------------------
+    const ident = opts.identity || null;          // { pub, sign(text) -> Promise<signature> }
+    const verify = opts.verify || (async () => false);
+    const roleOf = opts.roleOf || (() => null);
+    const myRole = ident ? roleOf(ident.pub) : null;
+    if (ident) me.k = ident.pub;
+    const KEY_RE = /^[A-Za-z0-9_-]{43}$/, SIG_RE = /^[A-Za-z0-9_-]{86}$/;
+    const safe = v => String(v == null ? '' : v).replace(/[|\r\n]/g, ' ').slice(0, 200);
+    const luaQueue = [];                          // X| lines for this player's game
+    const say = text => luaQueue.push('X|say|' + safe(text));
+    let proofFor = '';
+    function ensureProof() {                      // "this player id belongs to this account"
+      if (!ident || !me.id || proofFor === me.id) return;
+      proofFor = me.id;
+      me.pr = '';
+      ident.sign('gnblox-id:' + room + ':' + me.id).then(sig => { if (proofFor === me.id) me.pr = sig; }).catch(() => {});
+    }
+    const playerRoles = new Map();                // id -> { tag, role } once their proof checks out
+    function checkPlayer(id, k, pr) {
+      if (!KEY_RE.test(k || '') || !SIG_RE.test(pr || '')) return;
+      const tag = k + pr, cur = playerRoles.get(id);
+      if (cur && cur.tag === tag) return;
+      const role = roleOf(k);
+      // keep a verified tag while a new proof is checked (no flicker in the player list)
+      playerRoles.set(id, { tag, role: cur && cur.k === k ? cur.role : null, k });
+      if (!role) { playerRoles.get(id).role = null; return; }
+      verify(k, 'gnblox-id:' + room + ':' + id, pr).then(ok => { const c = playerRoles.get(id); if (c && c.tag === tag) c.role = ok ? role : null; });
+    }
+    const roleTag = id => { const r = (playerRoles.get(id) || {}).role; return r === 'owner' ? '[Owner] ' : r === 'mod' ? '[Mod] ' : ''; };
+
+    // bans: kept on the banned player's device (a day, this game) and by the server's host
+    const BAN_KEY = 'gnblox-bans';
+    const bans = () => { try { return JSON.parse(localStorage.getItem(BAN_KEY) || '{}') || {}; } catch (e) { return {}; } };
+    const myBan = () => { const b = bans()[room]; return b && b.until > Date.now() ? b : null; };
+    function quit(info) {
+      stopped = true; clearTimeout(retryTimer);
+      const p = peer; peer = null; toHub = null; isHub = false; drop(p);
+      if (opts.onKick) opts.onKick(info);
+    }
+
+    // signed admin actions: { r: room, c: command, t: '*' or [player ids / account ids], x: [args],
+    //   ts, n: nonce, k: signer's account ID, sn: signer's name, s: signature }
+    const COMMANDS = {
+      kick: { who: true, rest: true, help: ':kick <player> [reason]' },
+      ban: { who: true, rest: true, help: ':ban <player> [reason] (out of this game for a day)' },
+      kill: { who: true, help: ':kill <player>' },
+      respawn: { who: true, help: ':respawn <player>' },
+      tp: { who: true, dest: true, help: ':tp <player> <to player>' },
+      bring: { who: true, help: ':bring <player>' },
+      to: { local: true, help: ':to <player>' },
+      speed: { who: true, num: true, help: ':speed <player> <number>' },
+      god: { who: true, help: ':god <player>' }, ungod: { who: true, help: ':ungod <player>' },
+      freeze: { who: true, help: ':freeze <player>' }, thaw: { who: true, help: ':thaw <player>' },
+      m: { all: true, help: ':m <message>' }, h: { all: true, help: ':h <hint>' },
+    };
+    const HELP = 'Commands: ' + Object.values(COMMANDS).map(c => c.help.split(' ')[0]).join(' ') + ' (players: a name, me, all or others)';
+    const acts = [], seenActs = new Set(), hubBanned = new Set();
+    const ACT_KEEP_MS = 120000;
+    const actText = a => JSON.stringify(['gnblox-act', a.r, a.c, a.t, a.x, a.ts, a.n, a.k, a.sn]);
+    const validAct = a => !!a && typeof a === 'object' && a.r === room && typeof a.c === 'string' && COMMANDS[a.c] && !COMMANDS[a.c].local
+      && (a.t === '*' || (Array.isArray(a.t) && a.t.length <= 60 && a.t.every(x => typeof x === 'string' && x.length <= 64)))
+      && Array.isArray(a.x) && a.x.length <= 3 && a.x.every(x => typeof x === 'string' && x.length <= 200)
+      && Number.isFinite(a.ts) && typeof a.n === 'string' && /^[a-z0-9]{8,32}$/.test(a.n) && KEY_RE.test(a.k) && SIG_RE.test(a.s || '') && typeof a.sn === 'string' && a.sn.length <= 40;
+    function trimActs() {
+      const now = Date.now();
+      while (acts.length && (acts.length > 30 || now - acts[0].ts > ACT_KEEP_MS)) acts.shift();
+    }
+    const rank = r => (r === 'owner' ? 2 : r === 'mod' ? 1 : 0);
+    function consumeActs(list) {
+      if (!Array.isArray(list)) return;
+      for (const a of list) {
+        if (!a || typeof a.n !== 'string' || seenActs.has(a.n)) continue;
+        seenActs.add(a.n);
+        if (!validAct(a) || Math.abs(Date.now() - a.ts) > 5 * 60000) continue;
+        const role = roleOf(a.k);
+        if (!role) continue;
+        verify(a.k, actText(a), a.s).then(ok => { if (ok && !stopped) applyAct(a, role); else if (!ok) console.warn('GN-BLOX: ignored an admin command with a bad signature'); });
+      }
+    }
+    function applyAct(a, role) {
+      const by = safe(a.sn || 'Admin');
+      if (a.c === 'm' || a.c === 'h') { luaQueue.push('X|' + (a.c === 'm' ? 'msg' : 'hint') + '|' + by + '|' + safe(a.x[0])); return; }
+      const mine = a.t === '*' || a.t.includes(me.id) || (me.k && a.t.includes(me.k));
+      if (!mine) { if (a.c === 'ban' && isHub) for (const t of a.t) hubBanned.add(t); return; }
+      // moderators can't touch the owner or each other (anyone can target themselves)
+      const meRole = me.pr ? myRole : null;
+      if (a.k !== me.k && rank(meRole) >= rank(role)) return;
+      const reason = safe(a.x[0] || '');
+      if (a.c === 'kick') return quit({ by, reason });
+      if (a.c === 'ban') {
+        const b = bans(); b[room] = { until: Date.now() + 86400000, by, reason };
+        try { localStorage.setItem(BAN_KEY, JSON.stringify(b)); } catch (e) {}
+        return quit({ ban: true, by, reason });
+      }
+      if (a.c === 'speed') luaQueue.push('X|speed|' + Math.max(0, Math.min(500, Number(a.x[0]) || 16)));
+      else if (a.c === 'tp' || a.c === 'bring') luaQueue.push('X|tpto|' + safe(a.x[0]));
+      else luaQueue.push('X|' + a.c);
+    }
+    function nowPlayers() {
+      const list = (isHub ? hubSnapshot().p : snapshot.p).filter(pl => pl[0] !== me.id).map(pl => ({ id: pl[0], name: String(pl[1] || ''), k: KEY_RE.test(pl[4] || '') ? pl[4] : '' }));
+      return [{ id: me.id, name: me.name, k: me.k, me: true }, ...list];
+    }
+    function pick(word, list) {
+      const w = String(word || '').toLowerCase();
+      if (!w) return [];
+      if (w === 'me') return list.filter(p => p.me);
+      if (w === 'all') return list;
+      if (w === 'others') return list.filter(p => !p.me);
+      const exact = list.filter(p => p.name.toLowerCase() === w || p.name.toLowerCase().replace(/\s+/g, '') === w);
+      return exact.length ? exact : list.filter(p => p.name.toLowerCase().startsWith(w) || p.name.toLowerCase().replace(/\s+/g, '').startsWith(w));
+    }
+    function runCommand(text) {
+      console.info('GN-BLOX admin command:', text);
+      const parts = text.slice(1).trim().split(/\s+/);
+      const cmd = (parts.shift() || '').toLowerCase();
+      if (cmd === 'cmds' || cmd === 'help' || cmd === 'commands') return say(HELP);
+      const spec = COMMANDS[cmd];
+      if (!spec) return say('There\'s no :' + cmd + ' command. ' + HELP);
+      const list = nowPlayers();
+      if (cmd === 'to') {
+        const d = pick(parts[0], list).filter(p => !p.me)[0];
+        return d ? luaQueue.push('X|tpto|' + d.id) : say('Usage: ' + spec.help);
+      }
+      let t = '*', x = [], names = '';
+      if (spec.who) {
+        const who = pick(parts.shift(), list);
+        if (!who.length) return say('Usage: ' + spec.help + ' (nobody by that name here)');
+        t = [...new Set(who.flatMap(p => (p.k ? [p.id, p.k] : [p.id])))];
+        names = who.map(p => p.name).join(', ');
+      }
+      if (spec.dest) {
+        const d = pick(parts.shift(), list)[0];
+        if (!d) return say('Usage: ' + spec.help);
+        x = [d.id];
+      }
+      if (cmd === 'bring') x = [me.id];
+      if (spec.num) x = [String(Number(parts.shift()) || 16)];
+      if (spec.rest) x = [parts.join(' ').slice(0, 150)];
+      if (spec.all) { x = [parts.join(' ').slice(0, 180)]; if (!x[0]) return say('Usage: ' + spec.help); }
+      const a = { r: room, c: cmd, t, x, ts: Date.now(), n: Array.from(crypto.getRandomValues(new Uint8Array(12)), b => (b % 36).toString(36)).join(''), k: ident.pub, sn: me.name };
+      ident.sign(actText(a)).then(sig => {
+        a.s = sig;
+        if (isHub) { acts.push(a); trimActs(); }
+        else if (toHub && toHub.open) { try { toHub.send({ t: 'a', a }); } catch (e) {} }
+        else return say('Not connected to a server yet.');
+        consumeActs([a]);
+        say(':' + cmd + (names ? ' ' + names : '') + ' sent');
+      }).catch(() => say('Couldn\'t sign that command. Log out and back in on the Log In page.'));
     }
 
     // ---- answering the game's /sync requests --------------------------------------------
@@ -85,9 +242,11 @@
       const s = String(q.get('s') || '');
       if (STATE_RE.test(s)) me.state = s;
       if (q.has('l')) me.stats = statsOf(q.get('l'));
-      const c = clean(q.get('c'), 120);
+      ensureProof();
+      let c = clean(q.get('c'), 120);
+      if (c && c[0] === ':' && myRole && ident) { runCommand(c); c = ''; }
       if (isHub) {
-        players.set(id, { name: me.name, state: me.state, stats: me.stats, t: Date.now(), conn: null });
+        players.set(id, { name: me.name, state: me.state, stats: me.stats, t: Date.now(), conn: null, k: me.pr ? me.k : '', pr: me.pr });
         if (c) addChat(id, me.name, c);
       } else {
         if (c) outChat.push(c);
@@ -104,10 +263,16 @@
       if (NOTES[conn]) out.push('M|' + NOTES[conn]);
       if (!privateRoom && server) out.push('N|' + server);
       if (isHub) out.push('L|0'); else if (toHub && rtt != null) out.push('L|' + rtt);
-      for (const [pid, name, st, stats] of view.p) if (pid !== id) out.push(`P|${pid}|${name}|${st}|${statsOf(stats)}`);
-      if (Number.isFinite(ack) && ack >= 0) {
-        for (const [mseq, mid, name, text] of view.c) if (mseq > ack && mid !== id) out.push(`C|${mseq}|${mid}|${name}|${text}`);
+      for (const [pid, name, st, stats, k, pr] of view.p) {
+        if (pid === id) continue;
+        checkPlayer(pid, k, pr);
+        out.push(`P|${pid}|${roleTag(pid)}${name}|${st}|${statsOf(stats)}`);
       }
+      if (Number.isFinite(ack) && ack >= 0) {
+        for (const [mseq, mid, name, text] of view.c) if (mseq > ack && mid !== id) out.push(`C|${mseq}|${mid}|${roleTag(mid)}${name}|${text}`);
+      }
+      consumeActs(isHub ? acts : snapshot.a);
+      while (luaQueue.length) out.push(luaQueue.shift());
       out.push(`T|${Math.round(roomNow())}`);
       out.push(`S|${view.q}`);
       return out.join('\n') + '\n';
@@ -119,8 +284,11 @@
       const now = Date.now();
       if (now - lastSent < 60 && !outChat.length) return;
       lastSent = now;
-      try { toHub.send({ t: 'u', id: me.id, n: me.name, s: me.state, l: me.stats, c: outChat.splice(0, 3), q: snapshot.q }); } catch (e) {}
+      try { toHub.send({ t: 'u', id: me.id, n: me.name, s: me.state, l: me.stats, c: outChat.splice(0, 3), q: snapshot.q, k: me.pr ? me.k : '', pr: me.pr }); } catch (e) {}
     }
+
+    const banned = myBan();
+    if (banned) { stopped = true; setTimeout(() => opts.onKick && opts.onKick({ ban: true, by: banned.by, reason: banned.reason, until: banned.until }), 0); }
 
     const bc = new BroadcastChannel('webblox-mp');
     bc.onmessage = e => {
@@ -193,6 +361,7 @@
       players.clear();
       if (Date.now() - heard < STALE_MS) for (const [id, name, st, stats] of snapshot.p) if (id !== snapshot.h) players.set(id, { name, state: st, stats: statsOf(stats), t: Date.now() - 2000, conn: null });
       seq = Math.max(seq, snapshot.q || 0);
+      for (const a of snapshot.a || []) if (validAct(a) && !acts.some(x => x.n === a.n)) acts.push(a);
       setConn('hub');
       p.on('connection', c => {
         if (conns.size >= MAX_PLAYERS + 10) { c.on('open', () => c.close()); return; }
@@ -202,10 +371,16 @@
           c.wbSeen = Date.now();
           if (d && d.t === 'who') { try { c.send({ t: 'who', n: hubSnapshot().p.length }); } catch (e) {} return; }
           if (d && d.t === 'ping') { try { c.send({ t: 'pong', ts: d.ts }); } catch (e) {} return; }
+          if (d && d.t === 'a') {
+            if (validAct(d.a) && !acts.some(x => x.n === d.a.n)) { acts.push(d.a); trimActs(); consumeActs([d.a]); }
+            return;
+          }
           if (!d || d.t !== 'u' || !/^[a-z0-9]{6,16}$/.test(String(d.id))) return;
+          const k = KEY_RE.test(String(d.k)) ? String(d.k) : '', pr = SIG_RE.test(String(d.pr)) ? String(d.pr) : '';
+          if (hubBanned.has(d.id) || (k && hubBanned.has(k))) { try { c.send({ t: 'banned' }); } catch (e) {} setTimeout(() => c.close(), 200); return; }
           if (!players.has(d.id) && players.size >= MAX_PLAYERS) { try { c.send({ t: 'full' }); } catch (e) {} setTimeout(() => c.close(), 200); return; }
           const name = clean(d.n, 20) || 'Guest';
-          players.set(d.id, { name, state: STATE_RE.test(String(d.s)) ? String(d.s) : '', stats: statsOf(d.l), t: Date.now(), conn: c });
+          players.set(d.id, { name, state: STATE_RE.test(String(d.s)) ? String(d.s) : '', stats: statsOf(d.l), t: Date.now(), conn: c, k, pr });
           // after a hub handover, keep chat numbers moving forward so nobody skips new messages
           const q = d.q | 0; if (q > seq && q < seq + 1e6) seq = q;
           for (const text of (Array.isArray(d.c) ? d.c : []).slice(0, 3)) addChat(d.id, name, clean(text, 120));
@@ -285,9 +460,12 @@
         return;
       }
       if (d.t === 'r') {
-        snapshot = { p: Array.isArray(d.p) ? d.p : [], c: Array.isArray(d.c) ? d.c : [], q: d.q | 0, h: String(d.h || '') };
+        snapshot = { p: Array.isArray(d.p) ? d.p : [], c: Array.isArray(d.c) ? d.c : [], q: d.q | 0, h: String(d.h || ''), a: Array.isArray(d.a) ? d.a.slice(-30) : [] };
         heard = Date.now();
         if (Number.isFinite(d.T)) offset = d.T - Date.now();
+      } else if (d.t === 'banned') {
+        const b = myBan() || {};
+        quit({ ban: true, by: b.by || '', reason: b.reason || '' });
       } else if (d.t === 'full') {
         toHub = null;
         const old = peer;

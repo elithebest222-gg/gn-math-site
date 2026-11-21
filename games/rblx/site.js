@@ -1,4 +1,4 @@
-// WebBlox site: shared header/menu, saved player state (Robux, inventory, outfit, name),
+// GN-BLOX site: shared header/menu, saved player state (Robux, inventory, outfit, name),
 // the Catalog's items, and 2016-style avatar drawings. Used by index.html and catalog.html.
 (function () {
   'use strict';
@@ -79,7 +79,7 @@
     { id: 'beanie', name: 'Blue Beanie', type: 'hat', value: 'beanie', price: 60, desc: 'A cozy knit beanie with a white pom-pom.' },
     { id: 'cowboy', name: 'Cowboy Hat', type: 'hat', value: 'cowboy', price: 180, desc: 'Yeehaw! A wide-brimmed brown cowboy hat.' },
     { id: 'bunny', name: 'Bunny Ears', type: 'hat', value: 'bunny', price: 80, desc: 'Fluffy white bunny ears on a pink headband.' },
-    { id: 'shades', name: 'Cool Shades', type: 'hat', value: 'shades', price: 110, featured: true, desc: 'The coolest sunglasses in WebBlox.' },
+    { id: 'shades', name: 'Cool Shades', type: 'hat', value: 'shades', price: 110, featured: true, desc: 'The coolest sunglasses in GN-BLOX.' },
     { id: 'hardhat', name: 'Construction Hard Hat', type: 'hat', value: 'hardhat', price: 70, desc: 'Safety first! A yellow hard hat for builders.' },
     { id: 'speedcoil', name: 'Speed Coil', type: 'gear', value: 'speedcoil', price: 300, featured: true, desc: 'Hold it to run twice as fast. Shows up in your Backpack in every game.' },
     { id: 'gravitycoil', name: 'Gravity Coil', type: 'gear', value: 'gravitycoil', price: 300, featured: true, desc: 'Hold it to jump way higher and fall slowly. Shows up in your Backpack in every game.' },
@@ -134,7 +134,7 @@
     look: () => Object.assign({}, DEFAULT_LOOK, WB.outfit()),
     name() { try { return (localStorage.getItem('webblox-name') || '').replace(/[^A-Za-z0-9_ ]/g, '').slice(0, 20); } catch (e) { return ''; } },
     setName(n) { try { localStorage.setItem('webblox-name', String(n).replace(/[^A-Za-z0-9_ ]/g, '').trim().slice(0, 20)); } catch (e) {} },
-    displayName() { return WB.name() || 'WebBloxPlayer'; },
+    displayName() { return WB.name() || 'GNBloxPlayer'; },
     // gear: you can carry several (outfit.gear is a list); everything else is one per slot
     gear: () => { const g = WB.outfit().gear; return Array.isArray(g) ? g.filter(v => GEAR[v]) : []; },
     wearing(item) {
@@ -241,7 +241,7 @@
     const html = ICONS + `
     <header class="hdr">
       <button class="burger" aria-label="Menu" onclick="document.body.classList.toggle('nav-open')"><svg class="i"><use href="#i-menu"/></svg></button>
-      <a class="logo" href="index.html" aria-label="WebBlox home"><img src="WebBlox.png" alt="WebBlox" /></a>
+      <a class="logo" href="index.html" aria-label="GN-BLOX home"><img src="GN-BLOX.png" alt="GN-BLOX" /></a>
       <nav class="hnav">
         <a href="index.html#games">Games</a>
         <a href="catalog.html"${on('catalog')}>Catalog</a>
@@ -269,6 +269,7 @@
         <li><a href="index.html#feed"><svg class="i"><use href="#i-forum"/></svg>Forum</a></li>
         <li><a href="index.html#news"><svg class="i"><use href="#i-blog"/></svg>Blog</a></li>
         <li><a href="catalog.html"${on('catalog')}><svg class="i"><use href="#i-shop"/></svg>Shop</a></li>
+        ${WB.role() ? `<li><a href="admin.html"${on('admin')}><svg class="i"><use href="#i-gear"/></svg>Admin</a></li>` : ''}
       </ul>
       <a class="upgrade" href="studio.html">Create in Studio</a>
       <a class="upgrade alt" href="#" onclick="WB.pickPlace(); return false;">Upload a Place</a>
@@ -276,7 +277,7 @@
       <a class="event" href="index.html#game=nds">Disaster Weekend<small>Survive every disaster!</small></a>
     </aside>
     <div class="scrim" onclick="document.body.classList.remove('nav-open')"></div>
-    <div class="confirm launch" id="launch"><div class="box"><div class="spinner"></div><h3>WebBlox is now loading.</h3><p>Get ready to play!</p></div></div>
+    <div class="confirm launch" id="launch"><div class="box"><div class="spinner"></div><h3>GN-BLOX is now loading.</h3><p>Get ready to play!</p></div></div>
     <input type="file" id="rbxl" accept=".rbxl,.rbxlx,.rbxm,.rbxmx" hidden />`;
     document.body.insertAdjacentHTML('afterbegin', html);
     document.getElementById('who').textContent = WB.displayName();
@@ -286,9 +287,14 @@
   };
 
   // ---------- accounts ----------
-  // WebBlox accounts live in this browser only (there's no server behind this site): each one keeps
-  // its own name, ROBUX, items and outfit. Passwords are stored as salted SHA-256 hashes. The
-  // active account's data sits in the usual webblox-* keys, so every page and game just reads those.
+  // GN-BLOX accounts keep their name, ROBUX, items and outfit in this browser (there's no server
+  // behind this site). Passwords are stored as salted SHA-256 hashes. The active account's data
+  // sits in the usual webblox-* keys, so every page and game just reads those.
+  //
+  // Each account also has an account ID: a signing key made from its username and password
+  // (PBKDF2, then Ed25519), so the same username and password give the same ID on any device and
+  // nobody without the password can make it. config.js lists the owner's and moderators' IDs;
+  // their admin commands in games are signed with the key and checked by every player's game.
   const ACCOUNT_KEYS = ['webblox-robux', 'webblox-inventory', 'webblox-outfit', 'webblox-name', 'webblox-stipend', 'webblox-status', 'webblox-joined'];
   const raw = k => { try { return localStorage.getItem(k); } catch (e) { return null; } };
   const setRaw = (k, v) => { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) {} };
@@ -301,6 +307,53 @@
     const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(salt + ':' + password));
     return hex(new Uint8Array(buf));
   }
+  // account IDs ---------------------------------------------------------------------------
+  const b64u = bytes => btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  const unb64u = s => Uint8Array.from(atob(String(s).replace(/-/g, '+').replace(/_/g, '/') + '==='.slice((String(s).length + 3) % 4)), c => c.charCodeAt(0));
+  const PKCS8_ED25519 = [0x30, 0x2e, 0x02, 0x01, 0x00, 0x30, 0x05, 0x06, 0x03, 0x2b, 0x65, 0x70, 0x04, 0x22, 0x04, 0x20];
+  const ID_RE = /^[A-Za-z0-9_-]{43}$/;
+  async function deriveIdentity(username, password) {
+    const te = new TextEncoder();
+    const base = await crypto.subtle.importKey('raw', te.encode(String(password)), 'PBKDF2', false, ['deriveBits']);
+    const seed = new Uint8Array(await crypto.subtle.deriveBits({ name: 'PBKDF2', salt: te.encode('gn-blox-account:' + String(username).toLowerCase()), iterations: 250000, hash: 'SHA-256' }, base, 256));
+    const key = await crypto.subtle.importKey('pkcs8', new Uint8Array([...PKCS8_ED25519, ...seed]), { name: 'Ed25519' }, true, ['sign']);
+    const jwk = await crypto.subtle.exportKey('jwk', key);
+    return { seed: b64u(seed), pub: jwk.x };
+  }
+  async function makeIdentity(key, username, password) {
+    try {
+      const id = await deriveIdentity(username, password);
+      save('gnblox-key', { user: key, pub: id.pub, seed: id.seed });
+      const all = accounts();
+      if (all[key] && all[key].pub !== id.pub) { all[key].pub = id.pub; save('webblox-accounts', all); }
+    } catch (e) { console.warn('GN-BLOX: this browser can\'t make account IDs (Ed25519)', e); setRaw('gnblox-key', null); }
+  }
+  WB.identity = () => { const k = load('gnblox-key', null); return k && k.user === WB.session() && ID_RE.test(k.pub) ? k : null; };
+  WB.accountId = () => { const k = WB.identity(); return k ? k.pub : null; };
+  WB.roleOf = pub => {
+    const c = window.WEBBLOX_CONFIG || {};
+    if (!pub || !ID_RE.test(pub)) return null;
+    if ((c.owners || []).includes(pub)) return 'owner';
+    if ((c.mods || []).includes(pub)) return 'mod';
+    return null;
+  };
+  WB.role = () => WB.roleOf(WB.accountId());
+  let signKey = null;
+  WB.sign = async text => {
+    const k = WB.identity();
+    if (!k) throw new Error('Log in first.');
+    if (!signKey || signKey.pub !== k.pub) signKey = { pub: k.pub, key: await crypto.subtle.importKey('pkcs8', new Uint8Array([...PKCS8_ED25519, ...unb64u(k.seed)]), { name: 'Ed25519' }, false, ['sign']) };
+    return b64u(new Uint8Array(await crypto.subtle.sign({ name: 'Ed25519' }, signKey.key, new TextEncoder().encode(text))));
+  };
+  const verifyKeys = new Map();
+  WB.verify = async (pub, text, sig) => {
+    try {
+      if (!ID_RE.test(pub) || typeof sig !== 'string') return false;
+      if (!verifyKeys.has(pub)) verifyKeys.set(pub, await crypto.subtle.importKey('raw', unb64u(pub), { name: 'Ed25519' }, false, ['verify']));
+      return await crypto.subtle.verify({ name: 'Ed25519' }, verifyKeys.get(pub), unb64u(sig), new TextEncoder().encode(text));
+    } catch (e) { return false; }
+  };
+
   WB.session = () => { const s = raw('webblox-session'); return s && accounts()[s] ? s : null; };
   WB.accountName = () => { const s = WB.session(); return s ? accounts()[s].name : null; };
   WB.signUp = async function (username, password) {
@@ -319,17 +372,20 @@
     setRaw('webblox-session', key);
     setRaw('webblox-name', username);
     if (!raw('webblox-joined')) setRaw('webblox-joined', all[key].created);
+    await makeIdentity(key, username, password);
   };
   WB.logIn = async function (username, password) {
     const key = String(username || '').trim().toLowerCase();
     const a = accounts()[key];
+    if (!a && /^[A-Za-z0-9_]{3,20}$/.test(key)) throw new Error('There\'s no account called ' + String(username).trim() + ' on this device yet. To use your account here, Sign Up with the same username and password: your account ID will be the same.');
     if (!a || !window.crypto || !crypto.subtle || await hashPassword(a.salt, String(password || '')) !== a.hash) throw new Error('Wrong username or password.');
     const was = WB.session();
-    if (was === key) return;
+    if (was === key) { if (!WB.identity()) await makeIdentity(key, a.name, password); return; }
     if (was) stash(was); else setRaw('webblox-guest', JSON.stringify(current()));
     restore(load('webblox-acct:' + key, null));
     if (!raw('webblox-name')) setRaw('webblox-name', a.name);
     setRaw('webblox-session', key);
+    await makeIdentity(key, a.name, password);
   };
   WB.logOut = function () {
     const was = WB.session();
@@ -338,6 +394,7 @@
     restore(load('webblox-guest', null));
     setRaw('webblox-guest', null);
     setRaw('webblox-session', null);
+    setRaw('gnblox-key', null);
   };
 
   WB.rename = function () {
