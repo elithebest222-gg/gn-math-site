@@ -258,7 +258,6 @@ player.Chatted:connect(function(msg)
 	if string.sub(msg, 1, 1) == "/" then return end
 	msg = string.sub(msg, 1, 120)
 	if online then table.insert(outbox, msg) end
-	chatEvent:Fire(myName, msg)
 	local head = player.Character and player.Character:FindFirstChild("Head")
 	if head then speechBubble(head, msg) end
 end)
@@ -407,6 +406,35 @@ local function joint(name, parent, p0, p1, c0, c1)
 	m.Parent = parent
 end
 
+-- The site's owner and moderators wear the GN logo above their head
+local ROLE_ICONS = { owner = "rbxasset://textures/ui/gn-owner.png", mod = "rbxasset://textures/ui/gn-mod.png" }
+local function roleBadge(model, role)
+	local head = model and model:FindFirstChild("Head")
+	if not head then return end
+	local old = head:FindFirstChild("GNRoleTag")
+	local icon = role and ROLE_ICONS[string.lower(role)]
+	if not icon then if old then old:Destroy() end return end
+	if old and old:FindFirstChild("Icon") and old.Icon.Image == icon then return end
+	if old then old:Destroy() end
+	local bb = Instance.new("BillboardGui")
+	bb.Name = "GNRoleTag"
+	bb.Size = UDim2.new(0, 30, 0, 30)
+	bb.StudsOffset = Vector3.new(0, 3.1, 0)
+	bb.AlwaysOnTop = true
+	local img = Instance.new("ImageLabel")
+	img.Name = "Icon"
+	img.BackgroundTransparency = 1
+	img.Size = UDim2.new(1, 0, 1, 0)
+	img.Image = icon
+	img.Parent = bb
+	bb.Parent = head
+end
+if WB.role then   -- your own badge
+	local function badgeMe(c) c:WaitForChild("Head") roleBadge(c, WB.role) end
+	player.CharacterAdded:connect(badgeMe)
+	if player.Character then spawn(function() badgeMe(player.Character) end) end
+end
+
 local function makeAvatar(name)
 	local m = Instance.new("Model")
 	m.Name = name
@@ -495,7 +523,10 @@ local function update(id, name, state, stats)
 	end
 	o.seen = tick()
 	o.target = CFrame.new(x, y, z) * CFrame.Angles(0, yaw, 0)
-	if o.model.Name ~= name then o.model.Name = name end
+	local role, plain = string.match(name, "^%[(%a+)%] (.*)$")
+	local shown = plain or name
+	if o.model.Name ~= shown then o.model.Name = shown end
+	if o.role ~= role then o.role = role roleBadge(o.model, role) end
 	local key = table.concat(f, ",", 6, 12)
 	if o.lookKey ~= key then
 		o.lookKey = key
@@ -518,34 +549,232 @@ local function bubble(id, name, text)
 end
 
 -- Admin commands from the site's owner / moderators (p2p.js checks they're signed by one; X| lines)
+local admin = { loopkill = false, noclip = false, fly = nil, jail = nil, hidden = nil }
+local function myParts(char)
+	local out = {}
+	local function walk(o) for _, c in pairs(o:GetChildren()) do if c:IsA("BasePart") then table.insert(out, c) end walk(c) end end
+	if char then walk(char) end
+	return out
+end
+local function removeNamed(parent, name)
+	if not parent then return end
+	for _, c in pairs(parent:GetChildren()) do if c.Name == name then c:Destroy() end end
+end
+local function effect(char, class, on)
+	local torso = char and char:FindFirstChild("Torso")
+	if not torso then return end
+	removeNamed(torso, "GNAdmin" .. class)
+	if on then
+		local e = Instance.new(class)
+		e.Name = "GNAdmin" .. class
+		if class == "PointLight" then e.Range = 18 e.Brightness = 3 end
+		e.Parent = torso
+	end
+end
+local function setFly(on)
+	local char = player.Character
+	local root = char and (char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("Torso"))
+	local hum = char and char:FindFirstChild("Humanoid")
+	if admin.fly then admin.fly.conn:disconnect() pcall(function() admin.fly.gyro:Destroy() admin.fly.vel:Destroy() end) admin.fly = nil end
+	if hum then hum.PlatformStand = false end
+	if not (on and root and hum) then return end
+	local gyro = Instance.new("BodyGyro")
+	gyro.maxTorque = Vector3.new(4e5, 4e5, 4e5) gyro.P = 9e4 gyro.cframe = root.CFrame gyro.Parent = root
+	local vel = Instance.new("BodyVelocity")
+	vel.maxForce = Vector3.new(4e5, 4e5, 4e5) vel.velocity = Vector3.new() vel.Parent = root
+	hum.PlatformStand = true
+	local UIS = game:GetService("UserInputService")
+	local function down(k) local ok, r = pcall(function() return UIS:IsKeyDown(k) end) return ok and r end
+	local conn = RunService.RenderStepped:connect(function()
+		local cam = workspace.CurrentCamera
+		if not (cam and root.Parent) then return end
+		local cf = cam.CoordinateFrame
+		local dir = Vector3.new()
+		if down(Enum.KeyCode.W) then dir = dir + cf.lookVector end
+		if down(Enum.KeyCode.S) then dir = dir - cf.lookVector end
+		if down(Enum.KeyCode.D) then dir = dir + cf.rightVector end
+		if down(Enum.KeyCode.A) then dir = dir - cf.rightVector end
+		if down(Enum.KeyCode.Space) then dir = dir + Vector3.new(0, 1, 0) end
+		if dir.magnitude > 0 then dir = dir.unit end
+		vel.velocity = dir * 60
+		gyro.cframe = cf
+	end)
+	admin.fly = { conn = conn, gyro = gyro, vel = vel }
+end
+RunService.Stepped:connect(function()
+	if not admin.noclip then return end
+	for _, p in ipairs(myParts(player.Character)) do p.CanCollide = false end
+end)
+player.CharacterAdded:connect(function(c)
+	admin.fly = nil
+	if admin.loopkill then
+		local hum = c:WaitForChild("Humanoid")
+		wait(1)
+		if admin.loopkill then hum.Health = 0 end
+	end
+end)
+local function jail(on)
+	if admin.jail then admin.jail:Destroy() admin.jail = nil end
+	local char = player.Character
+	local root = char and (char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("Torso"))
+	if not (on and root) then return end
+	local m = Instance.new("Model")
+	m.Name = "GNJail"
+	local c = root.Position - Vector3.new(0, 2.5, 0)
+	local function bar(pos, size, transparency)
+		local b = Instance.new("Part")
+		b.Anchored = true b.FormFactor = Enum.FormFactor.Custom b.Size = size b.CFrame = CFrame.new(c + pos)
+		b.BrickColor = BrickColor.new("Really black") b.Transparency = transparency or 0 b.TopSurface = 0 b.BottomSurface = 0
+		b.Parent = m
+	end
+	bar(Vector3.new(0, 0, 0), Vector3.new(8, 1, 8))
+	bar(Vector3.new(0, 8, 0), Vector3.new(8, 1, 8))
+	for i = -3, 3, 2 do
+		bar(Vector3.new(i, 4, 3.5), Vector3.new(0.4, 7, 0.4)) bar(Vector3.new(i, 4, -3.5), Vector3.new(0.4, 7, 0.4))
+		bar(Vector3.new(3.5, 4, i), Vector3.new(0.4, 7, 0.4)) bar(Vector3.new(-3.5, 4, i), Vector3.new(0.4, 7, 0.4))
+	end
+	for _, side in ipairs({ Vector3.new(0, 4, 4), Vector3.new(0, 4, -4), Vector3.new(4, 4, 0), Vector3.new(-4, 4, 0) }) do
+		bar(side, Vector3.new(side.X ~= 0 and 0.2 or 8, 7, side.Z ~= 0 and 0.2 or 8), 1)
+	end
+	m.Parent = workspace
+	admin.jail = m
+	root.CFrame = CFrame.new(c + Vector3.new(0, 3.5, 0))
+end
+local function giveBuildTools()
+	local pack = player:FindFirstChild("Backpack")
+	if not pack then return end
+	for _, kind in ipairs({ { "Grab", 2 }, { "Clone", 3 }, { "Delete", 4 } }) do
+		local h = Instance.new("HopperBin")
+		h.Name = kind[1]
+		pcall(function() h.BinType = kind[2] end)
+		h.Parent = pack
+	end
+end
+local countdownId = 0
 local function adminAction(line)
 	local f = {}
 	for v in string.gmatch(line .. "|", "([^|]*)|") do f[#f + 1] = v end
-	local what = f[1]
+	local what, arg = f[1], f[2]
+	local n = tonumber(arg)
 	local char = player.Character
 	local hum = char and char:FindFirstChild("Humanoid")
 	local root = char and (char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("Torso"))
+	local torso = char and char:FindFirstChild("Torso")
 	if what == "say" then
-		chatEvent:Fire("GN-BLOX", f[2] or "")
+		chatEvent:Fire("GN-BLOX", arg or "")
 	elseif what == "msg" or what == "hint" then
 		local m = Instance.new(what == "msg" and "Message" or "Hint")
-		m.Text = ((f[2] or "") ~= "" and (f[2] .. ": ") or "") .. (f[3] or "")
+		m.Text = ((arg or "") ~= "" and (arg .. ": ") or "") .. (f[3] or "")
 		m.Parent = workspace
 		delay(what == "msg" and 6 or 8, function() pcall(function() m:Destroy() end) end)
+	elseif what == "countdown" then
+		countdownId = countdownId + 1
+		local my = countdownId
+		spawn(function()
+			local h = Instance.new("Hint")
+			h.Parent = workspace
+			for i = math.floor(n or 10), 1, -1 do
+				if my ~= countdownId then break end
+				h.Text = tostring(i)
+				wait(1)
+			end
+			h:Destroy()
+		end)
+	elseif what == "time" then
+		pcall(function() game:GetService("Lighting"):SetMinutesAfterMidnight((n or 14) * 60) end)
+	elseif what == "fog" then
+		local L = game:GetService("Lighting")
+		L.FogStart = 0 L.FogEnd = n or 100000
 	elseif what == "kill" then
 		if hum then hum.Health = 0 end
+	elseif what == "explode" then
+		if root then local e = Instance.new("Explosion") e.Position = root.Position e.BlastRadius = 6 e.Parent = workspace end
 	elseif what == "respawn" then
 		pcall(function() player:LoadCharacter() end)
-	elseif what == "speed" then
-		if hum then hum.WalkSpeed = tonumber(f[2]) or 16 end
+	elseif what == "loopkill" or what == "unloopkill" then
+		admin.loopkill = what == "loopkill"
+		if admin.loopkill and hum then hum.Health = 0 end
+	elseif what == "heal" then
+		if hum then hum.Health = hum.MaxHealth end
+	elseif what == "damage" then
+		if hum then hum:TakeDamage(n or 25) end
+	elseif what == "health" then
+		if hum then hum.MaxHealth = math.max(1, n or 100) hum.Health = hum.MaxHealth end
 	elseif what == "god" then
 		if hum then hum.MaxHealth = math.huge hum.Health = math.huge end
 	elseif what == "ungod" then
 		if hum then hum.MaxHealth = 100 hum.Health = 100 end
+	elseif what == "ff" or what == "unff" then
+		if char then removeNamed(char, "ForceField") if what == "ff" then Instance.new("ForceField", char) end end
+	elseif what == "speed" then
+		if hum then hum.WalkSpeed = math.max(0, n or 16) end
+	elseif what == "jumppower" then
+		if hum then pcall(function() hum.JumpPower = math.max(0, n or 50) end) end
+	elseif what == "gravity" or what == "ungravity" then
+		if torso then
+			removeNamed(torso, "GNAdminGravity")
+			if what == "gravity" then
+				local mass = 0
+				for _, p in ipairs(myParts(char)) do mass = mass + p:GetMass() end
+				local bf = Instance.new("BodyForce")
+				bf.Name = "GNAdminGravity"
+				bf.force = Vector3.new(0, mass * (196.2 - (n or 196.2)), 0)
+				bf.Parent = torso
+			end
+		end
+	elseif what == "fly" or what == "unfly" then
+		setFly(what == "fly")
+	elseif what == "noclip" or what == "clip" then
+		admin.noclip = what == "noclip"
+		if not admin.noclip and torso then torso.CanCollide = true end
+	elseif what == "sit" then
+		if hum then hum.Sit = true end
+	elseif what == "jump" then
+		if hum then hum.Jump = true end
+	elseif what == "trip" then
+		if hum and torso then
+			hum.PlatformStand = true
+			torso.CFrame = torso.CFrame * CFrame.Angles(math.rad(90), 0, 0)
+			delay(1.5, function() if hum.Parent then hum.PlatformStand = false end end)
+		end
+	elseif what == "stun" or what == "unstun" then
+		if hum then hum.PlatformStand = (what == "stun") end
 	elseif what == "freeze" or what == "thaw" then
 		if root then root.Anchored = (what == "freeze") end
+		for _, p in ipairs(myParts(char)) do if p.Name ~= "HumanoidRootPart" then p.Anchored = (what == "freeze") end end
+	elseif what == "spin" or what == "unspin" then
+		if torso then
+			removeNamed(torso, "GNAdminSpin")
+			if what == "spin" then
+				local s = Instance.new("BodyAngularVelocity")
+				s.Name = "GNAdminSpin" s.maxTorque = Vector3.new(0, 4e5, 0) s.angularvelocity = Vector3.new(0, 20, 0) s.Parent = torso
+			end
+		end
+	elseif what == "invisible" or what == "visible" then
+		local hide = what == "invisible"
+		if hide and not admin.hidden then admin.hidden = {} end
+		for _, p in ipairs(myParts(char)) do
+			if p.Name ~= "HumanoidRootPart" then
+				if hide then admin.hidden[p] = admin.hidden[p] or p.Transparency p.Transparency = 1
+				elseif admin.hidden and admin.hidden[p] then p.Transparency = admin.hidden[p] end
+			end
+			for _, d in pairs(p:GetChildren()) do if d:IsA("Decal") then d.Transparency = hide and 1 or 0 end end
+		end
+		if not hide then admin.hidden = nil end
+	elseif what == "fire" or what == "unfire" then effect(char, "Fire", what == "fire")
+	elseif what == "smoke" or what == "unsmoke" then effect(char, "Smoke", what == "smoke")
+	elseif what == "sparkles" or what == "unsparkles" then effect(char, "Sparkles", what == "sparkles")
+	elseif what == "light" or what == "unlight" then effect(char, "PointLight", what == "light")
+	elseif what == "jail" or what == "unjail" then
+		jail(what == "jail")
+	elseif what == "btools" then
+		giveBuildTools()
+	elseif what == "removetools" then
+		local pack = player:FindFirstChild("Backpack")
+		if pack then for _, t in pairs(pack:GetChildren()) do if t:IsA("Tool") or t:IsA("HopperBin") then t:Destroy() end end end
+		if char then for _, t in pairs(char:GetChildren()) do if t:IsA("Tool") then t:Destroy() end end end
 	elseif what == "tpto" then
-		local o = others[f[2] or ""]
+		local o = others[arg or ""]
 		if root and o and o.root and o.root.Parent then root.CFrame = o.root.CFrame * CFrame.new(0, 0, 4) end
 	end
 end
