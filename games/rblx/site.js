@@ -62,6 +62,33 @@
     gravitycoil: { pieces: coil(1031), effect: { antigravity: 0.75 } },
     fusioncoil: { pieces: coil(37), effect: { speed: 26, antigravity: 0.6 } },
     balloon: { pieces: [box([0.2, 0.2, 0.2], [0, 0, 0], 1), box([0.05, 3, 0.05], [0, 1.5, 0], 1), ball(2.2, [0, 4, 0], 21)], effect: { antigravity: 0.85 } },
+    // combat gear (scripts/WebBloxPlayers.lua): kind sword | shot | bomb; damage per hit, cooldown
+    // (seconds); shots: speed, drop (share of gravity), size, ball, bounce (times), splat, blast
+    // (radius: it explodes), color (BrickColor; none = a random one), sound (rbxasset://sounds/<name>.mp3)
+    sword: {
+      pieces: [box([0.3, 1, 0.3], [0, 0, 0], 192), box([1.3, 0.2, 0.35], [0, 0.6, 0], 24), box([0.5, 3.4, 0.12], [0, 2.4, 0], 1002), box([0.5, 0.35, 0.12], [0, 4.25, 0], 1002, { c: 'WedgePart' })],
+      combat: { kind: 'sword', damage: 10, lunge: 30, idle: 5, cooldown: 0.15 },
+    },
+    slingshot: {
+      pieces: [cyl(1, 0.3, 0, 192), box([0.18, 0.9, 0.18], [-0.28, 0.85, 0], 192, { r: [0, 0, 18] }), box([0.18, 0.9, 0.18], [0.28, 0.85, 0], 192, { r: [0, 0, -18] }), box([0.7, 0.08, 0.08], [0, 1.25, 0.1], 21)],
+      combat: { kind: 'shot', speed: 110, drop: 0.35, size: [0.5, 0.5, 0.5], ball: true, damage: 8, bounce: 2, keep: 0.6, color: 194, cooldown: 0.25, sound: 'Rubber band sling shot', life: 3 },
+    },
+    rocketlauncher: {
+      pieces: [box([0.35, 0.9, 0.45], [0, 0, 0], 26), cyl(4, 0.9, 0, 28, { p: [0, 0.75, -0.4], r: [90, 0, 0] }), cyl(0.3, 1, 0, 21, { p: [0, 0.75, -2.3], r: [90, 0, 0] })],
+      combat: { kind: 'shot', speed: 70, size: [0.8, 0.8, 3], damage: 100, blast: 7, color: 21, fire: true, cooldown: 3, sound: 'collide', life: 6 },
+    },
+    timebomb: {
+      pieces: [ball(1.6, [0, 0, 0], 26), cyl(0.5, 0.2, 0.95, 24), ball(0.3, [0, 1.3, 0], 105, { neon: true })],
+      combat: { kind: 'bomb', fuse: 3, blast: 12, damage: 100, cooldown: 5 },
+    },
+    superball: {
+      pieces: [ball(1, [0, 0, 0], 1010, { neon: true })],
+      combat: { kind: 'shot', speed: 75, drop: 1, size: [2, 2, 2], ball: true, damage: 15, bounce: 6, keep: 0.85, stop: false, cooldown: 2, sound: 'swoosh', boing: 'Rubber band', life: 6 },
+    },
+    paintballgun: {
+      pieces: [box([0.35, 0.9, 0.4], [0, 0, 0], 23), box([0.4, 0.45, 2.2], [0, 0.6, -0.7], 26), ball(0.7, [0, 1.15, 0.1], 24)],
+      combat: { kind: 'shot', speed: 200, drop: 0.1, size: [0.5, 0.5, 0.5], ball: true, neon: true, splat: true, damage: 15, cooldown: 0.2, sound: 'electronicpingshort', life: 3 },
+    },
   };
   const DEFAULT_LOOK = { skin: 24, shirt: 23, pants: 37 };   // the classic look
 
@@ -85,6 +112,12 @@
     { id: 'gravitycoil', name: 'Gravity Coil', type: 'gear', value: 'gravitycoil', price: 300, featured: true, desc: 'Hold it to jump way higher and fall slowly. Shows up in your Backpack in every game.' },
     { id: 'fusioncoil', name: 'Fusion Coil', type: 'gear', value: 'fusioncoil', price: 600, collectible: true, desc: 'Speed and gravity in one coil: run fast and jump high. Shows up in your Backpack in every game.' },
     { id: 'balloon', name: 'Red Balloon', type: 'gear', value: 'balloon', price: 150, desc: 'Float gently down from anywhere. Shows up in your Backpack in every game.' },
+    { id: 'sword', name: 'Sword', type: 'gear', value: 'sword', price: 250, featured: true, desc: 'Click to slash, click twice fast to lunge. Hits other players in any game too.' },
+    { id: 'slingshot', name: 'Slingshot', type: 'gear', value: 'slingshot', price: 100, desc: 'Click where to shoot: pellets that bounce.' },
+    { id: 'rocketlauncher', name: 'Rocket Launcher', type: 'gear', value: 'rocketlauncher', price: 600, featured: true, desc: 'Click where to fire a rocket that explodes when it hits. Mind the blast!' },
+    { id: 'timebomb', name: 'Time Bomb', type: 'gear', value: 'timebomb', price: 400, desc: 'Click to drop a bomb. It ticks for 3 seconds, then BOOM. Run!' },
+    { id: 'superball', name: 'Superball', type: 'gear', value: 'superball', price: 200, desc: 'Click to throw a ball that bounces all over the place.' },
+    { id: 'paintballgun', name: 'Paintball Gun', type: 'gear', value: 'paintballgun', price: 350, desc: 'Click to shoot fast paintballs that splat in every color.' },
     { id: 'tophat', name: 'Top Hat', type: 'hat', value: 'tophat', price: 150, featured: true, desc: 'A classy black top hat with a red band. For the distinguished Robloxian.' },
     { id: 'crown', name: 'Golden Crown', type: 'hat', value: 'crown', price: 1000, featured: true, collectible: true, desc: 'Only royalty may wear this crown. Or anyone with 1,000 ROBUX.' },
     { id: 'halo', name: 'Glowing Halo', type: 'hat', value: 'halo', price: 500, collectible: true, desc: 'A neon halo that floats above your head. Angels only.' },

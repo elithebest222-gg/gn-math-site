@@ -237,8 +237,342 @@ RunService.RenderStepped:connect(function()
 	end
 end)
 
+-- Combat gear (spec.combat, from site.js): swords, slingshots, rocket launchers, bombs... Every
+-- player runs their own copy of the game, so the player who attacks works out the hits in theirs:
+-- damage to another player's avatar there is sent to that player ("gn:hit"), whose own copy takes
+-- it, and what the attack looks like (shots, bombs, blasts) is sent to everyone ("gn:fx"). Gear
+-- that a game brings itself hits other players the same way (see watchStandIn below).
+local Debris = game:GetService("Debris")
+local fxFolder = Instance.new("Folder")
+fxFolder.Name = "GNCombatFx"
+fxFolder.Parent = workspace
+local standInOf = function(id) return nil end
+local watchStandIn, holdGear   -- (set by the multiplayer part below)
+local lastAttack = 0                             -- when you last used any tool
+local function v3s(v) return string.format("%.2f,%.2f,%.2f", v.X, v.Y, v.Z) end
+local function s2v(s)
+	local x, y, z = string.match(s or "", "^(-?[%d.]+),(-?[%d.]+),(-?[%d.]+)$")
+	return x and Vector3.new(tonumber(x), tonumber(y), tonumber(z)) or nil
+end
+local function gravity()
+	local g = 196.2
+	pcall(function() g = workspace.Gravity end)
+	return g
+end
+local function sound(where, name, volume)
+	local holder = where
+	if not holder then return end
+	if not pcall(function() return where.ClassName end) then   -- (a position)
+		holder = Instance.new("Part")
+		holder.Anchored, holder.CanCollide, holder.Transparency = true, false, 1
+		holder.Size = Vector3.new(1, 1, 1)
+		holder.CFrame = CFrame.new(where)
+		holder.Parent = fxFolder
+		Debris:AddItem(holder, 4)
+	end
+	local s = Instance.new("Sound")
+	s.SoundId = "rbxasset://sounds/" .. name .. ".mp3"
+	s.Volume = volume or 0.7
+	s.Parent = holder
+	s:Play()
+	Debris:AddItem(s, 4)
+end
+local function humanoidOf(part)
+	local m = part
+	for _ = 1, 3 do
+		m = m and m.Parent
+		if not m or m == workspace then return nil end
+		local h = m:FindFirstChild("Humanoid")
+		if h and h:IsA("Humanoid") then return h end
+	end
+	return nil
+end
+-- damage a humanoid in your copy of the game (another player's avatar passes it on)
+local function hurt(hum, amount)
+	if not hum or hum.Health <= 0 then return end
+	local mine = player.Character and hum.Parent == player.Character
+	if not mine then
+		pcall(function()
+			local old = hum:FindFirstChild("creator")
+			if old then old:Destroy() end
+			local tag = Instance.new("ObjectValue")
+			tag.Name = "creator"
+			tag.Value = player
+			tag.Parent = hum
+			Debris:AddItem(tag, 2)
+		end)
+	end
+	hum:TakeDamage(amount)
+end
+local function blast(pos, radius, damage, real)
+	local e = Instance.new("Explosion")
+	e.Position = pos
+	e.BlastRadius = radius
+	e.BlastPressure = real and 60000 or 0
+	pcall(function() e.DestroyJointRadiusPercent = 0 end)   -- (it hurts humanoids below instead, and leaves the map alone)
+	if real then
+		local done = {}
+		e.Hit:connect(function(part, dist)
+			local hum = humanoidOf(part)
+			if hum and not done[hum] then
+				done[hum] = true
+				local d = dist or (part.Position - pos).magnitude
+				hurt(hum, d < radius * 0.5 and damage or damage * 0.5)
+			end
+		end)
+	end
+	e.Parent = workspace
+	sound(pos, "impact_explosion_0" .. math.random(1, 3), 0.9)
+end
+
+-- a shot flies in steps, checking what it would hit with a ray
+local function shoot(spec, origin, vel, color, real, ignoreModel)
+	local c = spec.combat
+	local size = c.size or { 0.6, 0.6, 0.6 }
+	local p = Instance.new("Part")
+	pcall(function() p.FormFactor = Enum.FormFactor.Custom end)
+	p.Name = "Shot"
+	p.Size = Vector3.new(size[1], size[2], size[3])
+	if c.ball then p.Shape = Enum.PartType.Ball end
+	p.BrickColor = BrickColor.new(color)
+	p.Anchored, p.CanCollide = true, false
+	p.TopSurface, p.BottomSurface = Enum.SurfaceType.Smooth, Enum.SurfaceType.Smooth
+	if c.neon then pcall(function() p.Material = Enum.Material.Neon end) end
+	p.CFrame = CFrame.new(origin, origin + vel)
+	p.Parent = fxFolder
+	if c.fire then local f = Instance.new("Fire", p) f.Size = 2 f.Heat = 0 end
+	local g = gravity() * (c.drop or 0)
+	local bounces = c.bounce or 0
+	local pos, born, hitOnce = origin, tick(), {}
+	spawn(function()
+		while p.Parent and tick() - born < (c.life or 5) do
+			local dt = RunService.RenderStepped:wait()
+			dt = math.min(dt or 0.03, 0.1)
+			vel = vel - Vector3.new(0, g * dt, 0)
+			local step = vel * dt
+			local ignore = { fxFolder, ignoreModel }
+			local hit, at, normal = workspace:FindPartOnRayWithIgnoreList(Ray.new(pos, step), ignore)
+			if hit and not hit.CanCollide and not humanoidOf(hit) then
+				-- (see-through parts like spawn pads don't stop shots)
+				table.insert(ignore, hit)
+				hit, at, normal = workspace:FindPartOnRayWithIgnoreList(Ray.new(pos, step), ignore)
+			end
+			if hit then
+				local hum = humanoidOf(hit)
+				if hum and not hitOnce[hum] then
+					hitOnce[hum] = true
+					if real and not c.blast then hurt(hum, c.damage or 10) end
+				end
+				if c.blast then
+					if real then
+						blast(at, c.blast, c.damage or 100, true)
+						sendEvent:Fire("gn:fx", "boom|" .. v3s(at) .. "|" .. c.blast)
+					end
+					break
+				end
+				if c.splat then
+					local s = Instance.new("Part")
+					pcall(function() s.FormFactor = Enum.FormFactor.Custom end)
+					s.Size = Vector3.new(1.4, 0.2, 1.4)
+					s.BrickColor = p.BrickColor
+					s.Anchored, s.CanCollide = true, false
+					s.CFrame = CFrame.new(at, at + (normal or Vector3.new(0, 1, 0))) * CFrame.Angles(math.pi / 2, 0, 0)
+					s.Parent = fxFolder
+					Debris:AddItem(s, 8)
+					sound(at, "splat", 0.5)
+					break
+				end
+				if hum or bounces <= 0 then
+					if c.stop ~= false or hum then break end
+				end
+				bounces = bounces - 1
+				local n = normal or Vector3.new(0, 1, 0)
+				vel = (vel - 2 * vel:Dot(n) * n) * (c.keep or 0.75)
+				pos = at + n * 0.3
+				if c.boing then sound(p, c.boing, 0.5) end
+			else
+				pos = pos + step
+			end
+			p.CFrame = CFrame.new(pos, pos + vel)
+		end
+		p:Destroy()
+	end)
+end
+
+local function aim(char)
+	local root = char and char:FindFirstChild("HumanoidRootPart")
+	local ok, target = pcall(function() return player:GetMouse().Hit.p end)
+	if not ok or not target or (root and (target - root.Position).magnitude > 1000) then
+		target = root and (root.Position + root.CFrame.lookVector * 100) or Vector3.new()
+	end
+	return target
+end
+local function randomColor() local c = { 21, 23, 24, 37, 1010, 1004, 1032, 1020 } return c[math.random(1, #c)] end
+
+-- a lit bomb: ticks faster and faster, then goes off
+local function bombAt(pos, c, real, part)
+	local b = part
+	if not b then
+		b = Instance.new("Part")
+		pcall(function() b.FormFactor = Enum.FormFactor.Custom end)
+		b.Shape = Enum.PartType.Ball
+		b.Size = Vector3.new(2, 2, 2)
+		b.Anchored, b.CanCollide = true, false
+		b.CFrame = CFrame.new(pos)
+		b.Parent = fxFolder
+	end
+	b.BrickColor = BrickColor.new(26)
+	local fuse = c.fuse or 3
+	spawn(function()
+		local start, flash = tick(), false
+		while tick() - start < fuse and b.Parent do
+			flash = not flash
+			b.BrickColor = BrickColor.new(flash and 21 or 26)
+			sound(b, "clickfast", 0.4)
+			wait(math.max(0.08, 0.5 * (1 - (tick() - start) / fuse)))
+		end
+		local at = b.Position
+		b:Destroy()
+		if real then
+			blast(at, c.blast or 10, c.damage or 100, true)
+			sendEvent:Fire("gn:fx", "boom|" .. v3s(at) .. "|" .. (c.blast or 10))
+		end
+	end)
+end
+
+local function useGear(spec, tool)
+	local c = spec.combat
+	local char = player.Character
+	local handle = tool:FindFirstChild("Handle")
+	if not char or not handle then return end
+	if c.kind == "sword" then
+		local now = tick()
+		-- click twice quickly to lunge
+		local lunge = spec._last and now - spec._last < 0.3 and not spec._lunged
+		spec._lunged = lunge
+		spec._last = now
+		local anim = Instance.new("StringValue")
+		anim.Name = "toolanim"
+		anim.Value = lunge and "Lunge" or "Slash"
+		anim.Parent = tool
+		sound(handle, lunge and "swordlunge" or "swordslash", 0.7)
+		spec._hitting = lunge and (c.lunge or 30) or (c.damage or 10)
+		spec._until = now + (lunge and 0.9 or 0.5)
+		if lunge then
+			local root = char:FindFirstChild("HumanoidRootPart")
+			if root then root.Velocity = root.CFrame.lookVector * 40 + Vector3.new(0, 25, 0) end
+		end
+		return
+	end
+	local target = aim(char)
+	local from = handle.Position + Vector3.new(0, 0.5, 0)
+	if c.kind == "bomb" then
+		local b = Instance.new("Part")
+		pcall(function() b.FormFactor = Enum.FormFactor.Custom end)
+		b.Name = "Bomb"
+		b.Shape = Enum.PartType.Ball
+		b.Size = Vector3.new(2, 2, 2)
+		b.TopSurface, b.BottomSurface = Enum.SurfaceType.Smooth, Enum.SurfaceType.Smooth
+		b.CFrame = CFrame.new(handle.Position + (char:FindFirstChild("HumanoidRootPart") and char.HumanoidRootPart.CFrame.lookVector * 2 or Vector3.new()))
+		b.Parent = fxFolder
+		bombAt(b.Position, c, true, b)
+		sendEvent:Fire("gn:fx", "bomb|" .. spec.id .. "|" .. v3s(b.Position))
+		return
+	end
+	local dir = (target - from).unit
+	local speed = c.speed or 80
+	-- an arcing shot aims a little high so it lands near where you clicked
+	local dist = (target - from).magnitude
+	local lift = (c.drop or 0) > 0 and math.min(0.5, gravity() * c.drop * dist / (2 * speed * speed)) or 0
+	local vel = (dir + Vector3.new(0, lift, 0)).unit * speed
+	local color = c.color or randomColor()
+	shoot(spec, from, vel, color, true, char)
+	if c.sound then sound(handle, c.sound, 0.7) end
+	sendEvent:Fire("gn:fx", "shot|" .. spec.id .. "|" .. v3s(from) .. "|" .. v3s(vel) .. "|" .. color)
+end
+
+local function arm(spec, tool)
+	local c = spec.combat
+	local ready = true
+	tool.Activated:connect(function()
+		if not ready then return end
+		ready = false
+		lastAttack = tick()
+		pcall(useGear, spec, tool)
+		wait(c.cooldown or 0.5)
+		ready = true
+	end)
+	if c.kind == "sword" then
+		tool.Equipped:connect(function() pcall(sound, tool:FindFirstChild("Handle"), "unsheath", 0.6) end)
+		-- a sword hurts what its blade touches while it swings (and a little when it's just held)
+		local hitAt = {}
+		local function touched(part)
+			local char = player.Character
+			if not char or tool.Parent ~= char then return end
+			local hum = humanoidOf(part)
+			if not hum or hum.Parent == char then return end
+			if hitAt[hum] and tick() - hitAt[hum] < 0.35 then return end
+			hitAt[hum] = tick()
+			local swinging = spec._until and tick() < spec._until
+			lastAttack = tick()
+			hurt(hum, swinging and spec._hitting or (c.idle or 5))
+		end
+		for _, p in pairs(tool:GetChildren()) do if p:IsA("BasePart") then p.Touched:connect(touched) end end
+		-- (other players' avatars are anchored, which touches don't always notice: check how close they are too)
+		spawn(function()
+			while tool.Parent do
+				if spec._until and tick() < spec._until and tool.Parent == player.Character then
+					local h = tool:FindFirstChild("Handle")
+					local reach = h and (h.CFrame * CFrame.new(0, 2, 0)).p
+					for _, m in pairs(workspace:GetChildren()) do
+						local hum = m:FindFirstChild("Humanoid")
+						local t = m:FindFirstChild("Torso") or m:FindFirstChild("HumanoidRootPart")
+						if reach and hum and t and m ~= player.Character and m:FindFirstChild("GNPlayerId") and (t.Position - reach).magnitude < 3.5 then touched(t) end
+					end
+				end
+				wait(0.05)
+			end
+		end)
+	end
+end
+
+-- what other players' attacks look like here (their hits arrive as gn:hit)
+messageEvent.Event:connect(function(topic, data, fromId)
+	if topic == "gn:fx" then
+		local f = {}
+		for v in string.gmatch(data .. "|", "([^|]*)|") do f[#f + 1] = v end
+		if f[1] == "shot" then
+			local spec, from, vel = GEAR[f[2]], s2v(f[3]), s2v(f[4])
+			if spec and spec.combat and from and vel then
+				shoot(spec, from, vel, tonumber(f[5]) or 194, false, standInOf(fromId))
+				if spec.combat.sound then sound(from, spec.combat.sound, 0.5) end
+			end
+		elseif f[1] == "bomb" then
+			local spec, at = GEAR[f[2]], s2v(f[3])
+			if spec and spec.combat and at then bombAt(at, spec.combat, false) end
+		elseif f[1] == "boom" then
+			local at = s2v(f[2])
+			if at then blast(at, tonumber(f[3]) or 8, 0, false) end
+		end
+	elseif topic == "gn:hit" then
+		local target, amount = string.match(data, "^([^|]+)|([%d.]+)")
+		local char = player.Character
+		local hum = char and char:FindFirstChild("Humanoid")
+		if target == myIdValue.Value and hum and tonumber(amount) then hum:TakeDamage(tonumber(amount)) end
+	end
+end)
+-- any tool you use (a game's own gear too) counts as attacking for a moment
+local function watchTools(char)
+	char.ChildAdded:connect(function(t)
+		if t:IsA("Tool") then t.Activated:connect(function() lastAttack = tick() end) end
+	end)
+end
+player.CharacterAdded:connect(watchTools)
+if player.Character then watchTools(player.Character) end
+
 -- Gear: a Tool in your Backpack for each one you carry; it works while you hold it.
 local activeGear = nil
+local gearIdOf = {}   -- tool -> its Catalog gear id
 local function gearEffect(effect, on)
 	local char = player.Character
 	local hum = char and char:FindFirstChild("Humanoid")
@@ -284,6 +618,9 @@ local function giveGear()
 			tool.Unequipped:connect(function()
 				if activeGear == tool then activeGear = nil gearEffect(spec.effect, false) end
 			end)
+			spec.id = id
+			gearIdOf[tool] = id
+			if spec.combat then arm(spec, tool) end
 			tool.Parent = backpack
 		end
 	end
@@ -531,9 +868,11 @@ local function myState()
 	local lk = WB.look or {}
 	-- + face, shirt and pants (Catalog asset ids, 0 = none), then hair, glasses and back accessories
 	local acc = function(slot) return ACC[lk[slot] or ""] and lk[slot] or "none" end
-	return string.format("%.2f,%.2f,%.2f,%.3f,%s,%d,%d,%d,%d,%d,%d,%s,%s,%s,%s,%s,%s,%s", p.X, p.Y, p.Z,
+	-- + the Catalog gear you're holding
+	local held = activeGear and activeGear.Parent == c and gearIdOf[activeGear] or "none"
+	return string.format("%.2f,%.2f,%.2f,%.3f,%s,%d,%d,%d,%d,%d,%d,%s,%s,%s,%s,%s,%s,%s,%s", p.X, p.Y, p.Z,
 		math.atan2(-look.X, -look.Z), WB.anim or "idle", colors[1], colors[2], colors[3], colors[4], colors[5], colors[6], hat,
-		lk.face or "0", lk.shirtTex or "0", lk.pantsTex or "0", acc("hair"), acc("glasses"), acc("back"))
+		lk.face or "0", lk.shirtTex or "0", lk.pantsTex or "0", acc("hair"), acc("glasses"), acc("back"), held)
 end
 
 -- Your leaderstats, sent to the others: "Cash:120,Logs:4"
@@ -709,6 +1048,53 @@ local function playOn(o, animName)
 	end
 end
 
+-- Another player's avatar here is only a stand-in: damage to it (from your gear, or the game's
+-- own) goes to that player, whose copy of the game takes it. Only damage while you're attacking
+-- counts, so the stand-in brushing a kill brick here doesn't hurt them twice.
+standInOf = function(id) local o = others[id] return o and o.model or nil end
+function watchStandIn(o, id)
+	local hum = o.hum
+	hum.MaxHealth = 100
+	hum.Health = 100
+	local resetting = false
+	hum.HealthChanged:connect(function(h)
+		if resetting then return end
+		local lost = 100 - h
+		if lost <= 0 then return end
+		local tag = hum:FindFirstChild("creator")
+		if tick() - lastAttack < 4 or (tag and tag.Value == player) then
+			sendEvent:Fire("gn:hit", id .. "|" .. string.format("%.1f", h <= 0 and 1000 or lost))
+		end
+		if h > 0 then
+			resetting = true
+			hum.Health = 100
+			resetting = false
+		else
+			-- knocked out: a fresh stand-in appears with their next position
+			delay(0.2, function() pcall(function() o.model:Destroy() end) end)
+		end
+	end)
+end
+-- the gear another player is holding, in their stand-in's right hand
+function holdGear(o, id)
+	local old = o.model:FindFirstChild("GNHeldGear")
+	if old then old:Destroy() end
+	local arm = o.model:FindFirstChild("Right Arm")
+	local spec = GEAR[id]
+	if not arm or not spec or not spec.pieces then return end
+	local m = Instance.new("Model")
+	m.Name = "GNHeldGear"
+	local handle
+	for i, piece in ipairs(spec.pieces) do
+		local p = buildPiece(piece, i == 1 and "Handle" or ("Part" .. i))
+		p.Parent = m
+		if i == 1 then handle = p else weldTo(handle, p, pieceC0(piece), piece.spin) end
+	end
+	-- (where a Tool's grip puts it: below the hand, pointing forward)
+	weldTo(arm, handle, CFrame.new(0, -1, 0, 1, 0, 0, 0, 0, 1, 0, -1, 0))
+	m.Parent = o.model
+end
+
 local function update(id, name, state, stats)
 	local f = {}
 	for v in string.gmatch(state, "[^,]+") do f[#f + 1] = v end
@@ -721,6 +1107,7 @@ local function update(id, name, state, stats)
 		tagPlayerId(model, id)
 		o = { model = model, root = root, hum = hum }
 		others[id] = o
+		watchStandIn(o, id)
 		root.CFrame = CFrame.new(x, y, z) * CFrame.Angles(0, yaw, 0)
 	end
 	o.seen = tick()
@@ -744,6 +1131,8 @@ local function update(id, name, state, stats)
 		setAccessory(o.model, "glasses", f[17])
 		setAccessory(o.model, "back", f[18])
 	end
+	local held = f[19] or "none"
+	if o.held ~= held then o.held = held holdGear(o, held) end
 	playOn(o, f[5])
 	setRemoteStats(o, name, stats or "")
 end

@@ -274,6 +274,17 @@ draws them on the website in 3D (`../avatar3d.js`, three.js) and builds them in 
 (`../scripts/WebBloxPlayers.lua`, which gets it from `../play.html`), so they always match. Gear becomes a
 Tool in your Backpack that changes your speed and/or gravity while you hold it.
 
+Combat gear (`combat` in a `GEAR` entry: the Sword, Slingshot, Rocket Launcher, Time Bomb, Superball and
+Paintball Gun) works in every game. Shots fly in steps along rays (so they look the same in every
+player's copy), explosions hurt humanoids by distance and don't break the map, and hits on a game's own
+NPCs tag them with `creator` like classic gear does. Each player runs their own copy of the game, so
+another player is only a stand-in in yours: the attacker's copy works out the hits, damage to a stand-in
+is sent to that player as a `gn:hit` game message and their copy takes it, and what the attack looks
+like is sent to everyone as `gn:fx`. Damage to a stand-in only counts while you're attacking (you used a
+tool in the last few seconds, or the humanoid carries your `creator` tag), so a game's own gear hits
+other players too, but a stand-in brushing a kill brick in your copy doesn't. The gear a player holds is
+the 19th field of their state, and their stand-in holds it.
+
 ## Animations
 
 `build_animations.py` generates `../scripts/WebBloxAnimate.lua`, which gives characters their default
