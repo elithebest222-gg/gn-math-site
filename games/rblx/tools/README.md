@@ -192,8 +192,12 @@ and `H|` carry them (same in `multiplayer-server`).
 
 ## Phone and tablet controls
 
-The 2016 engine only listens for a keyboard and a mouse. On touch screens (or with `?touch=1`),
-`../touch.js` draws 2016-style mobile controls and turns touches into those events: the thumbstick presses
+The 2016 engine only listens for a keyboard and a mouse. On anything with a touch screen (or with
+`?touch=1`), `../touch.js` draws 2016-style mobile controls and turns touches into those events. Phones
+and tablets have them from the start; touch laptops and Chromebooks get them when you touch the screen,
+and they hide again when you use the trackpad, a mouse or the keyboard (the mouse keeps working either
+way: touches are read on the whole window, not by an overlay). The controls work in every game,
+uploaded ones included: the thumbstick presses
 W A S D, the arrow button is Space, dragging is a right-button mouse drag (the camera), a tap is a click,
 press-and-hold then drag is a left-button drag, pinching is the mouse wheel, and the chat button opens the
 phone's keyboard and types into the game's chat.

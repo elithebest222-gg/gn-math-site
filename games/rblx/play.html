@@ -85,7 +85,7 @@
     try { Object.defineProperty(navigator, 'hardwareConcurrency', { get: () => 32 }); } catch (e) {}
 
     (async function () {
-      const VERSION = '49';                       // bump when rblx.js / rblx.wasm change
+      const VERSION = '50';                       // bump when rblx.js / rblx.wasm change
       const CHUNKS = 12, CHUNK_SIZE = 25165824, DATA_SIZE = 289418733;
       const $ = id => document.getElementById(id);
       const canvas = $('canvas'), loading = $('loading');
@@ -96,8 +96,10 @@
                     'Tip: press / to chat.', 'Tip: scroll or use I / O to zoom in and out.'];
 
       // phones and tablets get on-screen controls (touch.js); ?touch=1 shows them anywhere
-      const touchControls = window.GNTouch && (params.has('touch') || GNTouch.isTouch());
-      if (touchControls) TIPS.splice(0, TIPS.length, 'Tip: the stick in the lower left walks; drag anywhere else to turn the camera.',
+      // (touch laptops and Chromebooks get them too, when you touch the screen)
+      const touchControls = window.GNTouch && (params.has('touch') || GNTouch.canTouch());
+      const touchFirst = window.GNTouch && (params.has('touch') || GNTouch.isTouch());
+      if (touchFirst) TIPS.splice(0, TIPS.length, 'Tip: the stick in the lower left walks; drag anywhere else to turn the camera.',
         'Tip: tap the arrow button to jump.', 'Tip: pinch to zoom in and out.', 'Tip: tap the chat button to talk.');
       document.title = title + ' - GN-BLOX';
       $('game-title').textContent = title;
@@ -248,7 +250,7 @@
         ready = true;
         setTimeout(updateSound, 300);
         $('bar').style.width = '100%';
-        setTimeout(() => { loading.style.display = 'none'; canvas.focus(); if (touchControls) GNTouch.start(canvas); }, 250);
+        setTimeout(() => { loading.style.display = 'none'; canvas.focus(); if (touchControls) GNTouch.start(canvas, { show: touchFirst }); }, 250);
       };
       window.addEventListener('error', e => {
         if (/ResizeObserver|PeerJS/i.test(e.message || '')) return;
