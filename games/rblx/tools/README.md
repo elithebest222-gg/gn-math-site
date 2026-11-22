@@ -213,6 +213,17 @@ python3 nds_sync.py "in.rbxl" "out.rbxl"                                 # e.g. 
 to the classic `multiplayer-server/` (`multiplayerServer`), which speaks the same protocol. Its README
 explains how to run it.
 
+## Faces and clothes in the Catalog
+
+`build_catalog.py <folder>` adds faces, shirts and pants made from images: `<folder>/Classic Faces/<asset id>.png`,
+`<folder>/shirt/<asset id>.png` and `<folder>/pants/<asset id>.png` (classic 585 x 559 templates). The images go in
+`../catalog/assets/`, and `../catalog/items.js` lists the items (names and prices for clothes are in the script).
+They're worn in their own outfit slots (`face`, `shirtTex`, `pantsTex`), over the color shirt and pants. The 3D avatar
+(`../avatar3d.js`) maps the templates onto the body; in games the face is the head's decal and the clothes are Shirt
+and Pants objects whose templates are `http://www.roblox.com/asset/?id=<asset id>`, which the service worker answers
+from `catalog/assets/` (so uploaded games that use the same faces get them too). Other players' stand-ins wear them
+(their ids ride along in the avatar state). Hats and hair need their mesh and texture files, which a `.rbxm` only names.
+
 ## Hats and gear
 
 Catalog hats and gear are built from plain parts listed in `../site.js` (`HATS`, `GEAR`). The same list

@@ -25,7 +25,7 @@ const rooms = new Map();        // name -> { players: Map<id, player>, chat: [],
 
 const ROOM_RE = /^(pub|priv)-[a-z0-9-]{1,60}$/;
 const ID_RE = /^[a-z0-9]{6,16}$/;
-const STATE_RE = /^[-0-9.,a-z]{1,160}$/;
+const STATE_RE = /^[-0-9.,a-z]{1,240}$/;
 const STATS_RE = /^[A-Za-z0-9 _.:,\-]{0,200}$/;
 const clean = (s, n) => String(s || '').replace(/[^A-Za-z0-9 _.\-!?,'@#:()]/g, '').trim().slice(0, n);
 // (same list as p2p.js)

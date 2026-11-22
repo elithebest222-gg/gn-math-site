@@ -562,7 +562,9 @@
         return 'local WEBBLOX = {\n' +
           '  mp = { url = ' + str(mp.url, /[^A-Za-z0-9.:\/_\-]/g) + ', room = ' + str(mp.room) + ', name = ' + str(name) + ', id = ' + str(id) + ', private = ' + (mp.code ? 'true' : 'false') + ' },\n' +
           '  role = ' + (myRole() ? str(myRole(), /[^a-z]/g) : 'nil') + ',\n' +
-          '  look = { skin = ' + int(outfit.skin) + ', shirt = ' + int(outfit.shirt) + ', pants = ' + int(outfit.pants) + ', hat = ' + (outfit.hat ? str(outfit.hat, /[^a-z]/g) : 'nil') + ', gear = ' + lua(carried) + ' },\n' +
+          '  look = { skin = ' + int(outfit.skin) + ', shirt = ' + int(outfit.shirt) + ', pants = ' + int(outfit.pants) + ', hat = ' + (outfit.hat ? str(outfit.hat, /[^a-z]/g) : 'nil') + ', gear = ' + lua(carried) +
+            // faces and clothes from the Catalog: asset ids (the service worker serves catalog/assets/<id>.png)
+            ['face', 'shirtTex', 'pantsTex'].map(k => ', ' + k + ' = ' + (/^\d{1,20}$/.test(String(outfit[k] || '')) ? str(String(outfit[k])) : 'nil')).join('') + ' },\n' +
           '  hats = ' + lua(W.HATS || {}) + ',\n' +
           '  gear = ' + lua(gear) + ',\n' +
           '}';

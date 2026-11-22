@@ -29,7 +29,7 @@
   'use strict';
   const STALE_MS = 5000, MAX_PLAYERS = 30, CHAT_KEEP = 50, SEND_MS = 120, HUB_SILENT_MS = 4000;
   const PUBLIC_SERVERS = 5, JOIN_TIMEOUT_MS = 9000, KEEPALIVE_MS = 2000, CONN_SILENT_MS = 12000;
-  const STATE_RE = /^[-0-9.,a-z]{1,160}$/;
+  const STATE_RE = /^[-0-9.,a-z]{1,240}$/;
   const STATS_RE = /^[A-Za-z0-9 _.:,\-]{0,200}$/;      // leaderstats: "Cash:120,Logs:4"
   const statsOf = v => (typeof v === 'string' && STATS_RE.test(v) ? v : '');
   const OFFLINE_ERRORS = /^(network|server-error|socket-error|socket-closed|browser-incompatible|ssl-unavailable)$/;

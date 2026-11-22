@@ -8,6 +8,7 @@
   <link rel="stylesheet" crossorigin="anonymous" href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@300;400;600;700&display=swap" />
   <link rel="stylesheet" href="site.css" />
   <script src="config.js"></script>
+  <script src="catalog/items.js"></script>
   <script src="site.js"></script>
   <script src="three.min.js"></script>
   <script src="avatar3d.js"></script>
@@ -63,6 +64,7 @@
     .tryon p { color: var(--muted); font-size: 14px; }
 
     @media (max-width: 960px) { .cat { grid-template-columns: 1fr; } .side { position: static; } .cards { grid-template-columns: repeat(4, minmax(0, 1fr)); } .ip { grid-template-columns: 1fr; } }
+    .cards .more { grid-column: 1 / -1; text-align: center; padding: 8px 0 4px; }
     @media (max-width: 760px) { .cards { grid-template-columns: repeat(3, minmax(0, 1fr)); } .wearing { grid-template-columns: 120px 1fr; } }
     @media (max-width: 480px) { .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } .ip { padding: 16px; } .ip h2 { font-size: 26px; } .pricebox { flex-wrap: wrap; } }
   </style>
@@ -114,8 +116,10 @@
     const esc = WB.esc;
     const params = new URLSearchParams(location.search);
     let cat = params.get('cat') || 'featured';
-    const CATS = [['featured', 'Featured'], ['all', 'All Items'], ['hat', 'Hats'], ['gear', 'Gear'], ['shirt', 'Shirts'], ['pants', 'Pants'], ['skin', 'Body Colors'], ['wearing', 'Currently Wearing'], ['inventory', 'Inventory']];
-    const TYPE_NAME = { hat: 'Hat', gear: 'Gear', shirt: 'Shirt', pants: 'Pants', skin: 'Body Color' };
+    const CATS = [['featured', 'Featured'], ['all', 'All Items'], ['hat', 'Hats'], ['face', 'Faces'], ['gear', 'Gear'], ['shirt', 'Shirts'], ['pants', 'Pants'], ['skin', 'Body Colors'], ['wearing', 'Currently Wearing'], ['inventory', 'Inventory']];
+    const TYPE_NAME = { hat: 'Hat', gear: 'Gear', face: 'Face', shirt: 'Shirt', shirtTex: 'Shirt', pants: 'Pants', pantsTex: 'Pants', skin: 'Body Color' };
+    const PAGE = 60;
+    let shown = PAGE;
     const priceHTML = item => item.price ? `<span class="robux"><svg class="i"><use href="#i-robux"/></svg>${item.price.toLocaleString('en-US')}</span>` : '<span class="free">Free</span>';
 
     function itemsFor(c) {
@@ -123,6 +127,7 @@
       if (c === 'all') return WB.ITEMS.slice();
       if (c === 'inventory') return WB.ITEMS.filter(i => WB.owns(i.id));
       if (c === 'wearing') return WB.ITEMS.filter(i => WB.wearing(i) && WB.owns(i.id));
+      if (c === 'shirt' || c === 'pants') return WB.ITEMS.filter(i => i.type === c || i.type === c + 'Tex');
       return WB.ITEMS.filter(i => i.type === c);
     }
 
@@ -130,7 +135,7 @@
       document.getElementById('cats').innerHTML = '<h3>Category</h3>' + CATS.map(([k, n]) =>
         `<a href="?cat=${k}" data-cat="${k}" class="${k === cat ? 'on' : ''}">${n}<span>${itemsFor(k).length}</span></a>`).join('');
       document.querySelectorAll('#cats a').forEach(a => a.addEventListener('click', e => {
-        e.preventDefault(); cat = a.dataset.cat; history.replaceState(null, '', '?cat=' + cat); render();
+        e.preventDefault(); cat = a.dataset.cat; shown = PAGE; history.replaceState(null, '', '?cat=' + cat); render();
       }));
       const q = document.getElementById('q').value.trim().toLowerCase();
       let list = itemsFor(cat).filter(i => !q || i.name.toLowerCase().includes(q) || (TYPE_NAME[i.type] || '').toLowerCase().includes(q));
@@ -138,11 +143,14 @@
       if (sort === 'low') list.sort((a, b) => a.price - b.price);
       if (sort === 'high') list.sort((a, b) => b.price - a.price);
       document.getElementById('cat-title').textContent = (CATS.find(c => c[0] === cat) || ['', 'Catalog'])[1];
+      const total = list.length;
+      list = list.slice(0, shown);
       document.getElementById('grid').innerHTML = list.length ? list.map(i => {
         const tag = WB.wearing(i) && WB.owns(i.id) ? '<span class="tag wear">Wearing</span>' : WB.owns(i.id) && i.price ? '<span class="tag">Owned</span>' : i.collectible ? '<span class="tag limited">Collectible</span>' : '';
         return `<button class="card item" onclick="openItem('${i.id}')">${tag}<span class="thumb">${WB.itemThumb(i)}</span>
           <span class="meta"><span class="nm">${esc(i.name)}</span><span class="by">By <b style="color:var(--blue);font-weight:600">GN-BLOX</b></span><span class="price">${priceHTML(i)}</span></span></button>`;
-      }).join('') : `<div class="empty">${cat === 'inventory' ? 'You don\'t own anything yet.' : q ? 'No items match "' + esc(q) + '".' : 'Nothing here yet.'}</div>`;
+      }).join('') + (total > shown ? `<div class="more"><button class="btn-white" onclick="shown += PAGE; render()">Show More (${(total - shown).toLocaleString('en-US')} more)</button></div>` : '')
+        : `<div class="empty">${cat === 'inventory' ? 'You don\'t own anything yet.' : q ? 'No items match "' + esc(q) + '".' : 'Nothing here yet.'}</div>`;
       renderWearing();
       renderStipend();
     }
@@ -160,6 +168,7 @@
 
     function openItem(id) {
       const i = WB.item(id); if (!i) return;
+      openId = id;
       const owned = WB.owns(i.id), wearing = owned && WB.wearing(i);
       const preview = i.type === 'gear' ? WB.look() : Object.assign({}, WB.look(), { [i.type]: i.value });
       let action;
@@ -230,7 +239,13 @@
       renderStipend();
     }
 
-    document.getElementById('q').addEventListener('input', render);
+    document.getElementById('q').addEventListener('input', () => { shown = PAGE; render(); });
+    // faces and clothes are images: draw the avatars again once they've loaded
+    let openId = null;
+    window.addEventListener('wb3d-ready', () => {
+      render();
+      if (openId && document.getElementById('item-modal').classList.contains('open')) openItem(openId);
+    });
     document.getElementById('sort').addEventListener('change', render);
     document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeItem(); document.getElementById('confirm').classList.remove('open'); } });
     render();

@@ -260,6 +260,32 @@ local function colorFor(look, partName)
 	return n and n > 0 and n or nil
 end
 
+-- Catalog faces and clothes (asset ids; the service worker serves catalog/assets/<id>.png). Only
+-- what's worn changes: a game's own uniforms stay when you aren't wearing any clothes from the Catalog.
+local ASSET = "http://www.roblox.com/asset/?id="
+local function wearImages(character, look)
+	local head = character:FindFirstChild("Head")
+	local face = head and head:FindFirstChild("face")
+	if face and look.face and look.face ~= "" then face.Texture = ASSET .. look.face end
+	for _, kind in ipairs({ "Shirt", "Pants" }) do
+		local id = look[kind == "Shirt" and "shirtTex" or "pantsTex"]
+		if id and id ~= "" then
+			local c = character:FindFirstChild(kind)
+			if not c or not c:IsA(kind) then
+				c = Instance.new(kind)
+				c.Name = kind
+				c.Parent = character
+			end
+			local url = ASSET .. id
+			if kind == "Shirt" then
+				if c.ShirtTemplate ~= url then c.ShirtTemplate = url end
+			elseif c.PantsTemplate ~= url then
+				c.PantsTemplate = url
+			end
+		end
+	end
+end
+
 local function applyLook(character, look)
 	if not look then return end
 	for _, name in ipairs(BODY) do
@@ -275,18 +301,19 @@ local function applyLook(character, look)
 		end
 	end
 	setHat(character, look.hat)
+	wearImages(character, look)
 end
 
 -- Your own character: wear the Catalog outfit (re-applied for a while, because the engine
 -- paints default body colors onto new characters shortly after they spawn).
 local function hasLook(look)
-	return look and (look.hat or look.skin or look.shirt or look.pants)
+	return look and (look.hat or look.skin or look.shirt or look.pants or look.face or look.shirtTex or look.pantsTex)
 end
 local function dressMe(character)
 	if not hasLook(WB.look) then return end
 	character:WaitForChild("Head")
 	for _ = 1, 10 do
-		applyLook(character, { skin = WB.look.skin, shirt = WB.look.shirt, pants = WB.look.pants })
+		applyLook(character, { skin = WB.look.skin, shirt = WB.look.shirt, pants = WB.look.pants, face = WB.look.face, shirtTex = WB.look.shirtTex, pantsTex = WB.look.pantsTex })
 		wait(0.5)
 	end
 	setHat(character, WB.look.hat)
@@ -401,8 +428,11 @@ local function myState()
 		colors[i] = part and part.BrickColor.Number or 194
 	end
 	local hat = (WB.look and HATS[WB.look.hat or ""]) and WB.look.hat or "none"
-	return string.format("%.2f,%.2f,%.2f,%.3f,%s,%d,%d,%d,%d,%d,%d,%s", p.X, p.Y, p.Z,
-		math.atan2(-look.X, -look.Z), WB.anim or "idle", colors[1], colors[2], colors[3], colors[4], colors[5], colors[6], hat)
+	local lk = WB.look or {}
+	-- + face, shirt and pants (Catalog asset ids, 0 = none)
+	return string.format("%.2f,%.2f,%.2f,%.3f,%s,%d,%d,%d,%d,%d,%d,%s,%s,%s,%s", p.X, p.Y, p.Z,
+		math.atan2(-look.X, -look.Z), WB.anim or "idle", colors[1], colors[2], colors[3], colors[4], colors[5], colors[6], hat,
+		lk.face or "0", lk.shirtTex or "0", lk.pantsTex or "0")
 end
 
 -- Your leaderstats, sent to the others: "Cash:120,Logs:4"
@@ -598,7 +628,7 @@ local function update(id, name, state, stats)
 	local shown = plain or name
 	if o.model.Name ~= shown then o.model.Name = shown end
 	if o.role ~= role then o.role = role roleBadge(o.model, role) end
-	local key = table.concat(f, ",", 6, 12)
+	local key = table.concat(f, ",", 6, math.min(#f, 15))
 	if o.lookKey ~= key then
 		o.lookKey = key
 		local colors = { tonumber(f[6]), tonumber(f[7]), tonumber(f[8]), tonumber(f[9]), tonumber(f[10]), tonumber(f[11]) }
@@ -607,6 +637,8 @@ local function update(id, name, state, stats)
 			if part and colors[i] then part.BrickColor = BrickColor.new(colors[i]) end
 		end
 		setHat(o.model, f[12])
+		local img = function(v) return v and v ~= "0" and string.match(v, "^%d+$") and v or nil end
+		wearImages(o.model, { face = img(f[13]), shirtTex = img(f[14]), pantsTex = img(f[15]) })
 	end
 	playOn(o, f[5])
 	setRemoteStats(o, name, stats or "")

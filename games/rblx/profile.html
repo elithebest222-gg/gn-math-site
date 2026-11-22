@@ -8,6 +8,7 @@
   <link rel="stylesheet" crossorigin="anonymous" href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@300;400;600;700&display=swap" />
   <link rel="stylesheet" href="site.css" />
   <script src="config.js"></script>
+  <script src="catalog/items.js"></script>
   <script src="site.js"></script>
   <script src="three.min.js"></script>
   <script src="avatar3d.js"></script>
@@ -120,6 +121,12 @@
       ].map(([k, v]) => `<div><dt>${k}</dt><dd>${esc(v)}</dd></div>`).join('');
     }
     refresh();
+    // faces and clothes are images: the headshot and item pictures again once they've loaded (the 3D view does it by itself)
+    window.addEventListener('wb3d-ready', () => {
+      document.getElementById('headshot').innerHTML = WB.avatarImg(WB.look(), 'head', '#e3e3e3', 256);
+      const worn = WB.ITEMS.filter(i => i.type !== 'gear' && WB.wearing(i) && WB.owns(i.id));
+      if (worn.length) document.getElementById('worn').innerHTML = worn.map(itemTile).join('');
+    });
     // pick up outfit changes made in another tab
     window.addEventListener('storage', e => { if (/^webblox-(outfit|name|inventory|robux|status)$/.test(e.key || '')) refresh(); });
   </script>

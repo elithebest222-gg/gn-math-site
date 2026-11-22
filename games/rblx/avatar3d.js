@@ -1,6 +1,10 @@
 // GN-BLOX 3D avatars (three.js, three.min.js): your avatar the way the game builds it, with the
-// classic R6 body, your Catalog colors, and hats and gear from WB.HATS / WB.GEAR in site.js
-// (the same parts scripts/WebBloxPlayers.lua builds in-game).
+// classic R6 body, your Catalog colors, faces and clothes (classic 585 x 559 shirt and pants
+// templates, mapped onto the body like Roblox does), and hats and gear from WB.HATS / WB.GEAR in
+// site.js (the same parts scripts/WebBloxPlayers.lua builds in-game).
+//
+// Faces and clothes are images, so the first picture of a look can come out without them: once
+// they've loaded, window gets a "wb3d-ready" event and pages draw their avatars again.
 //
 //   WB3D.snapshot(look, { mode, size, bg, item })  -> image data URL
 //       mode: 'full' (whole avatar), 'head' (headshot), 'hat' (item on a grey head), 'gear'
@@ -54,9 +58,39 @@
     pts.push([0, 0.6]);
     return new T.LatheGeometry(pts.map(p => new T.Vector2(p[0], p[1])), 40);
   });
+  // ---- images (faces and clothing templates, catalog/assets/<id>.png) -------------------------
+  const images = new Map();   // id -> { img, ok }
+  let missing = false;        // something the current build needed wasn't loaded yet
+  let readyTimer = 0;
+  function image(id) {
+    let e = images.get(id);
+    if (!e) {
+      e = { img: new Image(), ok: false };
+      images.set(id, e);
+      e.img.onload = () => { e.ok = true; clearTimeout(readyTimer); readyTimer = setTimeout(() => window.dispatchEvent(new Event('wb3d-ready')), 30); };
+      e.img.onerror = () => { e.failed = true; };
+      e.img.src = WB.assetUrl(id);
+    }
+    if (!e.ok && !e.failed) missing = true;
+    return e.ok ? e.img : null;
+  }
+  const faceTextures = new Map();
+  function faceTex(id) {
+    if (faceTextures.has(id)) return faceTextures.get(id);
+    const img = image(id);
+    if (!img) return null;
+    // the strip around the head is 1.16 studs wide and 0.9 tall in a 256 x 128 picture: the face is a 0.9-stud square
+    const c = document.createElement('canvas');
+    c.width = 256; c.height = 128;
+    c.getContext('2d').drawImage(img, 29, 0, 199, 128);
+    const t = new T.CanvasTexture(c);
+    faceTextures.set(id, t);
+    return t;
+  }
   let faceTexture = null;
-  function face() {
-    if (!faceTexture) {
+  function face(id) {
+    const custom = id && faceTex(id);
+    if (!faceTexture && !custom) {
       const c = document.createElement('canvas');
       c.width = 256; c.height = 128;
       const g = c.getContext('2d');
@@ -68,8 +102,51 @@
     }
     // a strip of cylinder wrapped around the front of the head (which looks toward -Z)
     const geo = once('face', () => new T.CylinderGeometry(0.613, 0.613, 0.9, 24, 1, true, Math.PI - 0.95, 1.9));
-    const m = new T.Mesh(geo, new T.MeshBasicMaterial({ map: faceTexture, transparent: true }));
+    const m = new T.Mesh(geo, new T.MeshBasicMaterial({ map: custom || faceTexture, transparent: true }));
     m.position.y = -0.02;
+    return m;
+  }
+
+  // ---- clothes: classic templates on the R6 body ----------------------------------------------
+  // where each face of each body part is in a 585 x 559 template: [x, y, w, h] for the box faces
+  // in three.js order (+X: the character's right, -X, top, bottom, +Z: back, -Z: front)
+  const TPL = {
+    torso: [[165, 74, 64, 128], [361, 74, 64, 128], [231, 8, 128, 64], [231, 204, 128, 64], [427, 74, 128, 128], [231, 74, 128, 128]],
+    right: [[19, 355, 64, 128], [151, 355, 64, 128], [217, 289, 64, 64], [217, 485, 64, 64], [85, 355, 64, 128], [217, 355, 64, 128]],
+    left: [[374, 355, 64, 128], [506, 355, 64, 128], [308, 289, 64, 64], [308, 485, 64, 64], [440, 355, 64, 128], [308, 355, 64, 128]],
+  };
+  function templateBox(size, rects) {
+    return once('t' + size + rects, () => {
+      const g = new T.BoxGeometry(size[0], size[1], size[2]);
+      const uv = g.attributes.uv;
+      for (let f = 0; f < 6; f++) {
+        const [x, y, w, h] = rects[f];
+        for (let k = 0; k < 4; k++) {
+          let u = uv.getX(f * 4 + k), v = uv.getY(f * 4 + k);
+          if (f === 2 || f === 3) { u = 1 - u; v = 1 - v; }   // top and bottom: turned to match the template
+          uv.setXY(f * 4 + k, (x + u * w) / 585, 1 - (y + (1 - v) * h) / 559);
+        }
+      }
+      uv.needsUpdate = true;
+      return g;
+    });
+  }
+  // one picture per body area: its color underneath, then the pants, then the shirt
+  const clothTextures = new Map();
+  function clothes(base, layers) {
+    const imgs = layers.map(id => id && image(id));
+    if (layers.some((id, i) => id && !imgs[i])) return null;
+    const key = base + '|' + layers.join('|');
+    if (clothTextures.has(key)) return clothTextures.get(key);
+    const c = document.createElement('canvas');
+    c.width = 585; c.height = 559;
+    const g = c.getContext('2d');
+    g.fillStyle = typeof base === 'string' ? base : WB.colorHex(base);
+    g.fillRect(0, 0, 585, 559);
+    for (const img of imgs) if (img) g.drawImage(img, 0, 0, 585, 559);
+    const t = new T.CanvasTexture(c);
+    const m = new T.MeshLambertMaterial({ map: t });
+    clothTextures.set(key, m);
     return m;
   }
 
@@ -114,15 +191,24 @@
     const head = new T.Group();
     head.position.set(0, 4.5, 0);
     head.add(new T.Mesh(headGeometry(), material(skin)));
-    if (!opts.mannequin) head.add(face());
+    if (!opts.mannequin || opts.faceless === false) head.add(face(look.face));
     if (look.hat && WB.HATS[look.hat]) head.add(pieces(WB.HATS[look.hat]));
     g.add(head);
     if (opts.headOnly) return g;
-    add([2, 2, 1], [0, 3, 0], look.shirt);
-    add([1, 2, 1], [-1.5, 3, 0], skin);
-    add([1, 2, 1], [1.5, 3, 0], skin);
-    add([1, 2, 1], [-0.5, 1, 0], look.pants);
-    add([1, 2, 1], [0.5, 1, 0], look.pants);
+    const shirtTex = look.shirtTex || '', pantsTex = look.pantsTex || '';
+    // (the character's right is +X: its right arm and leg are at +1.5 and +0.5)
+    const part = (size, pos, color, rects, layers) => {
+      const mat = layers.some(Boolean) && clothes(color, layers);
+      if (!mat) return add(size, pos, color);
+      const m = new T.Mesh(templateBox(size, rects), mat);
+      m.position.set(pos[0], pos[1], pos[2]);
+      g.add(m);
+    };
+    part([2, 2, 1], [0, 3, 0], look.shirt, TPL.torso, [pantsTex, shirtTex]);
+    part([1, 2, 1], [1.5, 3, 0], skin, TPL.right, [shirtTex]);
+    part([1, 2, 1], [-1.5, 3, 0], skin, TPL.left, [shirtTex]);
+    part([1, 2, 1], [0.5, 1, 0], look.pants, TPL.right, [pantsTex]);
+    part([1, 2, 1], [-0.5, 1, 0], look.pants, TPL.left, [pantsTex]);
     return g;
   }
 
@@ -137,11 +223,11 @@
     return s;
   }
   // what to show, and the direction we look at it from (the front is -Z)
-  function subject(look, mode, item) {
+  function subject(look, mode, item, opts) {
     if (mode === 'gear') return { obj: pieces((WB.GEAR[item] || {}).pieces), dir: [-0.9, 0.35, -1] };
     if (mode === 'hat') return { obj: avatar({ hat: item }, { headOnly: true, mannequin: true }), dir: [-0.55, 0.45, -1] };
     if (mode === 'head') return { obj: avatar(look, { headOnly: true }), dir: [-0.3, 0.12, -1] };
-    return { obj: avatar(look), dir: [-0.42, 0.2, -1] };
+    return { obj: avatar(look, opts && opts.mannequin ? { mannequin: true } : {}), dir: [-0.42, 0.2, -1] };
   }
   function frame(camera, obj, dir, fill) {
     const box = new T.Box3().setFromObject(obj);
@@ -161,7 +247,7 @@
   function snapshot(look, opts) {
     opts = opts || {};
     const size = opts.size || 256, mode = opts.mode || 'full';
-    const key = JSON.stringify([look || null, mode, opts.item || '', size, opts.bg || '']);
+    const key = JSON.stringify([look || null, mode, opts.item || '', size, opts.bg || '', !!opts.mannequin]);
     if (snaps.has(key)) return snaps.get(key);
     if (!snapRenderer) {
       snapRenderer = new T.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
@@ -169,14 +255,16 @@
     }
     snapRenderer.setSize(size, size, false);
     const s = scene(opts.bg);
-    const { obj, dir } = subject(look, mode, opts.item);
+    missing = false;
+    const { obj, dir } = subject(look, mode, opts.item, opts);
+    const complete = !missing;
     s.add(obj);
     const cam = new T.PerspectiveCamera(30, 1, 0.1, 100);
     frame(cam, obj, dir, mode === 'full' ? 1.0 : 1.05);
     snapRenderer.setClearColor(0x000000, 0);
     snapRenderer.render(s, cam);
     const url = snapRenderer.domElement.toDataURL('image/png');
-    snaps.set(key, url);
+    if (complete) snaps.set(key, url);   // (drawn again once its images are in)
     return url;
   }
 
@@ -193,10 +281,13 @@
     const cam = new T.PerspectiveCamera(30, 1, 0.1, 100);
     const turn = new T.Group();
     s.add(turn);
-    let obj = null, angle = -0.35, auto = true, dragging = false, lastX = 0, idleSince = 0, raf = 0, alive = true;
+    let obj = null, angle = -0.35, auto = true, dragging = false, lastX = 0, idleSince = 0, raf = 0, alive = true, current = look;
     function setLook(l) {
+      current = l;
       if (obj) turn.remove(obj);
+      missing = false;
       obj = avatar(l);
+      obj.userData.missing = missing;
       turn.add(obj);
       turn.rotation.y = 0;
       frame(cam, obj, [0, 0.16, -1], 1.0);
@@ -236,12 +327,14 @@
       r.render(s, cam);
       raf = requestAnimationFrame(tick);
     }
+    const onReady = () => { if (alive && obj && obj.userData.missing) { const a = turn.rotation.y; setLook(current); turn.rotation.y = a; } };
+    window.addEventListener('wb3d-ready', onReady);
     setLook(look);
     resize();
     raf = requestAnimationFrame(tick);
     return {
       update: setLook,
-      destroy() { alive = false; cancelAnimationFrame(raf); if (ro) ro.disconnect(); r.dispose(); r.domElement.remove(); },
+      destroy() { alive = false; window.removeEventListener('wb3d-ready', onReady); cancelAnimationFrame(raf); if (ro) ro.disconnect(); r.dispose(); r.domElement.remove(); },
     };
   }
 
