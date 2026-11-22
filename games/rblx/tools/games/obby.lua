@@ -11,6 +11,9 @@
 --                       and carries whoever stands on it
 --   Finish              the end: a win (or your time, in timer mode), then back to the start
 --   Go                  timer mode (GAME.timer): crossing it starts your clock
+--
+-- Multiplayer (NET, games/net.lua): everyone in the server hears when someone reaches every fifth
+-- stage or wins, and in timer mode the server's best time is shared (players who join later see it).
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local STAT = GAME.stat or "Stage"
@@ -99,6 +102,7 @@ local function setup(p)
 			local st = statOf(plr, STAT)
 			if st and st.Value < n then
 				st.Value = n
+				if n % 5 == 0 and not GAME.timer then NET.send("stage", tostring(n)) end
 				sound(p, "electronicpingshort.mp3", 0.5)
 				local old = p.BrickColor
 				p.BrickColor = BrickColor.new("Lime green")
@@ -166,10 +170,16 @@ local function setup(p)
 				if runs then runs.Value = runs.Value + 1 end
 				local record = best and (best.Value == 0 or time < best.Value)
 				if record then best.Value = time end
-				message(plr, string.format("%.2f seconds!%s", time, record and " New best!" or ""), 4)
+				-- the server's best time, shared with everyone: "12.34|Name"
+				local srv = tonumber(string.match(NET.get("record") or "", "^([%d%.]+)|"))
+				local serverRecord = not srv or time < srv
+				if serverRecord then NET.set("record", string.format("%.2f|%s", time, NET.myName())) end
+				NET.send("time", string.format("%.2f", time))
+				message(plr, string.format("%.2f seconds!%s", time, serverRecord and " Server record!" or record and " New best!" or ""), 4)
 			else
 				local wins = statOf(plr, "Wins")
 				if wins then wins.Value = wins.Value + 1 end
+				NET.send("win", "")
 				message(plr, GAME.winText or "You win!", 4)
 			end
 			local sp = Instance.new("Sparkles")
@@ -308,3 +318,53 @@ local function onPlayer(plr)
 end
 Players.PlayerAdded:connect(onPlayer)
 for _, plr in pairs(Players:GetPlayers()) do onPlayer(plr) end
+
+-- what the other players are up to
+NET.on(function(topic, data, fromId, fromName)
+	local who = fromName ~= "" and fromName or "Someone"
+	if topic == "stage" then
+		NET.toast(who .. " reached " .. string.lower(STAT) .. " " .. data .. "!")
+	elseif topic == "win" then
+		NET.toast(who .. " beat " .. (GAME.title or "the obby") .. "!")
+	elseif topic == "time" then
+		NET.toast(who .. " finished in " .. data .. " seconds")
+	end
+end)
+if GAME.timer then
+	-- the server record, at the top of the screen
+	-- (shown again after each respawn: the 2016 engine clears your GUIs then)
+	local recordText = "Server record: none yet"
+	local function showRecord(plr)
+		local gui = plr:FindFirstChild("PlayerGui")
+		if not gui then return end
+		local sg = gui:FindFirstChild("GNRecord")
+		if not sg then
+			sg = Instance.new("ScreenGui")
+			sg.Name = "GNRecord"
+			local l = Instance.new("TextLabel")
+			l.Name = "Text"
+			l.Size = UDim2.new(0, 320, 0, 28)
+			l.Position = UDim2.new(0.5, -160, 0, 40)
+			l.BackgroundColor3 = Color3.new(0.1, 0.1, 0.1)
+			l.BackgroundTransparency = 0.3
+			l.BorderSizePixel = 0
+			l.TextColor3 = Color3.new(1, 0.85, 0.2)
+			l.Font = Enum.Font.SourceSansBold
+			l.FontSize = Enum.FontSize.Size24
+			l.Parent = sg
+			sg.Parent = gui
+		end
+		sg.Text.Text = recordText
+	end
+	NET.watch("record", function(value)
+		local t, name = string.match(value or "", "^([%d%.]+)|(.*)$")
+		recordText = t and ("Server record: " .. t .. "s by " .. name) or "Server record: none yet"
+		for _, plr in pairs(Players:GetPlayers()) do showRecord(plr) end
+	end)
+	local function hookRecord(plr)
+		plr.CharacterAdded:connect(function() wait(1) showRecord(plr) end)
+		spawn(function() wait(2) showRecord(plr) end)
+	end
+	Players.PlayerAdded:connect(hookRecord)
+	for _, plr in pairs(Players:GetPlayers()) do hookRecord(plr) end
+end

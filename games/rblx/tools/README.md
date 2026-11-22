@@ -12,6 +12,10 @@ Lua in `games/`:
 - `lava.lua` runs The Floor is Lava's rounds on the multiplayer room's shared clock.
 - `pizza.lua` runs Pizza Shift: customers, the register, dough/topping/oven/box stations (ClickDetectors
   on parts in the `Kitchen` model), the pizza you carry, and Money/Pizzas leaderstats.
+- `net.lua` goes above each of them: `NET.send` / `NET.on`, `NET.set` / `NET.get` / `NET.watch` and
+  `NET.toast` (see "Game scripts in multiplayer" below). The obbies tell everyone when someone reaches
+  every fifth stage or wins, Speed Run shares the server's record time, The Floor is Lava lists everyone
+  in the server who survived, and Pizza Shift's sign counts the whole server's pizzas.
 
 ```bash
 pip install lz4
