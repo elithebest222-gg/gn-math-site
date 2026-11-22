@@ -11,7 +11,11 @@
  *   - pinch -> zoom (the mouse wheel)
  *   - Chat -> opens the phone's keyboard and types into the game's chat
  *
- * play.html calls GNTouch.start(canvas) once the game is running, on touch devices (or ?touch=1).
+ * play.html calls GNTouch.start(canvas, { show }) once the game is running, on anything with a touch
+ * screen (or ?touch=1). Phones and tablets (show: true) have the controls from the start. Laptops and
+ * Chromebooks with touch screens get them as soon as you touch the screen, and they go away again
+ * when you use the trackpad, a mouse or the keyboard. The controls never get in the mouse's way:
+ * touches are read on the whole window and the buttons are found by where they are on screen.
  */
 (function () {
   'use strict';
@@ -47,9 +51,10 @@
     return { key: c, code, keyCode };
   }
 
-  function start(canvas) {
+  function start(canvas, opts) {
     if (start.done) return;
     start.done = true;
+    opts = opts || {};
     const mouseAt = { x: innerWidth / 2, y: innerHeight / 2 };
     function sendMouse(type, x, y, button, buttons, dx, dy) {
       const e = new MouseEvent(type, { clientX: x, clientY: y, screenX: x, screenY: y, button, buttons, bubbles: true, cancelable: true, view: window, movementX: dx || 0, movementY: dy || 0 });
@@ -62,7 +67,9 @@
     // ---- the controls
     const css = document.createElement('style');
     css.textContent = `
-      #gn-touch { position: fixed; inset: 0; z-index: 15; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+      #gn-touch { position: fixed; inset: 0; z-index: 15; pointer-events: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+      #gn-touch.off { display: none; }
+      html.gn-touching, html.gn-touching body, html.gn-touching #canvas { touch-action: none; }
       #gn-touch .stick { position: absolute; width: ${STICK_R * 2}px; height: ${STICK_R * 2}px; margin: -${STICK_R}px 0 0 -${STICK_R}px; border-radius: 50%;
         background: rgba(0,0,0,.25); border: 3px solid rgba(255,255,255,.55); pointer-events: none; transition: opacity .15s; }
       #gn-touch .stick i { position: absolute; left: 50%; top: 50%; width: 46px; height: 46px; margin: -23px 0 0 -23px; border-radius: 50%;
@@ -85,6 +92,9 @@
       <div class="btn jump" aria-label="Jump"><svg viewBox="0 0 24 24"><path d="M12 4 4 13h5v7h6v-7h5z"/></svg></div>
       <div class="btn chat" aria-label="Chat"><svg viewBox="0 0 24 24"><path d="M4 4h16v12H8l-4 4z"/></svg></div>`;
     document.body.appendChild(layer);
+    document.documentElement.classList.add('gn-touching');
+    let shown = opts.show !== false;
+    if (!shown) layer.classList.add('off');
     const form = document.createElement('form');
     form.innerHTML = '<input id="gn-touch-text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="send" />';
     document.body.appendChild(form);
@@ -114,17 +124,29 @@
     const touches = new Map();   // identifier -> { role, x0, y0, x, y, t0, ... }
     let stickId = null, rightDown = false, leftDown = false, pinch = null;
     const inStickZone = (x, y) => x < innerWidth * 0.42 && y > innerHeight * 0.35;
+    const onButton = (el, x, y) => { const r = el.getBoundingClientRect(), m = 6; return x >= r.left - m && x <= r.right + m && y >= r.top - m && y <= r.bottom + m; };
+    // touches on the page's own panels (Click for sound, the error box, the assets note) work as usual
+    const pageUI = t => t && t.closest && t.closest('#sound, #error, #assets-note, #loading');
+    let lastTouch = 0;
+    function setShown(on) {
+      if (on === shown) return;
+      shown = on;
+      layer.classList.toggle('off', !on);
+      if (!on) { setMove(0, 0); endRight(); endLeft(); for (const [id, t] of touches) if (t.role === 'jump') sendKey('keyup', KEYS.space); touches.clear(); stickId = null; pinch = null; restStick(); }
+    }
     const cameraTouches = () => [...touches.values()].filter(t => t.role === 'camera' || t.role === 'pending' || t.role === 'drag');
     function endRight() { if (rightDown) { rightDown = false; sendMouse('mouseup', mouseAt.x, mouseAt.y, 2, 0); } }
     function endLeft() { if (leftDown) { leftDown = false; sendMouse('mouseup', mouseAt.x, mouseAt.y, 0, 0); } }
 
-    layer.addEventListener('touchstart', e => {
+    addEventListener('touchstart', e => {
+      if (pageUI(e.target) || e.target === textBox) return;
       e.preventDefault();
+      lastTouch = performance.now();
+      setShown(true);
       for (const t of e.changedTouches) {
         const x = t.clientX, y = t.clientY, now = performance.now();
-        const el = document.elementFromPoint(x, y);
-        if (el && el.closest('.jump')) { touches.set(t.identifier, { role: 'jump' }); jumpBtn.classList.add('down'); sendKey('keydown', KEYS.space); continue; }
-        if (el && el.closest('.chat')) { touches.set(t.identifier, { role: 'chat' }); chatBtn.classList.add('down'); continue; }
+        if (onButton(jumpBtn, x, y)) { touches.set(t.identifier, { role: 'jump' }); jumpBtn.classList.add('down'); sendKey('keydown', KEYS.space); continue; }
+        if (onButton(chatBtn, x, y)) { touches.set(t.identifier, { role: 'chat' }); chatBtn.classList.add('down'); continue; }
         if (stickId == null && inStickZone(x, y)) {
           stickId = t.identifier;
           touches.set(t.identifier, { role: 'stick', x0: x, y0: y });
@@ -150,10 +172,12 @@
           }, HOLD_MS);
         }
       }
-    }, { passive: false });
+    }, { passive: false, capture: true });
 
-    layer.addEventListener('touchmove', e => {
+    addEventListener('touchmove', e => {
+      if (!touches.size) return;
       e.preventDefault();
+      lastTouch = performance.now();
       for (const t of e.changedTouches) {
         const info = touches.get(t.identifier);
         if (!info) continue;
@@ -192,10 +216,12 @@
           }
         }
       }
-    }, { passive: false });
+    }, { passive: false, capture: true });
 
     function touchEnd(e) {
+      if (![...e.changedTouches].some(t => touches.has(t.identifier))) return;
       e.preventDefault();
+      lastTouch = performance.now();
       for (const t of e.changedTouches) {
         const info = touches.get(t.identifier);
         touches.delete(t.identifier);
@@ -218,8 +244,15 @@
       }
       if (!touches.size) { endRight(); endLeft(); }
     }
-    layer.addEventListener('touchend', touchEnd, { passive: false });
-    layer.addEventListener('touchcancel', touchEnd, { passive: false });
+    addEventListener('touchend', touchEnd, { passive: false, capture: true });
+    addEventListener('touchcancel', touchEnd, { passive: false, capture: true });
+    // a touch laptop or Chromebook: back to the keyboard, trackpad or mouse hides the controls
+    if (!opts.show) {
+      const away = () => { if (performance.now() - lastTouch > 800) setShown(false); };
+      addEventListener('pointermove', e => { if (e.isTrusted && e.pointerType === 'mouse' && (e.movementX || e.movementY)) away(); }, true);
+      addEventListener('pointerdown', e => { if (e.isTrusted && e.pointerType === 'mouse') away(); }, true);
+      addEventListener('keydown', e => { if (e.isTrusted && !e.wbOurs && e.target !== textBox) away(); }, true);
+    }
     // (no scrolling, zooming the page or pull-to-refresh while playing)
     document.addEventListener('touchmove', e => { if (e.target !== textBox) e.preventDefault(); }, { passive: false });
     document.addEventListener('gesturestart', e => e.preventDefault());
@@ -258,6 +291,9 @@
     return { layer };
   }
 
-  const isTouch = () => (navigator.maxTouchPoints > 0 || 'ontouchstart' in window) && matchMedia('(pointer: coarse)').matches;
-  window.GNTouch = { start, isTouch };
+  // a touch screen at all (phones, tablets, touch laptops and Chromebooks)
+  const canTouch = () => navigator.maxTouchPoints > 0 || 'ontouchstart' in window;
+  // ...where touch is the main way in (phones and tablets): the controls show from the start
+  const isTouch = () => canTouch() && matchMedia('(pointer: coarse)').matches;
+  window.GNTouch = { start, isTouch, canTouch };
 })();
