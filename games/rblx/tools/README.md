@@ -226,7 +226,16 @@ They're worn in their own outfit slots (`face`, `shirtTex`, `pantsTex`), over th
 (`../avatar3d.js`) maps the templates onto the body; in games the face is the head's decal and the clothes are Shirt
 and Pants objects whose templates are `http://www.roblox.com/asset/?id=<asset id>`, which the service worker answers
 from `catalog/assets/` (so uploaded games that use the same faces get them too). Other players' stand-ins wear them
-(their ids ride along in the avatar state). Hats and hair need their mesh and texture files, which a `.rbxm` only names.
+(their ids ride along in the avatar state).
+
+Hats, hair and other accessories come from Roblox accessory files (`.rbxm` / `.rbxmx`, anywhere in the folder;
+`read_accessory.js` reads them with Node). A `.rbxm` only names its mesh and texture by asset id, so those files go in
+the folder too, named by id (`1090700.mesh` or `1090700`, `1090703.png`; `.obj` works for meshes). The script lists
+the accessories still waiting for theirs. Meshes of any version become mesh 2.00 in `catalog/assets/<id>.mesh`. Where
+an accessory sits comes from its attachment (HatAttachment, HairAttachment, FaceFrontAttachment, WaistFrontAttachment...)
+matched to the classic R6 body's, worked out once as `c0` (the weld from the body part to the handle). They go in the
+`hat`, `hair`, `glasses` or `back` slot, so one of each can be worn; in games they're a Handle with a SpecialMesh
+welded to the head or torso, and other players see them.
 
 ## Hats and gear
 

@@ -173,9 +173,45 @@ local function weldTo(base, part, c0, spin)
 	if spin then table.insert(spinning, { weld = weld, base = c0, speed = spin * 2 * math.pi }) end
 end
 
+-- Hats, hair and other accessories with meshes (WB.acc, from the Catalog's .rbxm items): a Handle
+-- with the item's mesh, welded where its attachment sits on the classic body (c0, worked out by
+-- tools/build_catalog.py). One per slot: hat, hair, glasses (face), back (body).
+local ACC = WB.acc or {}
+local ACC_MODEL = { hat = "WebBloxHat", hair = "WebBloxHair", glasses = "WebBloxGlasses", back = "WebBloxBack" }
+local function setAccessory(character, slot, key)
+	local old = character:FindFirstChild(ACC_MODEL[slot])
+	if old then old:Destroy() end
+	local a = ACC[key or ""]
+	local base = a and character:FindFirstChild(a.part or "Head")
+	if not base then return end
+	local model = Instance.new("Model")
+	model.Name = ACC_MODEL[slot]
+	local h = Instance.new("Part")
+	pcall(function() h.FormFactor = Enum.FormFactor.Custom end)
+	h.Name = "Handle"
+	h.Size = Vector3.new(a.size[1], a.size[2], a.size[3])
+	h.CanCollide = false
+	h.TopSurface = Enum.SurfaceType.Smooth
+	h.BottomSurface = Enum.SurfaceType.Smooth
+	pcall(function() h.CustomPhysicalProperties = PhysicalProperties.new(0.01, 0, 0) end)
+	local m = Instance.new("SpecialMesh")
+	m.MeshType = Enum.MeshType.FileMesh
+	m.MeshId = "http://www.roblox.com/asset/?id=" .. a.mesh
+	if a.tex and a.tex ~= "" then m.TextureId = "http://www.roblox.com/asset/?id=" .. a.tex end
+	m.Scale = Vector3.new(a.scale[1], a.scale[2], a.scale[3])
+	m.Offset = Vector3.new(a.offset[1], a.offset[2], a.offset[3])
+	m.VertexColor = Vector3.new(a.vc[1], a.vc[2], a.vc[3])
+	m.Parent = h
+	local c = a.c0
+	weldTo(base, h, CFrame.new(c[1], c[2], c[3], c[4], c[5], c[6], c[7], c[8], c[9], c[10], c[11], c[12]))
+	h.Parent = model
+	model.Parent = character
+end
+
 local function setHat(character, hatName)
 	local old = character:FindFirstChild("WebBloxHat")
 	if old then old:Destroy() end
+	if ACC[hatName or ""] then return setAccessory(character, "hat", hatName) end
 	local head = character:FindFirstChild("Head")
 	local spec = HATS[hatName or ""]
 	if not head or not spec then return end
@@ -301,13 +337,16 @@ local function applyLook(character, look)
 		end
 	end
 	setHat(character, look.hat)
+	for _, slot in ipairs({ "hair", "glasses", "back" }) do
+		if look[slot] ~= nil then setAccessory(character, slot, look[slot]) end
+	end
 	wearImages(character, look)
 end
 
 -- Your own character: wear the Catalog outfit (re-applied for a while, because the engine
 -- paints default body colors onto new characters shortly after they spawn).
 local function hasLook(look)
-	return look and (look.hat or look.skin or look.shirt or look.pants or look.face or look.shirtTex or look.pantsTex)
+	return look and (look.hat or look.skin or look.shirt or look.pants or look.face or look.shirtTex or look.pantsTex or look.hair or look.glasses or look.back)
 end
 local function dressMe(character)
 	if not hasLook(WB.look) then return end
@@ -317,6 +356,7 @@ local function dressMe(character)
 		wait(0.5)
 	end
 	setHat(character, WB.look.hat)
+	for _, slot in ipairs({ "hair", "glasses", "back" }) do setAccessory(character, slot, WB.look[slot]) end
 end
 player.CharacterAdded:connect(function(c) dressMe(c) end)
 if player.Character then spawn(function() dressMe(player.Character) end) end
@@ -427,12 +467,13 @@ local function myState()
 		local part = c:FindFirstChild(name)
 		colors[i] = part and part.BrickColor.Number or 194
 	end
-	local hat = (WB.look and HATS[WB.look.hat or ""]) and WB.look.hat or "none"
+	local hat = (WB.look and (HATS[WB.look.hat or ""] or ACC[WB.look.hat or ""])) and WB.look.hat or "none"
 	local lk = WB.look or {}
-	-- + face, shirt and pants (Catalog asset ids, 0 = none)
-	return string.format("%.2f,%.2f,%.2f,%.3f,%s,%d,%d,%d,%d,%d,%d,%s,%s,%s,%s", p.X, p.Y, p.Z,
+	-- + face, shirt and pants (Catalog asset ids, 0 = none), then hair, glasses and back accessories
+	local acc = function(slot) return ACC[lk[slot] or ""] and lk[slot] or "none" end
+	return string.format("%.2f,%.2f,%.2f,%.3f,%s,%d,%d,%d,%d,%d,%d,%s,%s,%s,%s,%s,%s,%s", p.X, p.Y, p.Z,
 		math.atan2(-look.X, -look.Z), WB.anim or "idle", colors[1], colors[2], colors[3], colors[4], colors[5], colors[6], hat,
-		lk.face or "0", lk.shirtTex or "0", lk.pantsTex or "0")
+		lk.face or "0", lk.shirtTex or "0", lk.pantsTex or "0", acc("hair"), acc("glasses"), acc("back"))
 end
 
 -- Your leaderstats, sent to the others: "Cash:120,Logs:4"
@@ -628,7 +669,7 @@ local function update(id, name, state, stats)
 	local shown = plain or name
 	if o.model.Name ~= shown then o.model.Name = shown end
 	if o.role ~= role then o.role = role roleBadge(o.model, role) end
-	local key = table.concat(f, ",", 6, math.min(#f, 15))
+	local key = table.concat(f, ",", 6, math.min(#f, 18))
 	if o.lookKey ~= key then
 		o.lookKey = key
 		local colors = { tonumber(f[6]), tonumber(f[7]), tonumber(f[8]), tonumber(f[9]), tonumber(f[10]), tonumber(f[11]) }
@@ -639,6 +680,9 @@ local function update(id, name, state, stats)
 		setHat(o.model, f[12])
 		local img = function(v) return v and v ~= "0" and string.match(v, "^%d+$") and v or nil end
 		wearImages(o.model, { face = img(f[13]), shirtTex = img(f[14]), pantsTex = img(f[15]) })
+		setAccessory(o.model, "hair", f[16])
+		setAccessory(o.model, "glasses", f[17])
+		setAccessory(o.model, "back", f[18])
 	end
 	playOn(o, f[5])
 	setRemoteStats(o, name, stats or "")

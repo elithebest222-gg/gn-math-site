@@ -116,8 +116,8 @@
     const esc = WB.esc;
     const params = new URLSearchParams(location.search);
     let cat = params.get('cat') || 'featured';
-    const CATS = [['featured', 'Featured'], ['all', 'All Items'], ['hat', 'Hats'], ['face', 'Faces'], ['gear', 'Gear'], ['shirt', 'Shirts'], ['pants', 'Pants'], ['skin', 'Body Colors'], ['wearing', 'Currently Wearing'], ['inventory', 'Inventory']];
-    const TYPE_NAME = { hat: 'Hat', gear: 'Gear', face: 'Face', shirt: 'Shirt', shirtTex: 'Shirt', pants: 'Pants', pantsTex: 'Pants', skin: 'Body Color' };
+    const CATS = [['featured', 'Featured'], ['all', 'All Items'], ['hat', 'Hats'], ['hair', 'Hair'], ['face', 'Faces'], ['gear', 'Gear'], ['shirt', 'Shirts'], ['pants', 'Pants'], ['skin', 'Body Colors'], ['wearing', 'Currently Wearing'], ['inventory', 'Inventory']];
+    const TYPE_NAME = { hat: 'Hat', hair: 'Hair', glasses: 'Face Accessory', back: 'Accessory', gear: 'Gear', face: 'Face', shirt: 'Shirt', shirtTex: 'Shirt', pants: 'Pants', pantsTex: 'Pants', skin: 'Body Color' };
     const PAGE = 60;
     let shown = PAGE;
     const priceHTML = item => item.price ? `<span class="robux"><svg class="i"><use href="#i-robux"/></svg>${item.price.toLocaleString('en-US')}</span>` : '<span class="free">Free</span>';
@@ -127,6 +127,7 @@
       if (c === 'all') return WB.ITEMS.slice();
       if (c === 'inventory') return WB.ITEMS.filter(i => WB.owns(i.id));
       if (c === 'wearing') return WB.ITEMS.filter(i => WB.wearing(i) && WB.owns(i.id));
+      if (c === 'hat') return WB.ITEMS.filter(i => i.type === 'hat' || i.type === 'glasses' || i.type === 'back');
       if (c === 'shirt' || c === 'pants') return WB.ITEMS.filter(i => i.type === c || i.type === c + 'Tex');
       return WB.ITEMS.filter(i => i.type === c);
     }

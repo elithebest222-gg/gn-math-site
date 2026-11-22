@@ -65,11 +65,14 @@ async function serveAsset(url) {
   if (!rec || !rec.bytes) {
     // the Catalog's faces and clothes (catalog/assets/<id>.png): avatars wear them, and uploaded
     // games that use the same classic faces and clothes get them too
+    // (and the meshes of its hats and hair, catalog/assets/<id>.mesh)
     if (id) {
-      try {
-        const r = await fetch(new URL("catalog/assets/" + id + ".png", self.registration.scope));
-        if (r.ok) return new Response(await r.arrayBuffer(), { status: 200, headers: addHeaders({ "Content-Type": "image/png", "Cache-Control": "max-age=86400" }) });
-      } catch (err) {}
+      for (const [ext, type] of [["png", "image/png"], ["mesh", "application/octet-stream"]]) {
+        try {
+          const r = await fetch(new URL("catalog/assets/" + id + "." + ext, self.registration.scope));
+          if (r.ok) return new Response(await r.arrayBuffer(), { status: 200, headers: addHeaders({ "Content-Type": type, "Cache-Control": "max-age=86400" }) });
+        } catch (err) {}
+      }
     }
     try { assetChan.postMessage({ missing: id }); } catch (err) {}
     return new Response("", { status: 404, headers: addHeaders({ "Content-Type": "text/plain", "Cache-Control": "no-store" }) });
