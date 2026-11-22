@@ -279,8 +279,8 @@ Paintball Gun) works in every game. Shots fly in steps along rays (so they look 
 player's copy), explosions hurt humanoids by distance and don't break the map, and hits on a game's own
 NPCs tag them with `creator` like classic gear does. Each player runs their own copy of the game, so
 another player is only a stand-in in yours: the attacker's copy works out the hits, damage to a stand-in
-is sent to that player as a `gn:hit` game message and their copy takes it, and what the attack looks
-like is sent to everyone as `gn:fx`. Damage to a stand-in only counts while you're attacking (you used a
+is sent to that player as a `gn.hit` game message and their copy takes it, and what the attack looks
+like is sent to everyone as `gn.fx`. Damage to a stand-in only counts while you're attacking (you used a
 tool in the last few seconds, or the humanoid carries your `creator` tag), so a game's own gear hits
 other players too, but a stand-in brushing a kill brick in your copy doesn't. The gear a player holds is
 the 19th field of their state, and their stand-in holds it.

@@ -239,8 +239,8 @@ end)
 
 -- Combat gear (spec.combat, from site.js): swords, slingshots, rocket launchers, bombs... Every
 -- player runs their own copy of the game, so the player who attacks works out the hits in theirs:
--- damage to another player's avatar there is sent to that player ("gn:hit"), whose own copy takes
--- it, and what the attack looks like (shots, bombs, blasts) is sent to everyone ("gn:fx"). Gear
+-- damage to another player's avatar there is sent to that player ("gn.hit"), whose own copy takes
+-- it, and what the attack looks like (shots, bombs, blasts) is sent to everyone ("gn.fx"). Gear
 -- that a game brings itself hits other players the same way (see watchStandIn below).
 local Debris = game:GetService("Debris")
 local fxFolder = Instance.new("Folder")
@@ -366,7 +366,7 @@ local function shoot(spec, origin, vel, color, real, ignoreModel)
 				if c.blast then
 					if real then
 						blast(at, c.blast, c.damage or 100, true)
-						sendEvent:Fire("gn:fx", "boom|" .. v3s(at) .. "|" .. c.blast)
+						sendEvent:Fire("gn.fx", "boom|" .. v3s(at) .. "|" .. c.blast)
 					end
 					break
 				end
@@ -435,7 +435,7 @@ local function bombAt(pos, c, real, part)
 		b:Destroy()
 		if real then
 			blast(at, c.blast or 10, c.damage or 100, true)
-			sendEvent:Fire("gn:fx", "boom|" .. v3s(at) .. "|" .. (c.blast or 10))
+			sendEvent:Fire("gn.fx", "boom|" .. v3s(at) .. "|" .. (c.blast or 10))
 		end
 	end)
 end
@@ -476,7 +476,7 @@ local function useGear(spec, tool)
 		b.CFrame = CFrame.new(handle.Position + (char:FindFirstChild("HumanoidRootPart") and char.HumanoidRootPart.CFrame.lookVector * 2 or Vector3.new()))
 		b.Parent = fxFolder
 		bombAt(b.Position, c, true, b)
-		sendEvent:Fire("gn:fx", "bomb|" .. spec.id .. "|" .. v3s(b.Position))
+		sendEvent:Fire("gn.fx", "bomb|" .. spec.id .. "|" .. v3s(b.Position))
 		return
 	end
 	local dir = (target - from).unit
@@ -488,7 +488,7 @@ local function useGear(spec, tool)
 	local color = c.color or randomColor()
 	shoot(spec, from, vel, color, true, char)
 	if c.sound then sound(handle, c.sound, 0.7) end
-	sendEvent:Fire("gn:fx", "shot|" .. spec.id .. "|" .. v3s(from) .. "|" .. v3s(vel) .. "|" .. color)
+	sendEvent:Fire("gn.fx", "shot|" .. spec.id .. "|" .. v3s(from) .. "|" .. v3s(vel) .. "|" .. color)
 end
 
 local function arm(spec, tool)
@@ -536,9 +536,9 @@ local function arm(spec, tool)
 	end
 end
 
--- what other players' attacks look like here (their hits arrive as gn:hit)
+-- what other players' attacks look like here (their hits arrive as gn.hit)
 messageEvent.Event:connect(function(topic, data, fromId)
-	if topic == "gn:fx" then
+	if topic == "gn.fx" then
 		local f = {}
 		for v in string.gmatch(data .. "|", "([^|]*)|") do f[#f + 1] = v end
 		if f[1] == "shot" then
@@ -554,7 +554,7 @@ messageEvent.Event:connect(function(topic, data, fromId)
 			local at = s2v(f[2])
 			if at then blast(at, tonumber(f[3]) or 8, 0, false) end
 		end
-	elseif topic == "gn:hit" then
+	elseif topic == "gn.hit" then
 		local target, amount = string.match(data, "^([^|]+)|([%d.]+)")
 		local char = player.Character
 		local hum = char and char:FindFirstChild("Humanoid")
@@ -1063,7 +1063,7 @@ function watchStandIn(o, id)
 		if lost <= 0 then return end
 		local tag = hum:FindFirstChild("creator")
 		if tick() - lastAttack < 4 or (tag and tag.Value == player) then
-			sendEvent:Fire("gn:hit", id .. "|" .. string.format("%.1f", h <= 0 and 1000 or lost))
+			sendEvent:Fire("gn.hit", id .. "|" .. string.format("%.1f", h <= 0 and 1000 or lost))
 		end
 		if h > 0 then
 			resetting = true
