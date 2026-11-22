@@ -3,7 +3,9 @@
 -- rising and is still alive when it drains wins the round.
 --
 -- Rounds run on the multiplayer room's shared clock (ReplicatedStorage.WebBlox, kept by
--- scripts/WebBloxPlayers.lua), so everyone in a server sees the same lava at the same time.
+-- scripts/WebBloxPlayers.lua), so everyone in a server sees the same lava at the same time, and
+-- each player's game tells the others who survived (NET, games/net.lua), so the round's result
+-- lists everyone in the server who made it.
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local store = game:GetService("ReplicatedStorage")
@@ -67,6 +69,17 @@ Players.PlayerAdded:connect(onPlayer)
 for _, plr in pairs(Players:GetPlayers()) do onPlayer(plr) end
 
 local round, phase, height, playing, result = -1, "", HEIGHTS[1], {}, nil
+local survivors = {}   -- round -> names (yours, and the other players' from their games)
+local function survived(n, name)
+	local list = survivors[n] or {}
+	survivors[n] = list
+	for _, v in ipairs(list) do if v == name then return end end
+	table.insert(list, name)
+	if n == round then result = "Survived: " .. table.concat(list, ", ") end
+end
+NET.on(function(topic, data, fromId, fromName)
+	if topic == "survived" and tonumber(data) then survived(tonumber(data), fromName ~= "" and fromName or "Someone") end
+end)
 local function fmt(s) s = math.max(0, math.ceil(s)) return string.format("%d:%02d", math.floor(s / 60), s % 60) end
 
 RunService.Stepped:connect(function()
@@ -78,6 +91,7 @@ RunService.Stepped:connect(function()
 		height = heightFor(n)
 		playing = {}
 		result = nil
+		survivors[n - 2] = nil
 	end
 	-- lava level
 	local top = floorTop - 2
@@ -129,8 +143,13 @@ RunService.Stepped:connect(function()
 					table.insert(names, me and me.Value ~= "" and me.Value or plr.Name)
 				end
 			end
-			if #names > 0 then sound("victory.mp3", 0.7) end
-			result = #names > 0 and ("Survived: " .. table.concat(names, ", ")) or "Nobody survived!"
+			if #names > 0 then
+				sound("victory.mp3", 0.7)
+				NET.send("survived", tostring(round))
+			end
+			result = "Nobody survived!"
+			for _, name in ipairs(names) do survived(round, name) end
+			if survivors[round] and #survivors[round] > 0 then result = "Survived: " .. table.concat(survivors[round], ", ") end
 		end
 	end
 

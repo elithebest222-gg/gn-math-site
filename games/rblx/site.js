@@ -128,12 +128,22 @@
     price, featured: !!featured, desc: 'A shirt with sleeves, worn over your shirt color (it shows wherever the shirt is see-through).' }));
   (TEX.pants || []).forEach(([id, name, price, featured]) => ITEMS.push({ id: 'pants-' + id, name: name || 'Pants ' + id, type: 'pantsTex', value: id,
     price, featured: !!featured, desc: 'Pants, worn over your pants color (it shows wherever they\'re see-through).' }));
-  const CATEGORY = { hat: 'Hats', gear: 'Gear', face: 'Faces', shirt: 'Shirts', shirtTex: 'Shirts', pants: 'Pants', pantsTex: 'Pants', skin: 'Body Colors' };
+  // Hats, hair and other accessories with real meshes (catalog/items.js "acc", from .rbxm files): the
+  // value is 'a' + the accessory's asset id, and it goes in the slot its attachment says (hat, hair,
+  // glasses for the face, back for the body). The game and avatar3d.js build them from WB.ACCESSORIES.
+  const ACCESSORIES = {};
+  const ACC_DESC = { hat: 'A hat for your avatar.', hair: 'Hair for your avatar. Wear it with a hat too.', glasses: 'For your face. Wear it with a hat and hair too.', back: 'An accessory you wear on your body.' };
+  (TEX.acc || []).forEach(a => {
+    const value = 'a' + a.id;
+    ACCESSORIES[value] = a;
+    ITEMS.push({ id: 'acc-' + a.id, name: a.name, type: a.slot, value, price: a.price, featured: a.price >= 1000, collectible: a.price >= 1000, desc: ACC_DESC[a.slot] || ACC_DESC.back });
+  });
+  const CATEGORY = { hat: 'Hats', hair: 'Hair', glasses: 'Hats', back: 'Hats', gear: 'Gear', face: 'Faces', shirt: 'Shirts', shirtTex: 'Shirts', pants: 'Pants', pantsTex: 'Pants', skin: 'Body Colors' };
   // an image item's file (faces and templates); games get the same file as asset id <id>
-  const assetUrl = id => 'catalog/assets/' + String(id).replace(/[^0-9]/g, '') + '.png';
+  const assetUrl = (id, ext) => 'catalog/assets/' + String(id).replace(/[^0-9]/g, '') + '.' + (ext || 'png');
 
   const WB = {
-    esc, BRICK, ITEMS, CATEGORY, DEFAULT_LOOK, HATS, GEAR, assetUrl,
+    esc, BRICK, ITEMS, CATEGORY, DEFAULT_LOOK, HATS, GEAR, ACCESSORIES, assetUrl,
     item: id => ITEMS.find(i => i.id === id),
     colorHex: n => BRICK[n] || '#a3a2a5',
     robux: () => { const n = load('webblox-robux', 8451); return Number.isFinite(n) ? n : 8451; },
@@ -230,6 +240,15 @@
     if (item.type === 'face') {
       return `<svg viewBox="0 0 100 100" width="100%" height="100%" aria-hidden="true"><rect width="100" height="100" fill="${bg}"/>
         <rect x="14" y="18" width="72" height="64" rx="18" fill="${WB.colorHex(24)}"/><image href="${assetUrl(item.value)}" x="18" y="20" width="64" height="60" preserveAspectRatio="xMidYMid meet"/></svg>`;
+    }
+    if (ACCESSORIES[item.value]) {
+      if (window.WB3D) {
+        try {
+          const src = window.WB3D.snapshot(null, { mode: 'acc', item: item.value, size: size || 200 });
+          return `<img src="${src}" alt="" style="width:100%;height:100%;object-fit:contain;display:block;background:${bg}" />`;
+        } catch (e) { /* fall back to the drawing */ }
+      }
+      return `<svg viewBox="0 0 100 100" width="100%" height="100%" aria-hidden="true"><rect width="100" height="100" fill="${bg}"/><text x="50" y="56" font-size="11" text-anchor="middle" fill="#555">${esc(item.name)}</text></svg>`;
     }
     if (item.type === 'shirtTex' || item.type === 'pantsTex') {
       const look = { skin: 194, shirt: 194, pants: 194, [item.type]: item.value };

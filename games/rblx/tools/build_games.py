@@ -8,7 +8,10 @@
 
 Each place is written as Roblox XML and converted with xml2bin.py. Behaviour comes from the
 Lua in games/: obby.lua gives parts their behaviour by name (KillBrick, Checkpoint, Vanish,
-Bounce, Speed, Spinner, Mover, Go, Finish); lava.lua runs The Floor is Lava's rounds.
+Bounce, Speed, Spinner, Mover, Go, Finish); lava.lua runs The Floor is Lava's rounds; pizza.lua
+runs Pizza Shift. net.lua goes above them: it lets each player's copy of the game tell the
+others what happened (milestones and wins, Speed Run's server record, who survived the lava,
+pizzas served).
 
 usage: python3 build_games.py            (needs: pip install lz4)
 """
@@ -123,9 +126,14 @@ class Place:
         print('%-22s %5d instances, %3d classes, %7d bytes' % (self.name + '.rbxl', n, nc, len(blob)))
 
 
+def with_net(src):
+    """A game's script with games/net.lua above it (NET: messages and shared values between players' games)."""
+    return open(os.path.join(HERE, 'games', 'net.lua')).read() + '\n' + src
+
+
 def kit(game_table):
     src = open(os.path.join(HERE, 'games', 'obby.lua')).read()
-    return 'GAME = ' + game_table + '\n' + src
+    return with_net('GAME = ' + game_table + '\n' + src)
 
 
 def checkpoint(pl, parent, pos, n, color, size=(10, 1, 10)):
@@ -276,7 +284,7 @@ def rainbow_obby():
     for i in range(n):
         w = (x1 - x0) / n
         pl.part((x0 + w * (i + 0.5), -14, 0), (w, 2, 240), KILL, 'KillBrick', mat='smooth', surface=SMOOTH)
-    pl.script('ObbyScript', kit('{ stat = "Stage", winText = "You beat the Rainbow Obby!" }'))
+    pl.script('ObbyScript', kit('{ stat = "Stage", winText = "You beat the Rainbow Obby!", title = "the Rainbow Obby" }'))
     pl.save()
 
 
@@ -329,7 +337,7 @@ def sky_tower():
     pl.part((0, y + 0.5, 0), (34, 1, 34), 24, 'Roof', m, mat='marble', surface=SMOOTH)
     pl.part((math.cos(a) * radius, y + 0.3, math.sin(a) * radius), (8, 1, 8), 24, 'Landing', m)
     pl.part((0, y + 1.1, 0), (12, 0.2, 12), 24, 'Finish', m, mat='neon', surface=SMOOTH)
-    pl.script('ObbyScript', kit('{ stat = "Floor", winText = "You reached the top of the Sky Tower!" }'))
+    pl.script('ObbyScript', kit('{ stat = "Floor", winText = "You reached the top of the Sky Tower!", title = "the Sky Tower" }'))
     pl.save()
 
 
@@ -427,7 +435,7 @@ def floor_is_lava():
         a = math.radians(i * 72)
         pl.part((math.cos(a) * 6, 2 + i * 2, math.sin(a) * 6), (4, 1, 4), RAINBOW[i % 12], 'Step', tw)
     pl.part((0, 20.5, 0), (12, 1, 12), 24, 'Lookout', tw)
-    pl.script('LavaScript', open(os.path.join(HERE, 'games', 'lava.lua')).read())
+    pl.script('LavaScript', with_net(open(os.path.join(HERE, 'games', 'lava.lua')).read()))
     pl.save()
 
 
@@ -556,7 +564,7 @@ def pizza_shift():
         for dx in (-3.6, 3.6):
             pl.part((x + dx, 1.3, z), (2, 0.5, 2), 21, 'Chair', b, cls='Seat', mat='smooth', surface=SMOOTH)
     pl.part((24, 0.3, 4), (6, 0.2, 6), 23, 'Spawn', cls='SpawnLocation', mat='smooth', surface=SMOOTH)
-    pl.script('PizzaScript', open(os.path.join(HERE, 'games', 'pizza.lua')).read())
+    pl.script('PizzaScript', with_net(open(os.path.join(HERE, 'games', 'pizza.lua')).read()))
     pl.save()
 
 

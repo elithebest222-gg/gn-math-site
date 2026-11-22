@@ -1,6 +1,8 @@
 -- Pizza Shift (tools/build_games.py): run a pizza restaurant. Customers come to the counter one
 -- at a time: take their order at the register, grab dough, add the topping they asked for, bake
 -- it, box it and hand it over. Money and Pizzas go on the leaderboard.
+-- In multiplayer (NET, games/net.lua) everyone hears when someone serves a pizza, and the sign
+-- shows how many the whole server has served (each player shares their own count).
 --
 -- Stations are parts with a ClickDetector, found by name in workspace.Kitchen: Register, Dough,
 -- Topping_<name>, Oven, Box, Trash. The customer stands on workspace.Kitchen.CustomerSpot.
@@ -241,7 +243,11 @@ function serve(plr)
 	local tip = math.max(0, 10 - math.floor((tick() - arrived) / 6))
 	local money, pizzas = stat(plr, "Money"), stat(plr, "Pizzas")
 	if money then money.Value = money.Value + 15 + tip end
-	if pizzas then pizzas.Value = pizzas.Value + 1 end
+	if pizzas then
+		pizzas.Value = pizzas.Value + 1
+		NET.set("p_" .. NET.myId(), tostring(pizzas.Value))
+	end
+	NET.send("served", order .. "|" .. tip)
 	sound(customer.Torso, "victory.mp3", 0.5)
 	state[plr] = {}
 	setBoard("NO ORDERS")
@@ -360,10 +366,29 @@ do
 		t.Font = Enum.Font.SourceSansBold
 		t.FontSize = Enum.FontSize.Size96
 		t.Text = "PIZZA SHIFT"
+		t.Size = UDim2.new(1, 0, 0.72, 0)
 		t.Parent = sg
+		local c = t:Clone()
+		c.Name = "Served"
+		c.Size = UDim2.new(1, 0, 0.28, 0)
+		c.Position = UDim2.new(0, 0, 0.72, 0)
+		c.FontSize = Enum.FontSize.Size24
+		c.Text = ""
+		c.Parent = sg
 		sg.Parent = sign
+		-- the whole server's pizzas: everyone's own count, added up
+		NET.onShared(function()
+			local total = 0
+			for _, v in pairs(NET.values("p_")) do total = total + (tonumber(v) or 0) end
+			c.Text = total > 0 and (total .. (total == 1 and " pizza" or " pizzas") .. " served on this server") or ""
+		end)
 	end
 end
+NET.on(function(topic, data, fromId, fromName)
+	if topic ~= "served" then return end
+	local what, tip = string.match(data, "^([^|]*)|(%d+)$")
+	NET.toast((fromName ~= "" and fromName or "Someone") .. " served a " .. (what or "") .. " pizza" .. (tonumber(tip or 0) > 0 and (" (+$" .. tip .. " tip)") or ""))
+end)
 
 local function onPlayer(plr)
 	if plr:FindFirstChild("leaderstats") then return end

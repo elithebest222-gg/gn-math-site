@@ -107,6 +107,61 @@
     return m;
   }
 
+  // ---- accessories with meshes (WB.ACCESSORIES: hats, hair...; catalog/assets/<id>.mesh, mesh 2.00) --
+  const meshes = new Map();   // mesh id -> { geo, ok }
+  function meshGeometry(id) {
+    let e = meshes.get(id);
+    if (!e) {
+      e = { geo: null, ok: false };
+      meshes.set(id, e);
+      fetch(WB.assetUrl(id, 'mesh')).then(r => r.ok ? r.arrayBuffer() : Promise.reject(new Error(r.status))).then(buf => {
+        const b = new Uint8Array(buf), dv = new DataView(buf);
+        let o = b.indexOf(10) + 1;
+        const vs = dv.getUint8(o + 2), nv = dv.getUint32(o + 4, true), nf = dv.getUint32(o + 8, true);
+        o += dv.getUint16(o, true);
+        const pos = new Float32Array(nv * 3), nor = new Float32Array(nv * 3), uv = new Float32Array(nv * 2);
+        for (let i = 0; i < nv; i++, o += vs) {
+          for (let k = 0; k < 3; k++) { pos[i * 3 + k] = dv.getFloat32(o + k * 4, true); nor[i * 3 + k] = dv.getFloat32(o + 12 + k * 4, true); }
+          uv[i * 2] = dv.getFloat32(o + 24, true);
+          uv[i * 2 + 1] = 1 - dv.getFloat32(o + 28, true);   // (Roblox meshes count V from the top)
+        }
+        const idx = new Uint32Array(nf * 3);
+        for (let i = 0; i < nf * 3; i++) idx[i] = dv.getUint32(o + i * 4, true);
+        const g = new T.BufferGeometry();
+        g.setAttribute('position', new T.BufferAttribute(pos, 3));
+        g.setAttribute('normal', new T.BufferAttribute(nor, 3));
+        g.setAttribute('uv', new T.BufferAttribute(uv, 2));
+        g.setIndex(new T.BufferAttribute(idx, 1));
+        e.geo = g; e.ok = true;
+        clearTimeout(readyTimer); readyTimer = setTimeout(() => window.dispatchEvent(new Event('wb3d-ready')), 30);
+      }).catch(() => { e.failed = true; });
+    }
+    if (!e.ok && !e.failed) missing = true;
+    return e.geo;
+  }
+  const accMaterials = new Map();
+  function accessory(a) {
+    const geo = meshGeometry(a.mesh);
+    const img = a.tex ? image(a.tex) : null;
+    if (!geo || (a.tex && !img)) return null;
+    const key = a.tex + '|' + a.vc;
+    if (!accMaterials.has(key)) {
+      const opts = { color: new T.Color(a.vc[0], a.vc[1], a.vc[2]), side: T.DoubleSide };
+      if (img) { const t = new T.Texture(img); t.needsUpdate = true; opts.map = t; opts.transparent = true; opts.alphaTest = 0.05; }
+      accMaterials.set(key, new T.MeshLambertMaterial(opts));
+    }
+    const m = new T.Mesh(geo, accMaterials.get(key));
+    // the handle where the game welds it (c0, from its attachment), then the mesh's Offset and Scale
+    const c = a.c0;
+    const handle = new T.Matrix4().set(c[3], c[4], c[5], c[0], c[6], c[7], c[8], c[1], c[9], c[10], c[11], c[2], 0, 0, 0, 1);
+    handle.multiply(new T.Matrix4().makeTranslation(a.offset[0], a.offset[1], a.offset[2]));
+    handle.multiply(new T.Matrix4().makeScale(a.scale[0], a.scale[1], a.scale[2]));
+    m.matrixAutoUpdate = false;
+    m.matrix.copy(handle);
+    return m;
+  }
+  const ACC_SLOTS = ['hat', 'hair', 'glasses', 'back'];
+
   // ---- clothes: classic templates on the R6 body ----------------------------------------------
   // where each face of each body part is in a 585 x 559 template: [x, y, w, h] for the box faces
   // in three.js order (+X: the character's right, -X, top, bottom, +Z: back, -Z: front)
@@ -193,8 +248,22 @@
     head.add(new T.Mesh(headGeometry(), material(skin)));
     if (!opts.mannequin || opts.faceless === false) head.add(face(look.face));
     if (look.hat && WB.HATS[look.hat]) head.add(pieces(WB.HATS[look.hat]));
+    const torsoAcc = [];
+    for (const slot of ACC_SLOTS) {
+      const a = (WB.ACCESSORIES || {})[look[slot]];
+      if (!a) continue;
+      if (a.part === 'Head') { const m = accessory(a); if (m) head.add(m); } else torsoAcc.push(a);
+    }
     g.add(head);
     if (opts.headOnly) return g;
+    for (const a of torsoAcc) {
+      const m = accessory(a);
+      if (!m) continue;
+      const t = new T.Group();
+      t.position.set(0, 3, 0);
+      t.add(m);
+      g.add(t);
+    }
     const shirtTex = look.shirtTex || '', pantsTex = look.pantsTex || '';
     // (the character's right is +X: its right arm and leg are at +1.5 and +0.5)
     const part = (size, pos, color, rects, layers) => {
@@ -226,6 +295,10 @@
   function subject(look, mode, item, opts) {
     if (mode === 'gear') return { obj: pieces((WB.GEAR[item] || {}).pieces), dir: [-0.9, 0.35, -1] };
     if (mode === 'hat') return { obj: avatar({ hat: item }, { headOnly: true, mannequin: true }), dir: [-0.55, 0.45, -1] };
+    if (mode === 'acc') {   // a mesh accessory on a grey head (or body, for the ones worn on it)
+      const a = (WB.ACCESSORIES || {})[item] || {};
+      return { obj: avatar({ [a.slot || 'hat']: item, skin: 194, shirt: 194, pants: 194 }, { headOnly: a.part === 'Head', mannequin: true }), dir: a.part === 'Head' ? [-0.55, 0.35, -1] : [-0.6, 0.3, -1] };
+    }
     if (mode === 'head') return { obj: avatar(look, { headOnly: true }), dir: [-0.3, 0.12, -1] };
     return { obj: avatar(look, opts && opts.mannequin ? { mannequin: true } : {}), dir: [-0.42, 0.2, -1] };
   }
