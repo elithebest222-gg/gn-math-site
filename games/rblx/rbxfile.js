@@ -763,6 +763,10 @@
   //   CollectionService:AddTag / HasTag / RemoveTag / GetTagged -> the same, in a table all scripts share
   //   Instance.new("Beam" / "Trail")   -> a stand-in table, like the UI classes
   //   TweenService:Create(o, TweenInfo.new(t), goal):Play() -> a stand-in that moves o's properties over t
+  //   player.Team                      -> the Team with the player's TeamColor (reading)
+  //   x:GetNetworkOwner()              -> you;  x:SetNetworkOwner(...) -> nothing
+  //   Players.PlayerAdded:Connect(f)   -> also f(player) for players already in the game (unless the
+  //                                       script goes through GetPlayers itself)
   //   ContentProvider.RequestQueueSize -> 0                     (loading screens waiting for downloads
   //                                                              from Roblox, which never come here)
   const COMPAT_LUA = {
@@ -774,6 +778,13 @@
     __gnFAW: 'local function __gnFAW(o, c, exact) local p = o.Parent while p do if (exact and p.ClassName == c) or (not exact and p:IsA(c)) then return p end p = p.Parent end return nil end ',
     __gnFA: 'local function __gnFA(o, n) local p = o.Parent while p do if p.Name == n then return p end p = p.Parent end return nil end ',
     __gnNew: 'local function __gnNew(c, p) local ok, o = pcall(Instance.new, c, p) if ok then return o end return {} end ',
+    __gnTeam: 'local function __gnTeam(o) local ok, isP = pcall(function() return o:IsA("Player") end) '
+      + 'if ok and isP then for _, t in ipairs(game:GetService("Teams"):GetChildren()) do if t.TeamColor == o.TeamColor then return t end end return nil end return o.Team end ',
+    __gnOwner: 'local function __gnOwner(o) local P = game:GetService("Players") return P.LocalPlayer or P:GetPlayers()[1] end local function __gnSetOwner(o, p) end ',
+    __gnPA: 'local function __gnPlayerAdded(P, f) local c = P.PlayerAdded:connect(f) for _, p in ipairs(P:GetPlayers()) do spawn(function() f(p) end) end return c end ',
+    __gnClone: 'local function __gnClone(o) local c = o:Clone() if c then pcall(function() local function fix(x) for _, k in ipairs(x:GetChildren()) do '
+      + 'if k:IsA("Humanoid") then local m = k.Parent if m and m:FindFirstChild("UpperTorso") and not m:FindFirstChild("Torso") then k.RigType = Enum.HumanoidRigType.R15 end end fix(k) end end '
+      + 'fix(c) end) end return c end ',
     __gnTween: 'local function __gnTweenInfo(t, ...) return { Time = t or 1 } end '
       + 'local __gnTweenService = { Create = function(self, o, info, goal) local tw = {} '
       + 'local done = Instance.new("BindableEvent") tw.Completed = done.Event local stop = false '
@@ -813,8 +824,9 @@
     // a call's parentheses belong to a name before them; a bare ( ... ) is a whole expression
     return i < end ? i : -1;
   }
-  function compatSource(src) {
-    if (!/GetDescendants|GetPropertyChangedSignal|\.Activated\b|RequestQueueSize|BindToClose|WhichIsA|FindFirstAncestor|Instance\.new\s*\(\s*["']UI|PlaybackSpeed|\.Gravity\b|Tag(?:ged)?\s*\(|["'](?:Beam|Trail)["']|TweenService|TweenInfo/.test(src)) return src;
+  function compatSource(src, opts = {}) {
+    const clones = opts.r15 && /:\s*[Cc]lone\s*\(\s*\)/.test(src);
+    if (!clones && !/GetDescendants|GetPropertyChangedSignal|\.Activated\b|RequestQueueSize|BindToClose|WhichIsA|FindFirstAncestor|Instance\.new\s*\(\s*["']UI|PlaybackSpeed|\.Gravity\b|Tag(?:ged)?\s*\(|["'](?:Beam|Trail)["']|TweenService|TweenInfo|\.Team\b|NetworkOwner|PlayerAdded|ForceField|ScreenGui/.test(src)) return src;
     const used = new Set();
     let out = src;
     const rewrite = (re, make) => {
@@ -844,6 +856,28 @@
     out = out.replace(/\b((?:game\s*[.:]\s*(?:GetService\s*\(\s*["']Workspace["']\s*\)|Workspace)|[Ww]orkspace))\s*\.\s*Gravity\b(\s*=(?!=))?/g,
       (m0, w, assign) => assign ? 'local __gnGravity =' : '196.2');
     out = out.replace(/\bInstance\.new\s*\(\s*(["'](?:UI\w+|Beam|Trail)["'])/g, (_, c) => { used.add('__gnNew'); return '__gnNew(' + c; });
+    // properties some classes only got in 2017 (ForceField.Visible, ScreenGui.Enabled): a line that only
+    // sets one is run in a pcall, so it can't stop the script, in scripts that make those objects
+    const NEW_PROPS = [['Visible', /ForceField/], ['Enabled', /ScreenGui/]];
+    for (const [prop, cls] of NEW_PROPS) {
+      if (!cls.test(out)) continue;
+      const lineRe = new RegExp('^([ \\t]*)([A-Za-z_][\\w.:\\[\\]"\'()]*\\.' + prop + '\\s*=\\s*[^=][^\\n]*?)[ \\t]*;?[ \\t]*$', 'gm');
+      out = out.replace(lineRe, (m0, ind, stmt) => /\b(local|function|then|do|end|return|if|for|while|repeat|until)\b|--/.test(stmt) ? m0 : ind + 'pcall(function() ' + stmt + ' end)');
+    }
+    // R15 characters (places with them): a clone is R6 again in this engine, so set R15 on cloned ones
+    if (opts.r15) rewrite(/:\s*[Cc]lone\s*\(\s*\)/g, recv => { used.add('__gnClone'); return '__gnClone(' + recv + ')'; });
+    // Player.Team (2017): the Team whose TeamColor matches (2016 only has TeamColor). Reading only.
+    rewrite(/\.Team\b(?!\s*=[^=])/g, recv => { used.add('__gnTeam'); return '__gnTeam(' + recv + ')'; });
+    // network ownership: everything is yours in your own copy of the game
+    rewrite(/:\s*GetNetworkOwner\s*\(\s*\)/g, recv => { used.add('__gnOwner'); return '__gnOwner(' + recv + ')'; });
+    rewrite(/:\s*SetNetworkOwner\s*\(/g, recv => { used.add('__gnOwner'); return '__gnSetOwner(' + recv + ', '; });
+    rewrite(/:\s*SetNetworkOwnershipAuto\s*\(\s*\)/g, recv => { used.add('__gnOwner'); return '__gnSetOwner(' + recv + ')'; });
+    // PlayerAdded connected after you've already joined (a script that waited for a DataStore or a module
+    // first) would never see you: also run it for players already in the game, unless the script goes
+    // through the players itself
+    if (!/GetPlayers\s*\(|Players\s*[:.]\s*GetChildren\s*\(/.test(out)) {
+      rewrite(/\.PlayerAdded\s*:\s*[Cc]onnect\s*\(/g, recv => { used.add('__gnPA'); return '__gnPlayerAdded(' + recv + ', '; });
+    }
     // TweenService (2017): a stand-in that moves the properties itself
     out = out.replace(/\bgame\s*:\s*GetService\s*\(\s*["']TweenService["']\s*\)|\bgame\s*\.\s*TweenService\b/g, () => { used.add('__gnTween'); return '__gnTweenService'; });
     out = out.replace(/\bTweenInfo\s*\.\s*new\s*\(/g, () => { used.add('__gnTween'); return '__gnTweenInfo('; });
@@ -919,6 +953,94 @@
     trophy: [[0.9, 0.9, 0.1, 0, 0, 0.45, 192, 512, 1], [0.6, 0.6, 0.1, 0, 0, 0.35, 24, 1088, 1, 0.3], [0.2, 0.2, 0.3, 0, 0, 0.15, 24, 1088, 1, 0.3], [0.8, 0.8, 0.4, 0, 0, -0.25, 24, 1088, 0, 0.3]],
     potion: [[0.8, 0.8, 0.7, 0, 0, 0.12, 1032, 288, 0], [0.3, 0.3, 0.3, 0, 0, -0.33, 1, 272, 1], [0.35, 0.35, 0.1, 0, 0, -0.48, 192, 512, 1]],
   };
+  // A Script the converter adds to every place it converts (ServerScriptService.GNCompat): fixes that
+  // have to happen while the game runs. R15 characters (2016's engine reads every saved Humanoid as R6,
+  // and an R6 Humanoid without a Torso dies at once): mark them R15 as they appear.
+  const COMPAT_RUNTIME = [
+    '-- GN-BLOX: compatibility for places made after 2016 (added by the place converter, rbxfile.js)',
+    'local function fixRig(m)',
+    '\tif m and m:FindFirstChild("UpperTorso") and not m:FindFirstChild("Torso") then',
+    '\t\tlocal h = m:FindFirstChild("Humanoid")',
+    '\t\tif h then pcall(function() if h.RigType ~= Enum.HumanoidRigType.R15 then h.RigType = Enum.HumanoidRigType.R15 end end) end',
+    '\tend',
+    'end',
+    'local function scan(root)',
+    '\tlocal function walk(x) for _, c in ipairs(x:GetChildren()) do if c:IsA("Humanoid") then fixRig(c.Parent) end walk(c) end end',
+    '\tpcall(walk, root)',
+    'end',
+    'for _, name in ipairs({ "Workspace", "ServerStorage", "ReplicatedStorage", "Lighting" }) do',
+    '\tlocal ok, svc = pcall(function() return game:GetService(name) end)',
+    '\tif ok and svc then scan(svc) end',
+    'end',
+    'game:GetService("Workspace").DescendantAdded:connect(function(d)',
+    '\tif d:IsA("Humanoid") then fixRig(d.Parent) end',
+    'end)',
+  ].join('\n');
+  function addCompatRuntime(doc, bump) {
+    const all = [];
+    const add = it => { all.push(it); it.children.forEach(add); };
+    doc.roots.forEach(add);
+    if (!all.some(i => i.cls === 'Humanoid' && i.parent && i.parent.children.some(c => c.name === 'UpperTorso'))) return;
+    let sss = doc.roots.find(r => r.cls === 'ServerScriptService');
+    if (!sss) { sss = new Inst('ServerScriptService'); sss.set('Name', 1, enc.encode('ServerScriptService')); sss.service = true; doc.roots.push(sss); }
+    const sc = new Inst('Script');
+    sc.set('Name', 1, enc.encode('GNCompat'));
+    sc.set('Source', 1, enc.encode(COMPAT_RUNTIME));
+    sc.set('Disabled', 2, false);
+    sc.parent = sss; sss.children.push(sc);
+    bump('R15 characters kept alive (GNCompat script)');
+  }
+  // Some places load their own wrappers of Roblox services from a container (require(ReplicatedStorage.
+  // DataStoreService)) that the uploaded file doesn't have (they were inserted from Roblox when the game
+  // started). Missing ones named "...Service" get a stand-in module: method calls go to whichever real
+  // service has that method (DataStores, the marketplace, badges...), anything else does nothing.
+  const SERVICE_MODULE = name => [
+    '-- GN-BLOX stand-in for a module this place loads but doesn\'t include (added by the place converter)',
+    'local names = { ' + JSON.stringify(name.replace(/^MarketPlace/, 'Marketplace')) + ', "DataStoreService", "MarketplaceService", "BadgeService", "GamePassService", "HttpService", "TeleportService", "InsertService" }',
+    'local real = {}',
+    'for _, n in ipairs(names) do local ok, s = pcall(function() return game:GetService(n) end) if ok and s then real[#real + 1] = s end end',
+    'local nothing',
+    'nothing = setmetatable({}, { __call = function() return nil end, __index = function() return function() return nothing end end })',
+    'return setmetatable({}, { __index = function(t, k)',
+    '\tfor _, s in ipairs(real) do',
+    '\t\tlocal ok, v = pcall(function() return s[k] end)',
+    '\t\tif ok and v ~= nil then',
+    '\t\t\tif type(v) == "function" then return function(self, ...) return v(s, ...) end end',
+    '\t\t\treturn v',
+    '\t\tend',
+    '\tend',
+    '\treturn nothing',
+    'end })',
+  ].join('\n');
+  function serviceModules(doc, bump) {
+    const all = [];
+    const add = it => { all.push(it); it.children.forEach(add); };
+    doc.roots.forEach(add);
+    const want = new Map();   // container class -> Set(names)
+    const re = /require\s*\(\s*game\s*(?::\s*GetService\s*\(\s*["'](\w+)["']\s*\)|\.\s*(\w+))\s*(?:\.\s*(\w+)|:\s*WaitForChild\s*\(\s*["'](\w+)["'][^)]*\))\s*\)/g;
+    for (const it of all) {
+      if (!/Script$/.test(it.cls)) continue;
+      const src = str(it.get('Source') || '');
+      for (const m of src.matchAll(re)) {
+        const box = m[1] || m[2], name = m[3] || m[4];
+        if (!/Service$/i.test(name)) continue;
+        if (!want.has(box)) want.set(box, new Set());
+        want.get(box).add(name);
+      }
+    }
+    for (const [box, names] of want) {
+      const root = doc.roots.find(r => r.cls === box || r.name === box);
+      if (!root) continue;
+      for (const name of names) {
+        if (root.children.some(c => c.name === name)) continue;
+        const ms = new Inst('ModuleScript');
+        ms.set('Name', 1, enc.encode(name));
+        ms.set('Source', 1, enc.encode(SERVICE_MODULE(name)));
+        ms.parent = root; root.children.push(ms);
+        bump('missing service modules given stand-ins');
+      }
+    }
+  }
   function standIns(doc, bump, opts) {
     const have = opts.have || new Set();
     const all = [];
@@ -1091,6 +1213,8 @@
     wrapModel(doc, notes);
     ensureSpawn(doc, notes);
     standIns(doc, bump, opts);
+    addCompatRuntime(doc, bump);
+    serviceModules(doc, bump);
 
     // property name -> type, where every class in the typemap agrees
     const nameType = {};
@@ -1104,6 +1228,7 @@
     const all = [];
     const add = it => { all.push(it); it.children.forEach(add); };
     doc.roots.forEach(add);
+    const hasR15 = all.some(i => i.cls === 'Humanoid' && i.parent && i.parent.children.some(c => c.name === 'UpperTorso'));
 
     for (const it of all) {
       if (RENAME_CLASS[it.cls]) { it.cls = RENAME_CLASS[it.cls]; bump('classes renamed'); }
@@ -1133,7 +1258,7 @@
       for (const [pn, p] of [...P]) {
         if (pn === 'LinkedSource' && p.t === 1 && p.v.length) { p.v = new Uint8Array(0); bump('linked scripts cleared'); }
         if (pn === 'Source' && p.t === 1 && p.v && p.v.length) {
-          const before = str(p.v), after = compatSource(before);
+          const before = str(p.v), after = compatSource(before, { r15: hasR15 });
           if (after !== before) { p.v = enc.encode(after); bump('scripts given 2017+ API stand-ins'); }
         }
         // rbxassetid://123 -> http://www.roblox.com/asset/?id=123: this engine only fetches the second
