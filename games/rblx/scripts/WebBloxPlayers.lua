@@ -19,6 +19,16 @@
 --                             tools/nds_sync.py); ClockReady (BoolValue) once it's known
 --   LocalName (StringValue)   your WebBlox name (the engine calls every local player "Player")
 --   Players (Folder)          a Folder per other player in the room, with their leaderstats
+--
+-- and lets the place's scripts talk to the other players' games (each has its own world):
+--   Send (BindableEvent)      WebBlox.Send:Fire(topic, data): a message for everyone else in the
+--                             server (topic: letters, digits, _ . -; data: text, up to 400 chars)
+--   Message (BindableEvent)   WebBlox.Message.Event:connect(function(topic, data, fromId, fromName))
+--   SetShared (BindableEvent) WebBlox.SetShared:Fire(key, value): a value the whole server shares
+--   Shared (Folder)           those values, as StringValues named by key ("" removes one); players
+--                             who join later get them too, and everyone ends up with the same ones
+--   MyId (StringValue)        your player id ("solo" with no multiplayer). Other players' avatars,
+--                             and your own character, have a GNPlayerId StringValue with theirs.
 
 local WB = WEBBLOX or {}
 -- Real-time physics: the engine slows physics down ("environmental throttle") whenever the frame
@@ -50,6 +60,65 @@ sharedValue("StringValue", "LocalName", mpInfo.name or "Player")
 local remoteFolder = Instance.new("Folder")
 remoteFolder.Name = "Players"
 remoteFolder.Parent = shared
+
+-- game messages and shared values (sent with each sync below; see the header)
+local gameOut, sharedOut = {}, {}
+local function bindable(name)
+	local b = Instance.new("BindableEvent")
+	b.Name = name
+	b.Parent = shared
+	return b
+end
+local sendEvent, messageEvent, setSharedEvent = bindable("Send"), bindable("Message"), bindable("SetShared")
+local sharedFolder = Instance.new("Folder")
+sharedFolder.Name = "Shared"
+sharedFolder.Parent = shared
+local myIdValue = sharedValue("StringValue", "MyId", online and "" or "solo")
+local function cleanKey(t)
+	t = tostring(t or "")
+	if #t < 1 or #t > 32 or not string.match(t, "^[%w_%.%-]+$") then return nil end
+	return t
+end
+local function oneLine(v, n) return string.sub((string.gsub(tostring(v == nil and "" or v), "[\r\n]", " ")), 1, n) end
+local function setLocalShared(key, value)
+	local v = sharedFolder:FindFirstChild(key)
+	if value == "" then
+		if v then v:Destroy() end
+	elseif not v then
+		v = Instance.new("StringValue")
+		v.Name = key
+		v.Value = value
+		v.Parent = sharedFolder
+	elseif v.Value ~= value then
+		v.Value = value
+	end
+end
+sendEvent.Event:connect(function(topic, data)
+	topic = cleanKey(topic)
+	if topic and online and #gameOut < 100 then table.insert(gameOut, topic .. "|" .. oneLine(data, 400)) end
+end)
+setSharedEvent.Event:connect(function(key, value)
+	key = cleanKey(key)
+	if not key then return end
+	value = oneLine(value, 200)
+	setLocalShared(key, value)
+	if online then
+		for i, x in ipairs(sharedOut) do if x[1] == key then table.remove(sharedOut, i) break end end   -- (only the latest)
+		table.insert(sharedOut, { key, value })
+	end
+end)
+local function tagPlayerId(model, id)
+	local v = model:FindFirstChild("GNPlayerId")
+	if not v then
+		v = Instance.new("StringValue")
+		v.Name = "GNPlayerId"
+		v.Parent = model
+	end
+	v.Value = id
+end
+player.CharacterAdded:connect(function(c) tagPlayerId(c, myIdValue.Value) end)
+if player.Character then tagPlayerId(player.Character, myIdValue.Value) end
+myIdValue.Changed:connect(function() if player.Character then tagPlayerId(player.Character, myIdValue.Value) end end)
 shared.Parent = game:GetService("ReplicatedStorage")
 
 local BODY = { "Head", "Torso", "Left Arm", "Right Arm", "Left Leg", "Right Leg" }
@@ -315,6 +384,7 @@ if not string.match(myId, "^[a-z0-9]+$") or #myId < 6 then
 	myId = ""
 	for _ = 1, 10 do myId = myId .. string.char(math.random(97, 122)) end
 end
+myIdValue.Value = myId
 
 local function enc(s)
 	return (string.gsub(tostring(s), "[^%w%-_%.]", function(c) return string.format("%%%02X", string.byte(c)) end))
@@ -517,6 +587,7 @@ local function update(id, name, state, stats)
 	local o = others[id]
 	if not o or not o.model.Parent then
 		local model, root, hum = makeAvatar(name)
+		tagPlayerId(model, id)
 		o = { model = model, root = root, hum = hum }
 		others[id] = o
 		root.CFrame = CFrame.new(x, y, z) * CFrame.Angles(0, yaw, 0)
@@ -787,17 +858,23 @@ RunService.RenderStepped:connect(function(dt)
 end)
 
 local lastSeq, failures, seenChat = -1, 0, {}
+local lastG, lastV = -1, 0   -- the last game message / shared-value version heard
 while true do
 	local state = myState()
 	local chat = table.remove(outbox, 1)
+	-- up to 8 game messages and 8 shared values go with each sync (put back if it fails)
+	local sendG, sendV, extra = {}, {}, {}
+	for _ = 1, 8 do local m = table.remove(gameOut, 1) if not m then break end sendG[#sendG + 1] = m extra[#extra + 1] = "&g=" .. enc(m) end
+	for _ = 1, 8 do local m = table.remove(sharedOut, 1) if not m then break end sendV[#sendV + 1] = m extra[#extra + 1] = "&v=" .. enc(m[1] .. "|" .. m[2]) end
 	local url = mp.url .. "/sync?room=" .. enc(mp.room) .. "&id=" .. myId .. "&name=" .. enc(mp.name)
 		.. "&ack=" .. lastSeq .. (state and ("&s=" .. enc(state)) or "") .. "&l=" .. enc(myStats())
-		.. (chat and ("&c=" .. enc(chat)) or "")
+		.. (chat and ("&c=" .. enc(chat)) or "") .. "&ga=" .. lastG .. "&va=" .. lastV .. table.concat(extra)
 	local sent = tick()
 	local ok, body = pcall(function() return game:HttpGetAsync(url) end)
 	if ok and type(body) == "string" and string.find(body, "S|") then
 		failures = 0
 		local count, note, serverNo, latency = 0, nil, nil, nil
+		local gotG, highG = {}, nil
 		for line in string.gmatch(body, "[^\n]+") do
 			local kind = string.sub(line, 1, 2)
 			if kind == "M|" then
@@ -827,11 +904,35 @@ while true do
 				end
 			elseif kind == "X|" then
 				pcall(adminAction, string.sub(line, 3))
+			elseif kind == "G|" then
+				local seq, oid, name, topic, data = string.match(line, "^G|(%d+)|([^|]+)|([^|]*)|([^|]+)|(.*)$")
+				seq = tonumber(seq)
+				if seq and lastG >= 0 and seq > lastG then gotG[#gotG + 1] = { seq, topic, data, oid, name } end
+			elseif kind == "V|" then
+				local ver, key, value = string.match(line, "^V|(%d+)|([^|]+)|(.*)$")
+				ver = tonumber(ver)
+				if ver then
+					local pending = false
+					for _, x in ipairs(sharedOut) do if x[1] == key then pending = true end end
+					if not pending then setLocalShared(key, value) end
+					if ver > lastV then lastV = ver end
+				end
+			elseif kind == "H|" then
+				highG = tonumber(string.match(line, "^H|(%d+)"))
 			elseif kind == "S|" then
 				local seq = tonumber(string.sub(line, 3))
 				if seq and seq > lastSeq then lastSeq = seq end
 			end
 		end
+		-- game messages, oldest first (the first sync only learns where the room is up to)
+		table.sort(gotG, function(a, b) return a[1] < b[1] end)
+		for _, m in ipairs(gotG) do
+			if m[1] > lastG then
+				lastG = m[1]
+				messageEvent:Fire(m[2], m[3], m[4], m[5])
+			end
+		end
+		if highG and (lastG < 0 or highG < lastG - 100000) then lastG = highG end
 		-- with a multiplayer server, the request itself is the round trip
 		ping = latency or (not string.find(mp.url, "/peer-sync/", 1, true) and math.floor((tick() - sent) * 1000 + 0.5)) or nil
 		local word = count == 1 and " other player" or " other players"
@@ -847,6 +948,12 @@ while true do
 	else
 		failures = failures + 1
 		ping = nil
+		for i = #sendG, 1, -1 do table.insert(gameOut, 1, sendG[i]) end
+		for i = #sendV, 1, -1 do
+			local queued = false
+			for _, x in ipairs(sharedOut) do if x[1] == sendV[i][1] then queued = true end end
+			if not queued then table.insert(sharedOut, 1, sendV[i]) end
+		end
 		local p2p = string.find(mp.url, "/peer-sync/", 1, true)
 		setStatus(failures > 3 and (p2p and "Multiplayer: reconnecting..." or "Multiplayer: waking up the server...") or "Multiplayer: connecting...")
 		-- don't hold up timed rounds forever if we can't reach anyone
