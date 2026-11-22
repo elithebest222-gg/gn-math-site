@@ -1295,6 +1295,237 @@
   }
   function pick2(table, text) { for (const [re, v] of table) if (re.test(text)) return v; return null; }
 
+  // ---------------------------------------------------------------- newer games (2017 onwards)
+  // Scripts are converted by luau.js (GNLuau). What the 2016 engine doesn't have but the scripts and
+  // GUIs still use goes in ReplicatedFirst: GNCompat (scripts/GNCompat.lua, given as opts.compat)
+  // and GNCompatData (attributes, tags, GUI layouts and AnchorPoints from the file, by full name).
+  // StarterPlayerScripts.GNCompatClient lays out the GUIs as they're copied into PlayerGui.
+  const SCRIPT_CLASSES = new Set(['Script', 'LocalScript', 'ModuleScript']);
+  const GUI_OBJECTS = new Set(['Frame', 'TextLabel', 'TextButton', 'TextBox', 'ImageLabel', 'ImageButton', 'ScrollingFrame', 'ViewportFrame', 'VideoFrame', 'CanvasGroup']);
+  const TEXT_OBJECTS = new Set(['TextLabel', 'TextButton', 'TextBox']);
+  const DROP_UI = new Set(['UICorner', 'UIGradient', 'UIAspectRatioConstraint', 'UIScale', 'UISizeConstraint', 'UITextSizeConstraint', 'UIFlexItem', 'UIPageLayout', 'UITableLayout', 'UIStroke']);
+  const ENUM_NAMES = {
+    FillDirection: ['Horizontal', 'Vertical'], HorizontalAlignment: ['Center', 'Left', 'Right'], VerticalAlignment: ['Center', 'Top', 'Bottom'],
+    SortOrder: ['Name', 'Custom', 'LayoutOrder'], StartCorner: ['TopLeft', 'TopRight', 'BottomLeft', 'BottomRight'], AutomaticSize: ['None', 'X', 'Y', 'XY'],
+  };
+  // Enum.Font values after 2016 -> Legacy 0, Arial 1, ArialBold 2, SourceSans 3, SourceSansBold 4, SourceSansLight 5, SourceSansItalic 6
+  const FONT_BOLD = new Set([9, 12, 13, 14, 16, 18, 19, 20, 22, 23, 26, 32, 34, 38, 42, 48, 49]);
+  const fontFix = v => v <= 6 ? v : FONT_BOLD.has(v) ? 4 : (v === 7 || v === 8 || v === 15 || v === 33 || v === 50) ? 1 : v === 51 ? 2 : 3;
+  const MATERIALS_2016 = new Set([256, 272, 288, 512, 528, 784, 788, 800, 804, 816, 832, 848, 864, 880, 896, 912, 1040, 1056, 1072, 1088, 1280, 1296, 1312, 1328, 1344, 1360, 1536, 1552, 1792, 2048]);
+  const MATERIAL_FIX = { 1568: 272, 1584: 272, 1376: 800, 1284: 1280, 1392: 1296, 820: 816, 836: 816 };
+
+  const luaStr = v => '"' + String(v).replace(/[\\"]/g, c => '\\' + c).replace(/[\x00-\x1f\x7f]/g, c => '\\' + c.charCodeAt(0)) + '"';
+  const luaNum = n => Number.isFinite(n) ? String(Math.round(n * 1e6) / 1e6 === n ? n : +n.toPrecision(9)) : Number.isNaN(n) ? '0/0' : (n > 0 ? 'math.huge' : '-math.huge');
+  function luaValue(v) {
+    if (v == null) return 'nil';
+    if (typeof v === 'boolean') return String(v);
+    if (typeof v === 'number') return luaNum(v);
+    if (typeof v === 'string') return luaStr(v);
+    if (Array.isArray(v)) return '{' + v.map(luaValue).join(', ') + '}';
+    if (v.lua) return v.lua;
+    return '{' + Object.entries(v).map(([k, x]) => '[' + luaStr(k) + '] = ' + luaValue(x)).join(', ') + '}';
+  }
+  // Instance attributes (binary AttributesSerialize) -> { name: value } with values written as Lua
+  function decodeAttributes(b) {
+    const out = {};
+    if (!b || b.length < 4) return out;
+    const dv = new DataView(b.buffer, b.byteOffset, b.byteLength);
+    let o = 0;
+    const u8 = () => b[o++], u32 = () => { const v = dv.getUint32(o, true); o += 4; return v; };
+    const i32 = () => { const v = dv.getInt32(o, true); o += 4; return v; };
+    const f32 = () => { const v = dv.getFloat32(o, true); o += 4; return v; }, f64 = () => { const v = dv.getFloat64(o, true); o += 8; return v; };
+    const string = () => { const n = u32(); const v = utf8.decode(b.subarray(o, o + n)); o += n; return v; };
+    const L = (x) => ({ lua: x });
+    const n = u32();
+    for (let i = 0; i < n && o < b.length; i++) {
+      const key = string(), type = u8();
+      let v;
+      switch (type) {
+        case 0x02: v = string(); break;
+        case 0x03: v = u8() !== 0; break;
+        case 0x04: v = i32(); break;
+        case 0x05: v = f32(); break;
+        case 0x06: v = f64(); break;
+        case 0x09: { const s = f32(), of = i32(); v = L(`UDim.new(${luaNum(s)}, ${of})`); break; }
+        case 0x0A: { const xs = f32(), xo = i32(), ys = f32(), yo = i32(); v = L(`UDim2.new(${luaNum(xs)}, ${xo}, ${luaNum(ys)}, ${yo})`); break; }
+        case 0x0E: v = L(`BrickColor.new(${u32()})`); break;
+        case 0x0F: v = L(`Color3.new(${luaNum(f32())}, ${luaNum(f32())}, ${luaNum(f32())})`); break;
+        case 0x10: v = L(`Vector2.new(${luaNum(f32())}, ${luaNum(f32())})`); break;
+        case 0x11: v = L(`Vector3.new(${luaNum(f32())}, ${luaNum(f32())}, ${luaNum(f32())})`); break;
+        case 0x14: {
+          const p = [f32(), f32(), f32()], id = u8();
+          let m = IDENT;
+          if (id === 0) { m = []; for (let k = 0; k < 9; k++) m.push(f32()); } else m = rotationFromId(id);
+          v = L(`CFrame.new(${[...p, ...m].map(luaNum).join(', ')})`);
+          break;
+        }
+        case 0x15: { const en = string(), ev = u32(); v = L(`(function() local ok, r = pcall(function() for _, i in ipairs(Enum[${luaStr(en)}]:GetEnumItems()) do if i.Value == ${ev} then return i end end end) return ok and r or nil end)()`); break; }
+        case 0x17: { const c = u32(); const kps = []; for (let k = 0; k < c; k++) { const e = f32(), t = f32(), x = f32(); kps.push(`{Time = ${luaNum(t)}, Value = ${luaNum(x)}, Envelope = ${luaNum(e)}}`); } v = L(`{Keypoints = {${kps.join(', ')}}}`); break; }
+        case 0x19: { const c = u32(); const kps = []; for (let k = 0; k < c; k++) { const e = f32(), t = f32(); const r = f32(), g = f32(), bb = f32(); void e; kps.push(`{Time = ${luaNum(t)}, Value = Color3.new(${luaNum(r)}, ${luaNum(g)}, ${luaNum(bb)})}`); } v = L(`{Keypoints = {${kps.join(', ')}}}`); break; }
+        case 0x1B: { const a = f32(), z = f32(); v = L(`{Min = ${luaNum(a)}, Max = ${luaNum(z)}}`); break; }
+        case 0x1C: v = L(`Rect.new(${luaNum(f32())}, ${luaNum(f32())}, ${luaNum(f32())}, ${luaNum(f32())})`); break;
+        case 0x21: { const w = dv.getUint16(o, true); o += 2; const st = u8(); const fam = string(); string(); v = L(`{Family = ${luaStr(fam)}, Weight = ${w}, Style = ${st}}`); break; }
+        default: return out;   // a type this doesn't know: stop (the rest can't be found)
+      }
+      out[key] = v;
+    }
+    return out;
+  }
+
+  function modernize(doc, notes, bump, opts) {
+    const L = opts.luau || G.GNLuau;
+    const data = { attrs: {}, tags: {}, anchors: {}, props: {}, layouts: {} };
+    let any = false, needsCompat = false;
+    const all = [];
+    const walk = (it, path) => {
+      const p = path ? path + '.' + it.name : it.name;
+      it._path = p;
+      all.push(it);
+      for (const c of it.children) walk(c, p);
+    };
+    doc.roots.forEach(r => walk(r, ''));
+    const remove = it => { const p = it.parent; if (p) p.children = p.children.filter(c => c !== it); else doc.roots = doc.roots.filter(c => c !== it); };
+    const num = (it, k, d) => { const v = it.get(k); return v == null ? d : Number(v); };
+    const enumName = (it, k, type, d) => { const v = it.get(k); return v == null ? d : (ENUM_NAMES[type][v] || d); };
+    const udimOf = (it, k, d) => { const v = it.get(k); return Array.isArray(v) ? [v[0], v[1]] : d; };
+    for (const it of all) {
+      const P = it.props;
+      // scripts
+      if (SCRIPT_CLASSES.has(it.cls) && L && opts.compat) {
+        const src = it.get('Source');
+        if (src != null) {
+          const text = str(src);
+          let r = null;
+          try { r = L.convert(text); } catch (e) { console.warn('GN-BLOX: couldn\'t convert ' + it._path + ':', e); }
+          if (r && r.changed) {
+            it.set('Source', 1, enc.encode(r.code));
+            bump('scripts converted from newer Roblox');
+            if (r.needsCompat) needsCompat = true;
+          }
+        }
+      }
+      // attributes and tags
+      for (const k of ['AttributesSerialize', 'Attributes']) {
+        const a = P.get(k);
+        if (a && a.t === 1) {
+          P.delete(k);
+          const at = decodeAttributes(bytes(a.v));
+          if (Object.keys(at).length) { data.attrs[it._path] = at; any = true; bump('objects with attributes'); }
+        }
+      }
+      const tg = P.get('Tags');
+      if (tg && tg.t === 1) {
+        P.delete('Tags');
+        for (const t of str(tg.v).split('\0').filter(Boolean)) { (data.tags[t] = data.tags[t] || []).push(it._path); any = true; }
+      }
+      // fonts and materials the 2016 engine doesn't have
+      const f = P.get('Font');
+      if (f && f.t === 18 && f.v > 6) { f.v = fontFix(f.v); bump('newer fonts matched'); }
+      const m = P.get('Material');
+      if (m && m.t === 18 && !MATERIALS_2016.has(m.v)) { m.v = MATERIAL_FIX[m.v] || 256; bump('newer materials matched'); }
+      // GUI
+      if (GUI_OBJECTS.has(it.cls)) {
+        const ap = P.get('AnchorPoint');
+        if (ap && ap.t === 13) {
+          P.delete('AnchorPoint');
+          const [ax, ay] = ap.v;
+          if (ax || ay) {
+            const pos = it.get('Position') || [0, 0, 0, 0], size = it.get('Size') || [0, 0, 0, 0];
+            it.set('Position', 7, [pos[0] - ax * size[0], Math.round(pos[1] - ax * size[1]), pos[2] - ay * size[2], Math.round(pos[3] - ay * size[3])]);
+            data.anchors[it._path] = [ax, ay];
+            any = true;
+            bump('GUI anchor points placed');
+          }
+        }
+        const lo = P.get('LayoutOrder');
+        if (lo && lo.v) { (data.props[it._path] = data.props[it._path] || {}).LayoutOrder = Number(lo.v); any = true; }
+        const acs = P.get('AutomaticCanvasSize');
+        if (acs && acs.v) { (data.props[it._path] = data.props[it._path] || {}).AutomaticCanvasSize = ENUM_NAMES.AutomaticSize[acs.v] || 'None'; any = true; }
+      }
+      if (it.cls === 'ScreenGui' || it.cls === 'BillboardGui' || it.cls === 'SurfaceGui') {
+        const pr = {};
+        if (it.get('Enabled') === false) pr.Enabled = false;
+        if (it.get('ResetOnSpawn') === false) pr.ResetOnSpawn = false;
+        if (it.get('IgnoreGuiInset') === true) pr.IgnoreGuiInset = true;
+        if (it.get('DisplayOrder')) pr.DisplayOrder = Number(it.get('DisplayOrder'));
+        if (Object.keys(pr).length) { data.props[it._path] = Object.assign(data.props[it._path] || {}, pr); any = true; }
+      }
+    }
+    // layouts, padding and strokes (after the loop above, which needs every object in place)
+    for (const it of all) {
+      const parent = it.parent;
+      if (it.cls === 'UIListLayout' || it.cls === 'UIGridLayout') {
+        if (parent) {
+          const cfg = { ClassName: it.cls, SortOrder: enumName(it, 'SortOrder', 'SortOrder', 'LayoutOrder'),
+            FillDirection: enumName(it, 'FillDirection', 'FillDirection', it.cls === 'UIGridLayout' ? 'Horizontal' : 'Vertical'),
+            HorizontalAlignment: enumName(it, 'HorizontalAlignment', 'HorizontalAlignment', 'Left'),
+            VerticalAlignment: enumName(it, 'VerticalAlignment', 'VerticalAlignment', 'Top') };
+          if (it.cls === 'UIListLayout') cfg.Padding = udimOf(it, 'Padding', [0, 0]);
+          else {
+            cfg.CellSize = it.get('CellSize') || [0, 100, 0, 100];
+            cfg.CellPadding = it.get('CellPadding') || [0, 5, 0, 5];
+            cfg.FillDirectionMaxCells = num(it, 'FillDirectionMaxCells', 0);
+            cfg.StartCorner = enumName(it, 'StartCorner', 'StartCorner', 'TopLeft');
+          }
+          data.layouts[parent._path] = Object.assign(data.layouts[parent._path] || {}, cfg);
+          any = true;
+          bump('GUI layouts');
+        }
+        remove(it);
+      }
+    }
+    for (const it of all) {
+      const parent = it.parent;
+      if (it.cls === 'UIPadding') {
+        if (parent) {
+          const pad = ['PaddingLeft', 'PaddingTop', 'PaddingRight', 'PaddingBottom'].map(k => udimOf(it, k, [0, 0]));
+          const lay = data.layouts[parent._path];
+          if (lay) lay.__padding = pad;
+          else for (const c of parent.children) {   // no layout: move the children in
+            if (!GUI_OBJECTS.has(c.cls)) continue;
+            const pos = c.get('Position') || [0, 0, 0, 0];
+            c.set('Position', 7, [pos[0] + pad[0][0], pos[1] + pad[0][1], pos[2] + pad[1][0], pos[3] + pad[1][1]]);
+          }
+        }
+        remove(it);
+      } else if (it.cls === 'UIStroke') {
+        // on text, with ApplyStrokeMode Contextual (0), it's the text's outline: 2016 has that
+        if (parent && TEXT_OBJECTS.has(parent.cls) && num(it, 'ApplyStrokeMode', 0) === 0) {
+          const c = it.props.get('Color');
+          const rgb = c && (c.t === 12 ? c.v : c.t === 26 ? c.v.map(x => x / 255) : null) || [0, 0, 0];
+          parent.set('TextStrokeColor3', 12, rgb);
+          parent.set('TextStrokeTransparency', 4, num(it, 'Transparency', 0));
+        }
+        remove(it);
+      } else if (DROP_UI.has(it.cls)) remove(it);
+    }
+    if (!needsCompat && !any) return;
+    if (!opts.compat) return;
+    // the library and the data, in ReplicatedFirst; the GUI helper in StarterPlayerScripts
+    const service = cls => {
+      let s = doc.roots.find(r => r.cls === cls);
+      if (!s) { s = new Inst(cls); s.service = true; s.set('Name', 1, enc.encode(cls)); doc.roots.push(s); }
+      return s;
+    };
+    const child = (parent, cls, name, source) => {
+      parent.children = parent.children.filter(c => c.name !== name);
+      const c = new Inst(cls);
+      c.set('Name', 1, enc.encode(name));
+      if (source != null) c.set('Source', 1, enc.encode(source));
+      c.parent = parent; parent.children.push(c);
+      return c;
+    };
+    const rf = service('ReplicatedFirst');
+    child(rf, 'ModuleScript', 'GNCompat', opts.compat);
+    const clean = o => { for (const k of Object.keys(o)) if (o[k] && typeof o[k] === 'object' && !Array.isArray(o[k]) && !Object.keys(o[k]).length) delete o[k]; return o; };
+    child(rf, 'ModuleScript', 'GNCompatData', '-- GN-BLOX: attributes, tags and GUI layouts from the place file (made by rbxfile.js)\nreturn ' + luaValue(clean(data)) + '\n');
+    const sp = service('StarterPlayer');
+    let sps = sp.children.find(c => c.cls === 'StarterPlayerScripts');
+    if (!sps) { sps = new Inst('StarterPlayerScripts'); sps.set('Name', 1, enc.encode('StarterPlayerScripts')); sps.parent = sp; sp.children.push(sps); }
+    child(sps, 'LocalScript', 'GNCompatClient', '-- GN-BLOX: lays out GUIs that used UIListLayout / UIGridLayout (which 2016 doesn\'t have)\nrequire(game:GetService("ReplicatedFirst"):WaitForChild("GNCompat")).client()\n');
+    notes.push('added the GN-BLOX helpers for newer games');
+  }
+
   function toEngine(doc, typemap, opts = {}) {
     const safe = !!opts.safe;
     const notes = [];
@@ -1303,6 +1534,9 @@
     fixSnapshots(doc, notes);
     wrapModel(doc, notes);
     ensureSpawn(doc, notes);
+    // newer games' scripts (Luau syntax, newer libraries) -> 2016 Lua first (luau.js + scripts/GNCompat.lua,
+    // given as opts.compat); compatSource below fills in what's left
+    if (opts.modern !== false) modernize(doc, notes, bump, opts);
     standIns(doc, bump, opts);
     r15ToR6(doc, bump);
     addCompatRuntime(doc, bump);
@@ -1342,7 +1576,7 @@
       const ff = P.get('FontFace');
       if (ff && ff.t === 32 && !P.has('Font')) {
         const fam = (ff.v.family.match(/([\w-]+)\.json/) || [, ''])[1].toLowerCase().replace(/[^a-z0-9]/g, '');
-        let f = FONT[fam] != null ? FONT[fam] : 3;
+        let f = fontFix(FONT[fam] != null ? FONT[fam] : 3);
         if (f === 3) f = ff.v.weight >= 600 ? 4 : ff.v.weight <= 300 ? 5 : 3;
         if (f === 1 && ff.v.weight >= 600) f = 2;
         P.set('Font', { t: 18, v: f });

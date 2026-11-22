@@ -49,6 +49,14 @@ function openAssets() {
   return assetDb;
 }
 const assetChan = new BroadcastChannel("gnblox-assets");
+const ASSET_TYPES = { png: "image/png", jpg: "image/jpeg", mesh: "application/octet-stream", ogg: "audio/ogg", mp3: "audio/mpeg", wav: "audio/wav", rbxm: "application/octet-stream" };
+let gameAssetsP = null;
+function gameAssets() {
+  gameAssetsP = gameAssetsP || fetch(new URL("game-assets/index.json", self.registration.scope), { cache: "no-cache" })
+    .then((r) => (r.ok ? r.json() : {})).catch(() => { gameAssetsP = null; return {}; });
+  return gameAssetsP;
+}
+
 async function serveAsset(url) {
   const id = (new URL(url).searchParams.get("id") || "").replace(/[^0-9]/g, "");
   let rec = null;
@@ -66,12 +74,13 @@ async function serveAsset(url) {
     // the Catalog's faces and clothes (catalog/assets/<id>.png): avatars wear them, and uploaded
     // games that use the same classic faces and clothes get them too
     // (and the meshes of its hats and hair, catalog/assets/<id>.mesh)
-    // GN-BLOX's own stand-ins for missing images (game-assets/<id>.png, ids from 9100000001; the
-    // place converter points missing images at them, rbxfile.js standIns)
-    if (id && id.length === 10 && id.startsWith("91")) {
+    // The built-in games' own assets and GN-BLOX's stand-ins for missing images (game-assets/<id>.<ext>,
+    // listed in game-assets/index.json; tools/add_assets.js, tools/build_standins.py)
+    const ext = id ? (await gameAssets())[id] : null;
+    if (ext) {
       try {
-        const r = await fetch(new URL("game-assets/" + id + ".png", self.registration.scope));
-        if (r.ok) return new Response(await r.arrayBuffer(), { status: 200, headers: addHeaders({ "Content-Type": "image/png", "Cache-Control": "max-age=86400" }) });
+        const r = await fetch(new URL("game-assets/" + id + "." + ext, self.registration.scope));
+        if (r.ok) return new Response(await r.arrayBuffer(), { status: 200, headers: addHeaders({ "Content-Type": ASSET_TYPES[ext] || "application/octet-stream", "Cache-Control": "max-age=86400" }) });
       } catch (err) {}
     }
     if (id) {
