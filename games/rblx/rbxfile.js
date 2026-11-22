@@ -760,7 +760,8 @@
   //   Instance.new("UI...")            -> a stand-in table when the engine doesn't have that class
   //                                       (UIAspectRatioConstraint, UIListLayout... from 2017 on)
   //   Sound.PlaybackSpeed              -> Sound.Pitch;  workspace.Gravity -> 196.2 (setting it does nothing)
-  //   CollectionService:AddTag / HasTag / RemoveTag / GetTagged -> the same, in a table all scripts share
+  //   CollectionService:AddTag / HasTag / RemoveTag / GetTagged -> the same, kept as values under the object
+  //                                       (a GNTags Configuration), so server and client scripts both see them
   //   Instance.new("Beam" / "Trail")   -> a stand-in table, like the UI classes
   //   TweenService:Create(o, TweenInfo.new(t), goal):Play() -> a stand-in that moves o's properties over t
   //   player.Team                      -> the Team with the player's TeamColor (reading)
@@ -785,6 +786,7 @@
     __gnClone: 'local function __gnClone(o) local c = o:Clone() if c then pcall(function() local function fix(x) for _, k in ipairs(x:GetChildren()) do '
       + 'if k:IsA("Humanoid") then local m = k.Parent if m and m:FindFirstChild("UpperTorso") and not m:FindFirstChild("Torso") then k.RigType = Enum.HumanoidRigType.R15 end end fix(k) end end '
       + 'fix(c) end) end return c end ',
+    __gnDisc: 'local function __gnDisconnect(c) if type(c) == "table" then return c:Disconnect() end return c:disconnect() end ',
     __gnTween: 'local function __gnTweenInfo(t, ...) return { Time = t or 1 } end '
       + 'local __gnTweenService = { Create = function(self, o, info, goal) local tw = {} '
       + 'local done = Instance.new("BindableEvent") tw.Completed = done.Event local stop = false '
@@ -794,11 +796,11 @@
       + 'for k, v in pairs(goal) do local s0 = from[k] pcall(function() if type(v) == "number" then o[k] = s0 + (v - s0) * a else o[k] = s0:lerp(v, a) end end) end '
       + 'if a >= 1 then break end wait() end if not stop then for k, v in pairs(goal) do pcall(function() o[k] = v end) end done:Fire() end end) end '
       + 'return tw end } ',
-    __gnTag: 'local function __gnTags() _G.__gnTags = _G.__gnTags or setmetatable({}, { __mode = "k" }) return _G.__gnTags end '
-      + 'local function __gnAddTag(s, o, t) local T = __gnTags() T[o] = T[o] or {} T[o][t] = true end '
-      + 'local function __gnHasTag(s, o, t) local T = __gnTags() return T[o] ~= nil and T[o][t] == true end '
-      + 'local function __gnRemoveTag(s, o, t) local T = __gnTags() if T[o] then T[o][t] = nil end end '
-      + 'local function __gnGetTagged(s, t) local r = {} for o, ts in pairs(__gnTags()) do if ts[t] and o.Parent then r[#r + 1] = o end end return r end ',
+    __gnTag: 'local function __gnTagBox(o, make) local f = o:FindFirstChild("GNTags") if not f and make then f = Instance.new("Configuration") f.Name = "GNTags" f.Parent = o end return f end '
+      + 'local function __gnAddTag(s, o, t) local f = __gnTagBox(o, true) if not f:FindFirstChild(t) then local v = Instance.new("BoolValue") v.Name = t v.Parent = f end end '
+      + 'local function __gnHasTag(s, o, t) local f = __gnTagBox(o) return f ~= nil and f:FindFirstChild(t) ~= nil end '
+      + 'local function __gnRemoveTag(s, o, t) local f = __gnTagBox(o) local v = f and f:FindFirstChild(t) if v then v:Destroy() end end '
+      + 'local function __gnGetTagged(s, t) local r = {} local function walk(x) for _, c in ipairs(x:GetChildren()) do if c.Name == "GNTags" and c:FindFirstChild(t) then r[#r + 1] = x elseif c.Name ~= "GNTags" then walk(c) end end end walk(workspace) return r end ',
   };
   // the start of the expression a method is called on, scanning back from `end` (balanced () [] and strings)
   function receiverStart(src, end) {
@@ -826,7 +828,7 @@
   }
   function compatSource(src, opts = {}) {
     const clones = opts.r15 && /:\s*[Cc]lone\s*\(\s*\)/.test(src);
-    if (!clones && !/GetDescendants|GetPropertyChangedSignal|\.Activated\b|RequestQueueSize|BindToClose|WhichIsA|FindFirstAncestor|Instance\.new\s*\(\s*["']UI|PlaybackSpeed|\.Gravity\b|Tag(?:ged)?\s*\(|["'](?:Beam|Trail)["']|TweenService|TweenInfo|\.Team\b|NetworkOwner|PlayerAdded|ForceField|ScreenGui/.test(src)) return src;
+    if (!clones && !/GetDescendants|GetPropertyChangedSignal|\.Activated\b|RequestQueueSize|BindToClose|WhichIsA|FindFirstAncestor|Instance\.new\s*\(\s*["']UI|PlaybackSpeed|\.Gravity\b|Tag(?:ged)?\s*\(|["'](?:Beam|Trail)["']|TweenService|TweenInfo|\.Team\b|NetworkOwner|PlayerAdded|ForceField|ScreenGui|Disconnect/.test(src)) return src;
     const used = new Set();
     let out = src;
     const rewrite = (re, make) => {
@@ -864,6 +866,8 @@
       const lineRe = new RegExp('^([ \\t]*)([A-Za-z_][\\w.:\\[\\]"\'()]*\\.' + prop + '\\s*=\\s*[^=][^\\n]*?)[ \\t]*;?[ \\t]*$', 'gm');
       out = out.replace(lineRe, (m0, ind, stmt) => /\b(local|function|then|do|end|return|if|for|while|repeat|until)\b|--/.test(stmt) ? m0 : ind + 'pcall(function() ' + stmt + ' end)');
     }
+    // connection:Disconnect() (2017; 2016 only has disconnect)
+    rewrite(/:\s*Disconnect\s*\(\s*\)/g, recv => { used.add('__gnDisc'); return '__gnDisconnect(' + recv + ')'; });
     // R15 characters (places with them): a clone is R6 again in this engine, so set R15 on cloned ones
     if (opts.r15) rewrite(/:\s*[Cc]lone\s*\(\s*\)/g, recv => { used.add('__gnClone'); return '__gnClone(' + recv + ')'; });
     // Player.Team (2017): the Team whose TeamColor matches (2016 only has TeamColor). Reading only.
