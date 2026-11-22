@@ -78,6 +78,13 @@ do
 			if s then s:Fire(id, damage, rate) end
 		end)
 	end
+	-- take back gear the game gave (all of it, or NET.takeGear("sword"))
+	function NET.takeGear(ids)
+		spawn(function()
+			local s = wb("TakeGear", true)
+			if s then s:Fire(ids or "") end
+		end)
+	end
 	function NET.myId()
 		local v = wb("MyId")
 		return v and v.Value ~= "" and v.Value or "solo"

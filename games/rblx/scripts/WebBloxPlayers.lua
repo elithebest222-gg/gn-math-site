@@ -29,6 +29,9 @@
 --                             who join later get them too, and everyone ends up with the same ones
 --   MyId (StringValue)        your player id ("solo" with no multiplayer). Other players' avatars,
 --                             and your own character, have a GNPlayerId StringValue with theirs.
+--   Click (BindableEvent)     Click.Event:connect(function(part, position)): every left click (or tap)
+--                             in the world, for place scripts, which can't read the mouse themselves
+--   Key (BindableEvent)       Key.Event:connect(function(key)): every key press ("q", "e", ...)
 
 local WB = WEBBLOX or {}
 -- Real-time physics: the engine slows physics down ("environmental throttle") whenever the frame
@@ -74,6 +77,25 @@ local sharedFolder = Instance.new("Folder")
 sharedFolder.Name = "Shared"
 sharedFolder.Parent = shared
 local myIdValue = sharedValue("StringValue", "MyId", online and "" or "solo")
+do
+	local clickEvent, keyEvent = bindable("Click"), bindable("Key")
+	spawn(function()
+		local ok, mouse = pcall(function() return player:GetMouse() end)
+		if not ok or not mouse then return end
+		mouse.Button1Down:connect(function() clickEvent:Fire(mouse.Target, mouse.Hit.p) end)
+		-- keys, but not the ones typed into the chat (or any other text box)
+		local uis = game:GetService("UserInputService")
+		local ok2 = pcall(function()
+			uis.InputBegan:connect(function(input, processed)
+				-- (processed: the key went to the chat or another text box)
+				if processed or input.UserInputType ~= Enum.UserInputType.Keyboard then return end
+				local k = string.lower(input.KeyCode.Name)
+				if #k == 1 then keyEvent:Fire(k) end
+			end)
+		end)
+		if not ok2 then mouse.KeyDown:connect(function(k) keyEvent:Fire(string.lower(k)) end) end
+	end)
+end
 local function cleanKey(t)
 	t = tostring(t or "")
 	if #t < 1 or #t > 32 or not string.match(t, "^[%w_%.%-]+$") then return nil end
@@ -659,6 +681,26 @@ local function giveGear()
 end
 player.CharacterAdded:connect(function() wait(0.5) giveGear() end)
 if player.Character then spawn(giveGear) end
+-- ...and take it back: WebBlox.TakeGear:Fire() (everything it gave) or :Fire("sword")
+bindable("TakeGear").Event:connect(function(ids)
+	local take = {}
+	if ids and ids ~= "" then for id in string.gmatch(tostring(ids), "[%w]+") do take[id] = true end
+	else for _, id in ipairs(gameGear) do take[id] = true end end
+	local keep = {}
+	for _, id in ipairs(gameGear) do if not take[id] then keep[#keep + 1] = id end end
+	gameGear = keep
+	local mine = {}
+	for _, id in ipairs(WB.look and WB.look.gear or {}) do mine[id] = true end
+	for id in pairs(take) do
+		local spec = GEAR[id]
+		if spec and not mine[id] then
+			for _, where in ipairs({ player:FindFirstChild("Backpack"), player.Character }) do
+				local t = where and where:FindFirstChild(spec.name or id)
+				if t and t:IsA("Tool") then t:Destroy() end
+			end
+		end
+	end
+end)
 -- A game can hand out Catalog gear: WebBlox.GiveGear:Fire("sword") (or a list: "sword,rocketlauncher")
 bindable("GiveGear").Event:connect(function(ids)
 	for id in string.gmatch(tostring(ids or ""), "[%w]+") do

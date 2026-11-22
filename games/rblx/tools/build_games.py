@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
-"""Build WebBlox's own games into ../places/ (original levels, generated from code):
+"""Build GN-BLOX's own games into ../places/ (original levels, generated from code):
 
-  rainbow-obby.rbxl    Rainbow Obby: 30 stages of jumps, lava, spinners, trampolines and more
-  sky-tower.rbxl       Sky Tower: climb a tower in the clouds, floor by floor
-  floor-is-lava.rbxl   The Floor is Lava: get up high before the lava rises (shared rounds)
-  speed-run.rbxl       Speed Run: race the clock over a course of speed pads and jumps
+  party-panic.rbxl     Party Panic: eight minigames in turn on the room's shared clock, with
+                       coins, XP and levels that are saved (games/party.lua)
+  endless-climb.rbxl   Endless Climb: a tower that builds itself as you climb, new every day
+                       (games/climb.lua)
+  dig-deep.rbxl        Dig Deep: dig down through the layers, sell ore, upgrade, rebirth
+                       (games/mine.lua)
 
-Each place is written as Roblox XML and converted with xml2bin.py. Behaviour comes from the
-Lua in games/: obby.lua gives parts their behaviour by name (KillBrick, Checkpoint, Vanish,
-Bounce, Speed, Spinner, Mover, Go, Finish); lava.lua runs The Floor is Lava's rounds; pizza.lua
-runs Pizza Shift. net.lua goes above them: it lets each player's copy of the game tell the
-others what happened (milestones and wins, Speed Run's server record, who survived the lava,
-pizzas served).
+Each place is written as Roblox XML and converted with xml2bin.py; the map is built here and its
+Lua comes from games/ (game_script: net.lua, common.lua, then the game's own files). net.lua lets
+each player's copy of a game talk to the others' (every player runs their own copy). The other
+builders below are kept for reference; their games were taken off the site.
 
 usage: python3 build_games.py            (needs: pip install lz4)
 """
@@ -44,11 +44,12 @@ def rot(rx=0, ry=0, rz=0):
 
 
 class Place:
-    def __init__(self, name):
+    def __init__(self, name, destroy_height=-200):
+        """destroy_height: anything that falls below it is removed (a character there is knocked out)."""
         self.name = name
         self.root = ET.Element('roblox', version='4')
         self.ref = 0
-        self.workspace = self.item(self.root, 'Workspace', {'Name': ('string', 'Workspace'), 'FallenPartsDestroyHeight': ('float', -200)})
+        self.workspace = self.item(self.root, 'Workspace', {'Name': ('string', 'Workspace'), 'FallenPartsDestroyHeight': ('float', destroy_height)})
 
     def item(self, parent, cls, props):
         self.ref += 1
@@ -942,17 +943,176 @@ def rising_tide():
     pl.save()
 
 
+# ------------------------------------------------------------------------------------------
+# Party Panic: a lobby island; the minigames' maps are built by games/party.lua.
+def party_panic():
+    pl = Place('party-panic')
+    pl.lighting(time='15:30:00', ambient=(0.58, 0.56, 0.62))
+    rng = random.Random(9)
+    lobby = pl.model('Lobby')
+    O = (0, 100, 0)
+    def P(x, y, z):
+        return (O[0] + x, O[1] + y, O[2] + z)
+    # the island: grass top, dirt and rock underneath
+    pl.part(P(0, -1, 0), (2, 96, 96), 37, 'Grass', lobby, mat='grass', shape='cyl', r=(0, 0, 90), surface=SMOOTH)
+    pl.part(P(0, -6, 0), (8, 90, 90), 1030, 'Dirt', lobby, mat='slate', shape='cyl', r=(0, 0, 90), surface=SMOOTH)
+    pl.part(P(0, -14, 0), (10, 60, 60), 1002, 'Rock', lobby, mat='slate', shape='cyl', r=(0, 0, 90), surface=SMOOTH)
+    pl.part(P(0, 0.1, 0), (0.2, 26, 26), 1, 'Plaza', lobby, mat='marble', shape='cyl', r=(0, 0, 90), surface=SMOOTH)
+    pl.part(P(0, 0.4, 0), (10, 0.4, 10), 24, 'Spawn', lobby, cls='SpawnLocation', mat='smooth', surface=SMOOTH)
+    # the board: what's up next
+    pl.part(P(0, 12, -30), (40, 16, 1), 26, 'Board', lobby, mat='smooth', surface=SMOOTH)
+    pl.part(P(0, 12, -30.8), (42, 18, 0.6), 24, 'BoardFrame', lobby, mat='neon', surface=SMOOTH)
+    for x in (-19, 19):
+        pl.part(P(x, 2, -30), (1.5, 4, 1.5), 199, 'BoardLeg', lobby, mat='metal', surface=SMOOTH)
+    # a stage with lights, bleachers, trees, flowers and lamps around the plaza
+    pl.part(P(0, 1, 30), (30, 2, 12), 192, 'Stage', lobby, mat='planks', surface=SMOOTH)
+    for i, c in enumerate((21, 24, 37, 23, 1031)):
+        pl.part(P(-12 + i * 6, 9, 35), (1.5, 1.5, 1.5), c, 'StageLight', lobby, mat='neon', shape='ball', surface=SMOOTH)
+    pl.part(P(0, 8.5, 35.5), (30, 1, 1), 26, 'LightBar', lobby, mat='metal', surface=SMOOTH)
+    for side in (-1, 1):
+        for row in range(3):
+            pl.part(P(side * 34, 1 + row * 1.6, row * 3 - 3), (10, 1.6 + row * 1.6, 3), 23 if side < 0 else 21, 'Bleacher', lobby, mat='smooth', surface=SMOOTH)
+    for i in range(14):
+        a = math.radians(i * 360 / 14 + rng.uniform(-8, 8))
+        d = rng.uniform(38, 44)
+        x, z = math.cos(a) * d, math.sin(a) * d
+        if abs(z) > 24 and abs(x) < 22:
+            continue
+        h = rng.uniform(7, 11)
+        pl.part(P(x, h / 2, z), (1.4, h, 1.4), 192, 'Trunk', lobby, mat='wood', surface=SMOOTH)
+        pl.part(P(x, h + 2, z), (7, 7, 7), rng.choice([28, 37, 1020]), 'Leaves', lobby, mat='grass', shape='ball', surface=SMOOTH)
+    for i in range(24):
+        a, d = rng.uniform(0, 2 * math.pi), rng.uniform(15, 36)
+        pl.part(P(math.cos(a) * d, 0.5, math.sin(a) * d), (1, 1, 1), rng.choice([21, 24, 1031, 1, 106]), 'Flower', lobby, shape='ball', collide=False, surface=SMOOTH)
+    for (x, z) in ((14, 14), (-14, 14), (14, -14), (-14, -14)):
+        pl.part(P(x, 4, z), (0.6, 8, 0.6), 26, 'LampPost', lobby, mat='metal', surface=SMOOTH)
+        pl.part(P(x, 8.5, z), (1.6, 1.6, 1.6), 24, 'Lamp', lobby, mat='neon', shape='ball', surface=SMOOTH)
+    # a fountain off to the side
+    pl.part(P(-26, 1, 18), (2, 12, 12), 1002, 'Fountain', lobby, mat='cobblestone', shape='cyl', r=(0, 0, 90), surface=SMOOTH)
+    pl.part(P(-26, 1.8, 18), (0.4, 10, 10), 1019, 'Water', lobby, mat='smooth', shape='cyl', r=(0, 0, 90), transparency=0.3, surface=SMOOTH)
+    pl.part(P(-26, 4, 18), (4, 1.4, 1.4), 1002, 'Spout', lobby, mat='cobblestone', shape='cyl', r=(0, 0, 90), surface=SMOOTH)
+    pl.part(P(0, 30, 0), (60, 12, 2), 24, 'Sign', lobby, mat='neon', transparency=1, collide=False)
+    pl.script('PartyScript', game_script('npc', 'party'))
+    pl.save()
+
+
+# ------------------------------------------------------------------------------------------
+# Endless Climb: a base around the tower's foot; games/climb.lua builds the tower as you climb.
+def endless_climb():
+    pl = Place('endless-climb', destroy_height=-1000)  # (the sea is at -400)
+    pl.lighting(time='16:00:00', ambient=(0.6, 0.6, 0.66), fog_end=2500, fog=(0.75, 0.85, 0.95))
+    rng = random.Random(13)
+    b = pl.model('Base')
+    pl.part((0, -1, 0), (2, 130, 130), 37, 'Grass', b, mat='grass', shape='cyl', r=(0, 0, 90), surface=SMOOTH)
+    pl.part((0, -7, 0), (10, 124, 124), 1030, 'Dirt', b, mat='slate', shape='cyl', r=(0, 0, 90), surface=SMOOTH)
+    pl.part((0, -400, 0), (4000, 2, 4000), 1019, 'Sea', mat='smooth', transparency=0.3, collide=False)
+    # the spawn faces the first steps (the path starts at angle 0, 30 studs out)
+    # the spawn faces the way the path goes (+z)
+    pl.part((30, 0.4, -10), (8, 0.4, 8), 24, 'Spawn', b, cls='SpawnLocation', mat='smooth', r=(0, 180, 0), surface=SMOOTH)
+    pl.part((30, 0.1, 0), (0.2, 14, 14), 1, 'StartRing', b, mat='marble', shape='cyl', r=(0, 0, 90), surface=SMOOTH)
+    # the leaderboard, ahead and to the right of the spawn, facing it (its Back face shows the board)
+    bx, bz = 47, 6
+    ang = math.degrees(math.atan2(30 - bx, -10 - bz))
+    nx, nz = math.sin(math.radians(ang)), math.cos(math.radians(ang))
+    pl.part((bx, 8, bz), (20, 11, 1), 26, 'Board', b, mat='smooth', r=(0, ang, 0), surface=SMOOTH)
+    pl.part((bx - nx * 0.6, 8, bz - nz * 0.6), (22, 13, 0.4), 24, 'BoardFrame', b, mat='neon', r=(0, ang, 0), surface=SMOOTH)
+    for i in range(18):
+        a = math.radians(i * 20 + rng.uniform(-6, 6))
+        d = rng.uniform(48, 60)
+        x, z = math.cos(a) * d, math.sin(a) * d
+        if math.hypot(x - bx, z - bz) < 16:
+            continue
+        h = rng.uniform(7, 12)
+        pl.part((x, h / 2, z), (1.5, h, 1.5), 192, 'Trunk', b, mat='wood', surface=SMOOTH)
+        pl.part((x, h + 2.5, z), (8, 8, 8), rng.choice([28, 37, 1020]), 'Leaves', b, mat='grass', shape='ball', surface=SMOOTH)
+    for i in range(30):
+        a, d = rng.uniform(0, 2 * math.pi), rng.uniform(20, 58)
+        pl.part((math.cos(a) * d, 0.5, math.sin(a) * d), (1, 1, 1), rng.choice([21, 24, 1031, 1, 106]), 'Flower', b, shape='ball', collide=False, surface=SMOOTH)
+    pl.script('ClimbScript', game_script('climb'))
+    pl.save()
+
+
+# ------------------------------------------------------------------------------------------
+# Dig Deep: a mining town around a square pit; games/mine.lua fills the pit with blocks as you dig.
+def dig_deep():
+    pl = Place('dig-deep', destroy_height=-4000)     # (the pit goes down 1,745 studs)
+    pl.lighting(time='14:30:00', ambient=(0.62, 0.6, 0.6), fog_end=1400, fog=(0.8, 0.82, 0.88))
+    rng = random.Random(21)
+    s = pl.model('Surface')
+    H, D = 42, 1745            # the pit: 84 x 84 (14 blocks of 6), and how deep its walls go
+    # the ground all around the pit (top at y = 0)
+    pl.part((0, -1, 96), (300, 2, 108), 37, 'Ground', s, mat='grass', surface=SMOOTH)
+    pl.part((0, -1, -96), (300, 2, 108), 37, 'Ground', s, mat='grass', surface=SMOOTH)
+    pl.part((96, -1, 0), (108, 2, 84), 37, 'Ground', s, mat='grass', surface=SMOOTH)
+    pl.part((-96, -1, 0), (108, 2, 84), 37, 'Ground', s, mat='grass', surface=SMOOTH)
+    # the pit's walls, all the way down
+    for (x, z, sx, sz) in ((0, H + 2, 2 * H + 8, 4), (0, -H - 2, 2 * H + 8, 4), (H + 2, 0, 4, 2 * H), (-H - 2, 0, 4, 2 * H)):
+        pl.part((x, -D / 2 - 0.01, z), (sx, D, sz), 199, 'PitWall', s, mat='slate', surface=SMOOTH)
+    # a wooden rim and lanterns around the pit
+    for (x, z, sx, sz) in ((0, H + 1, 2 * H + 4, 2), (0, -H - 1, 2 * H + 4, 2), (H + 1, 0, 2, 2 * H), (-H - 1, 0, 2, 2 * H)):
+        pl.part((x, 0.2, z), (sx, 0.4, sz), 192, 'Rim', s, mat='planks', surface=SMOOTH)
+    for x in (-H - 1, H + 1):
+        for z in (-H - 1, 0, H + 1):
+            pl.part((x, 3, z), (0.6, 6, 0.6), 192, 'LanternPost', s, mat='wood', surface=SMOOTH)
+            pl.part((x, 6.4, z), (1.2, 1.2, 1.2), 24, 'Lantern', s, mat='neon', surface=SMOOTH)
+    # the spawn, and the shop row facing it: sell, pickaxes, backpacks, rebirth
+    # (the spawn faces the pit, +z, so +x is on your left: the shop reads Sell, Pickaxes, Backpacks, Rebirth)
+    pl.part((0, 0.2, -84), (10, 0.4, 10), 1, 'Spawn', s, cls='SpawnLocation', mat='smooth', r=(0, 180, 0), surface=SMOOTH)
+    for (name, x, color) in (('SellPad', 30, 37), ('PickPad', 10, 24), ('BagPad', -10, 23), ('RebirthPad', -30, 1031)):
+        pl.part((x, 0.2, -64), (10, 0.4, 10), color, name, s, mat='neon', surface=SMOOTH)
+        pl.part((x, 9, -57), (12, 6, 0.6), 26, name + 'Sign', s, mat='smooth', r=(0, 180, 0), surface=SMOOTH)
+        pl.part((x, 9, -56.6), (12.8, 6.8, 0.4), color, name + 'Frame', s, mat='neon', surface=SMOOTH)
+        for dx in (-5.5, 5.5):
+            pl.part((x + dx, 3, -56.6), (0.6, 6, 0.6), 192, 'SignPost', s, mat='wood', surface=SMOOTH)
+    # a gate over the path to the pit
+    for x in (-8, 8):
+        pl.part((x, 6, -50), (1.5, 12, 1.5), 192, 'GatePost', s, mat='wood', surface=SMOOTH)
+    pl.part((0, 12.5, -50), (19, 1.5, 1.5), 192, 'GateBeam', s, mat='wood', surface=SMOOTH)
+    pl.part((0, 1.1, -73), (6, 0.2, 18), 1002, 'Path', s, mat='pebble', surface=SMOOTH)
+    # a mine cart on rails beside the pit
+    for dz in (-1.5, 1.5):
+        pl.part((60, 0.15, dz), (40, 0.3, 0.4), 199, 'Rail', s, mat='metal', surface=SMOOTH)
+    for i in range(10):
+        pl.part((42 + i * 4, 0.1, 0), (1, 0.2, 5), 192, 'Sleeper', s, mat='wood', surface=SMOOTH)
+    pl.part((62, 2, 0), (5, 3, 4), 1002, 'Cart', s, mat='metal', surface=SMOOTH)
+    pl.part((62, 3.7, 0), (4.4, 0.6, 3.4), 24, 'CartGold', s, mat='foil', surface=SMOOTH)
+    for dx in (-1.6, 1.6):
+        for dz in (-2.1, 2.1):
+            pl.part((62 + dx, 0.8, dz), (0.4, 1.4, 1.4), 26, 'Wheel', s, mat='metal', shape='cyl', surface=SMOOTH)
+    # the gem gallery beside the pit: what you can find down there, glowing on marble pedestals
+    gems = ((24, 'foil', (1, 0.8, 0.2)), (1004, 'neon', (1, 0.2, 0.2)), (23, 'neon', (0.2, 0.4, 1)), (37, 'neon', (0.3, 1, 0.4)),
+            (1019, 'neon', (0.4, 1, 1)), (1031, 'neon', (0.6, 0.2, 1)), (1018, 'neon', (0.2, 0.9, 0.8)), (1, 'neon', (1, 1, 1)))
+    for i, (color, mat, light) in enumerate(gems):
+        z = -28 + i * 8
+        pl.part((-54, 1.5, z), (3, 3, 3), 1, 'Pedestal', s, mat='marble', surface=SMOOTH)
+        gem = pl.part((-54, 5, z), (2.2, 2.2, 2.2), color, 'Gem', s, mat=mat, r=(45, 0, 35), surface=SMOOTH)
+        pl.item(gem, 'PointLight', {'Name': ('string', 'Glow'), 'Color': ('Color3', light), 'Range': ('float', 9.0), 'Brightness': ('float', 2.0)})
+    # a shack, rocks and trees
+    pl.part((-70, 5, -70), (16, 10, 12), 192, 'Shack', s, mat='planks', surface=SMOOTH)
+    pl.part((-70, 10.8, -70), (18, 1.6, 14), 1004, 'Roof', s, mat='slate', surface=SMOOTH)
+    pl.part((-70, 3.5, -63.9), (4, 7, 0.4), 26, 'Door', s, mat='wood', surface=SMOOTH)
+    for i in range(16):
+        a, d = rng.uniform(0, 2 * math.pi), rng.uniform(62, 130)
+        x, z = math.cos(a) * d, math.sin(a) * d
+        if (abs(x) < 40 and z < -40) or (-66 < x < -44 and abs(z) < 36):
+            continue
+        sz = rng.uniform(3, 7)
+        pl.part((x, sz / 3, z), (sz, sz * 0.8, sz), rng.choice([194, 199, 1002]), 'Rock', s, mat='slate', r=(rng.uniform(-15, 15), rng.uniform(0, 90), 0), surface=SMOOTH)
+    for i in range(26):
+        a, d = rng.uniform(0, 2 * math.pi), rng.uniform(58, 140)
+        x, z = math.cos(a) * d, math.sin(a) * d
+        if (abs(x) < 45 and z < -45) or (-68 < x < -42 and abs(z) < 38):
+            continue
+        h = rng.uniform(8, 14)
+        pl.part((x, h / 2, z), (1.6, h, 1.6), 192, 'Trunk', s, mat='wood', surface=SMOOTH)
+        pl.part((x, h + 2.5, z), (8, 8, 8), rng.choice([28, 37, 141]), 'Leaves', s, mat='grass', shape='ball', surface=SMOOTH)
+    pl.script('DigScript', game_script('mine'))
+    pl.save()
+
+
 if __name__ == '__main__':
-    rainbow_obby()
-    sky_tower()
-    floor_is_lava()
-    speed_run()
-    pizza_shift()
-    undead_nights()
-    brick_battle_peaks()
-    sword_clash_arena()
-    cellblock_breakout()
-    burger_tycoon()
-    crystal_mine_tycoon()
-    themed_obbies()
-    rising_tide()
+    # the GN-BLOX games on the site now (the builders above them are kept for reference: their games
+    # were taken off the site)
+    party_panic()
+    endless_climb()
+    dig_deep()
