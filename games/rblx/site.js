@@ -74,7 +74,7 @@
       combat: { kind: 'shot', speed: 110, drop: 0.35, size: [0.5, 0.5, 0.5], ball: true, damage: 8, bounce: 2, keep: 0.6, color: 194, cooldown: 0.25, sound: 'Rubber band sling shot', life: 3 },
     },
     rocketlauncher: {
-      pieces: [box([0.35, 0.9, 0.45], [0, 0, 0], 26), cyl(4, 0.9, 0, 28, { p: [0, 0.75, -0.4], r: [90, 0, 0] }), cyl(0.3, 1, 0, 21, { p: [0, 0.75, -2.3], r: [90, 0, 0] })],
+      pieces: [box([0.35, 0.9, 0.45], [0, 0, 0], 26), cyl(4, 0.9, 0, 28, { p: [0, 0.75, -0.4], r: [0, 90, 0] }), cyl(0.3, 1, 0, 21, { p: [0, 0.75, -2.3], r: [0, 90, 0] })],
       combat: { kind: 'shot', speed: 70, size: [0.8, 0.8, 3], damage: 100, blast: 7, color: 21, fire: true, cooldown: 3, sound: 'collide', life: 6 },
     },
     timebomb: {
@@ -82,7 +82,7 @@
       combat: { kind: 'bomb', fuse: 3, blast: 12, damage: 100, cooldown: 5 },
     },
     superball: {
-      pieces: [ball(1, [0, 0, 0], 1010, { neon: true })],
+      pieces: [ball(1, [0, 0, 0], 23, { neon: true })],
       combat: { kind: 'shot', speed: 75, drop: 1, size: [2, 2, 2], ball: true, damage: 15, bounce: 6, keep: 0.85, stop: false, cooldown: 2, sound: 'swoosh', boing: 'Rubber band', life: 6 },
     },
     paintballgun: {
