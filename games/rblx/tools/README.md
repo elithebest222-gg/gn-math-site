@@ -86,6 +86,27 @@ The engine asks for content as `localhost:4015/asset/?id=N` (and sometimes roblo
 sends those to `wb-asset/?id=N` (engine patch 17), and the service worker answers from IndexedDB, or with a
 404. The game page lists the ids that were missing so the player knows which files to add.
 
+#### Downloading a place's assets (`fetch_assets.js`)
+
+`fetch_assets.js` makes that `.zip` for you. Run it on your own computer (Node 18 or newer) with your own
+Roblox login; this site and its server never see the login:
+
+```
+node fetch_assets.js "My Place.rbxl"          # writes "My Place (with assets).zip"
+```
+
+It needs `ROBLOX_API_KEY` (an Open Cloud API key with the legacy-assets read permission, the safer choice)
+or `ROBLOX_COOKIE` / `--cookie-file FILE` (your `.ROBLOSECURITY` cookie; it works like your password, so
+don't share it). It finds every asset id in the place's properties and scripts (`rbxassetid://`,
+`roblox.com/asset/?id=`, `InsertService:LoadAsset(id)`), downloads each from `assetdelivery.roblox.com` (or
+the Open Cloud asset delivery API), follows the assets of downloaded models (`--depth`, default 2), swaps a
+decal / shirt / pants asset used where an image goes for its image, and writes the place plus `<id>.<kind>`
+files into the `.zip` (models as `.model`, so Upload a Place doesn't take them for the place). `--list`
+only prints the ids. Some assets can't be downloaded: deleted ones, and audio its owner made private
+(most uploaded sounds since 2022); the tool lists those. Only use it on places whose creators allow
+copying them. The download step was written against Roblox's documented addresses and tested here
+against a stand-in server only.
+
 `typemap.json` lists the property types the engine expects. It was read out of the
 engine's own binary places, and the engine refuses a place whose property types don't match.
 

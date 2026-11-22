@@ -160,7 +160,7 @@
             if (!params.get('custom')) return;
             $('assets-text').textContent = 'This game uses ' + ids.length + ' image' + (ids.length === 1 ? '' : 's') + ', mesh' + (ids.length === 1 ? '' : 'es') +
               ' or sound' + (ids.length === 1 ? ' that wasn\'t' : 's that weren\'t') + ' uploaded with it.';
-            $('assets-ids').textContent = 'Asset ids: ' + ids.join(', ') + '. Upload the place again together with those files, each named with its id (like ' + ids[0] + '.png), or all of them in a .zip.';
+            $('assets-ids').textContent = 'Asset ids: ' + ids.join(', ') + '. Upload the place again together with those files, each named with its id (like ' + ids[0] + '.png), or all of them in a .zip (tools/fetch_assets.js can download them into one with your own Roblox login).';
             $('assets-note').hidden = false;
           }, 2500);
         };
