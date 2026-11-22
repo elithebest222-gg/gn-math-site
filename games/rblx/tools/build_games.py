@@ -900,6 +900,8 @@ def rising_tide():
     pl = Place('rising-tide')
     pl.lighting(ambient=(0.52, 0.55, 0.6))
     lobby = pl.model('Lobby')
+    pl.part((120, -9, -40), (520, 2, 400), 1019, 'Ocean', mat='smooth', transparency=0.2, collide=False, surface=SMOOTH)
+    pl.part((120, -12, -40), (520, 2, 400), 1014, 'Seabed', mat='sand', collide=False, surface=SMOOTH)
     pl.part((0, -1, -120), (60, 2, 60), 1, 'LobbyFloor', lobby, mat='marble', surface=SMOOTH)
     pl.part((0, 0.3, -120), (8, 0.4, 8), 23, 'Spawn', lobby, cls='SpawnLocation', mat='smooth', surface=SMOOTH)
     walls(pl, lobby, -30, 30, -150, -90, 8, 1002, mat='marble')
