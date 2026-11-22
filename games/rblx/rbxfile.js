@@ -787,6 +787,8 @@
       + 'if k:IsA("Humanoid") then local m = k.Parent if m and m:FindFirstChild("UpperTorso") and not m:FindFirstChild("Torso") then k.RigType = Enum.HumanoidRigType.R15 end end fix(k) end end '
       + 'fix(c) end) end return c end ',
     __gnDisc: 'local function __gnDisconnect(c) if type(c) == "table" then return c:Disconnect() end return c:disconnect() end ',
+    __gnLater: 'local function __gnLater(sig) local function c(self, f) return sig:connect(function(...) local a = { ... } local n = select("#", ...) spawn(function() f(unpack(a, 1, n)) end) end) end '
+      + 'return { connect = c, Connect = c, wait = function() return sig:wait() end, Wait = function() return sig:wait() end } end ',
     __gnTween: 'local function __gnTweenInfo(t, ...) return { Time = t or 1 } end '
       + 'local __gnTweenService = { Create = function(self, o, info, goal) local tw = {} '
       + 'local done = Instance.new("BindableEvent") tw.Completed = done.Event local stop = false '
@@ -828,7 +830,8 @@
   }
   function compatSource(src, opts = {}) {
     const clones = opts.r15 && /:\s*[Cc]lone\s*\(\s*\)/.test(src);
-    if (!clones && !/GetDescendants|GetPropertyChangedSignal|\.Activated\b|RequestQueueSize|BindToClose|WhichIsA|FindFirstAncestor|Instance\.new\s*\(\s*["']UI|PlaybackSpeed|\.Gravity\b|Tag(?:ged)?\s*\(|["'](?:Beam|Trail)["']|TweenService|TweenInfo|\.Team\b|NetworkOwner|PlayerAdded|ForceField|ScreenGui|Disconnect/.test(src)) return src;
+    const later = opts.local && /\.(ChildAdded|DescendantAdded)\s*:\s*[Cc]onnect/.test(src);
+    if (!clones && !later && !/GetDescendants|GetPropertyChangedSignal|\.Activated\b|RequestQueueSize|BindToClose|WhichIsA|FindFirstAncestor|Instance\.new\s*\(\s*["']UI|PlaybackSpeed|\.Gravity\b|Tag(?:ged)?\s*\(|["'](?:Beam|Trail)["']|TweenService|TweenInfo|\.Team\b|NetworkOwner|PlayerAdded|ForceField|ScreenGui|Disconnect/.test(src)) return src;
     const used = new Set();
     let out = src;
     const rewrite = (re, make) => {
@@ -866,6 +869,9 @@
       const lineRe = new RegExp('^([ \\t]*)([A-Za-z_][\\w.:\\[\\]"\'()]*\\.' + prop + '\\s*=\\s*[^=][^\\n]*?)[ \\t]*;?[ \\t]*$', 'gm');
       out = out.replace(lineRe, (m0, ind, stmt) => /\b(local|function|then|do|end|return|if|for|while|repeat|until)\b|--/.test(stmt) ? m0 : ind + 'pcall(function() ' + stmt + ' end)');
     }
+    // a LocalScript watching for new objects sees them a frame later, as it would over the network (the
+    // server script that made one may still be setting it up: tags, values...)
+    if (opts.local) rewrite(/\.(ChildAdded|DescendantAdded)(?=\s*:\s*[Cc]onnect\b)/g, (recv, m) => { used.add('__gnLater'); return '__gnLater(' + recv + '.' + m[1] + ')'; });
     // connection:Disconnect() (2017; 2016 only has disconnect)
     rewrite(/:\s*Disconnect\s*\(\s*\)/g, recv => { used.add('__gnDisc'); return '__gnDisconnect(' + recv + ')'; });
     // R15 characters (places with them): a clone is R6 again in this engine, so set R15 on cloned ones
@@ -1045,6 +1051,87 @@
       }
     }
   }
+  // R15 characters (2016's engine reads a saved Humanoid as R6 and kills one without a Torso, and
+  // clones lose R15) are rebuilt as classic R6 ones: the UpperTorso becomes the Torso, the upper arms
+  // and legs become the arms and legs, the rest of the R15 limbs go, and the classic joints are made.
+  // An invisible UpperTorso and LowerTorso stay welded on for scripts that look for them.
+  const R6 = { // part: [size, offset from the HumanoidRootPart]
+    Torso: [[2, 2, 1], [0, 0, 0]], Head: [[2, 1, 1], [0, 1.5, 0]], 'Left Arm': [[1, 2, 1], [-1.5, 0, 0]],
+    'Right Arm': [[1, 2, 1], [1.5, 0, 0]], 'Left Leg': [[1, 2, 1], [-0.5, -2, 0]], 'Right Leg': [[1, 2, 1], [0.5, -2, 0]],
+  };
+  const FROM_R15 = { UpperTorso: 'Torso', Head: 'Head', LeftUpperArm: 'Left Arm', RightUpperArm: 'Right Arm', LeftUpperLeg: 'Left Leg', RightUpperLeg: 'Right Leg' };
+  const R15_DROP = new Set(['LowerTorso', 'LeftLowerArm', 'RightLowerArm', 'LeftHand', 'RightHand', 'LeftLowerLeg', 'RightLowerLeg', 'LeftFoot', 'RightFoot']);
+  const J = (x, y, z, r) => [x, y, z, ...r];
+  const ROT_R = [0, 0, 1, 0, 1, 0, -1, 0, 0], ROT_L = [0, 0, -1, 0, 1, 0, 1, 0, 0], ROT_N = [-1, 0, 0, 0, 0, 1, 0, 1, 0];
+  const R6_JOINTS = [ // name, in, part0, part1, C0, C1
+    ['RootJoint', 'HumanoidRootPart', 'HumanoidRootPart', 'Torso', J(0, 0, 0, ROT_N), J(0, 0, 0, ROT_N)],
+    ['Neck', 'Torso', 'Torso', 'Head', J(0, 1, 0, ROT_N), J(0, -0.5, 0, ROT_N)],
+    ['Right Shoulder', 'Torso', 'Torso', 'Right Arm', J(1, 0.5, 0, ROT_R), J(-0.5, 0.5, 0, ROT_R)],
+    ['Left Shoulder', 'Torso', 'Torso', 'Left Arm', J(-1, 0.5, 0, ROT_L), J(0.5, 0.5, 0, ROT_L)],
+    ['Right Hip', 'Torso', 'Torso', 'Right Leg', J(1, -1, 0, ROT_R), J(0.5, 1, 0, ROT_R)],
+    ['Left Hip', 'Torso', 'Torso', 'Left Leg', J(-1, -1, 0, ROT_L), J(-0.5, 1, 0, ROT_L)],
+  ];
+  function r15ToR6(doc, bump) {
+    const all = [];
+    const add = it => { all.push(it); it.children.forEach(add); };
+    doc.roots.forEach(add);
+    for (const hum of all) {
+      if (hum.cls !== 'Humanoid' || !hum.parent) continue;
+      const m = hum.parent;
+      const kid = n => m.children.find(c => c.name === n && c.cls !== 'Model');
+      if (!kid('UpperTorso') || kid('Torso')) continue;
+      const hrp = kid('HumanoidRootPart') || kid('UpperTorso');
+      const base = hrp.get('CFrame');
+      if (!base) continue;
+      const parts = new Set();
+      for (const [r15, r6] of Object.entries(FROM_R15)) {
+        const p = kid(r15);
+        if (!p) continue;
+        p.set('Name', 1, enc.encode(r6));
+        if (p.cls === 'MeshPart') p.cls = 'Part';
+        const [size, off] = R6[r6];
+        p.set('size', 14, size); p.props.delete('Size');
+        p.set('CFrame', 16, cfMul(base, [off[0], off[1], off[2], ...IDENT]));
+        p.set('formFactorRaw', 18, 3); p.set('shape', 18, 1); p.set('CanCollide', 2, r6 === 'Torso' || r6 === 'Head');
+        if (r6 === 'Head' && !p.children.some(c => c.cls === 'SpecialMesh')) {
+          const mesh = new Inst('SpecialMesh');
+          mesh.set('Name', 1, enc.encode('Mesh')); mesh.set('MeshType', 18, 0); mesh.set('Scale', 14, [1.25, 1.25, 1.25]);
+          mesh.parent = p; p.children.push(mesh);
+        }
+        parts.add(p);
+      }
+      // the R15 joints and limbs go
+      const isBody = x => x === hrp || parts.has(x) || (x && R15_DROP.has(x.name));
+      for (const p of [hrp, ...parts]) p.children = p.children.filter(c => !((c.cls === 'Motor6D' || c.cls === 'Weld' || c.cls === 'ManualWeld') && isBody(c.get('Part0')) && isBody(c.get('Part1'))));
+      m.children = m.children.filter(c => !(R15_DROP.has(c.name) && c.cls !== 'Model'));
+      // classic joints
+      const byName = n => (n === 'HumanoidRootPart' ? hrp : m.children.find(c => c.name === n && parts.has(c)));
+      for (const [name, inName, a, b, c0, c1] of R6_JOINTS) {
+        const box = byName(inName), p0 = byName(a), p1 = byName(b);
+        if (!box || !p0 || !p1 || p0 === p1) continue;
+        const j = new Inst('Motor6D');
+        j.set('Name', 1, enc.encode(name)); j.set('Part0', 19, p0); j.set('Part1', 19, p1);
+        j.set('C0', 16, c0); j.set('C1', 16, c1); j.set('MaxVelocity', 4, 0.1);
+        j.parent = box; box.children.push(j);
+      }
+      // stand-ins for scripts that look for UpperTorso / LowerTorso
+      const torso = byName('Torso');
+      if (torso) for (const n of ['UpperTorso', 'LowerTorso']) {
+        const d = new Inst('Part');
+        d.set('Name', 1, enc.encode(n)); d.set('size', 14, [1, 1, 1]); d.set('Transparency', 4, 1);
+        d.set('CanCollide', 2, false); d.set('Anchored', 2, false); d.set('formFactorRaw', 18, 3); d.set('shape', 18, 1);
+        d.set('CFrame', 16, torso.get('CFrame'));
+        const w = new Inst('Weld');
+        w.set('Name', 1, enc.encode('GNWeld')); w.set('Part0', 19, torso); w.set('Part1', 19, d);
+        w.set('C0', 16, [0, n === 'LowerTorso' ? -0.5 : 0.5, 0, ...IDENT]); w.set('C1', 16, [0, 0, 0, ...IDENT]);
+        w.parent = d; d.children.push(w);
+        d.parent = m; m.children.push(d);
+      }
+      hum.set('RigType', 18, 0);
+      hum.set('HipHeight', 4, 0);
+      bump('R15 characters rebuilt as R6');
+    }
+  }
   function standIns(doc, bump, opts) {
     const have = opts.have || new Set();
     const all = [];
@@ -1217,6 +1304,7 @@
     wrapModel(doc, notes);
     ensureSpawn(doc, notes);
     standIns(doc, bump, opts);
+    r15ToR6(doc, bump);
     addCompatRuntime(doc, bump);
     serviceModules(doc, bump);
 
@@ -1262,7 +1350,7 @@
       for (const [pn, p] of [...P]) {
         if (pn === 'LinkedSource' && p.t === 1 && p.v.length) { p.v = new Uint8Array(0); bump('linked scripts cleared'); }
         if (pn === 'Source' && p.t === 1 && p.v && p.v.length) {
-          const before = str(p.v), after = compatSource(before, { r15: hasR15 });
+          const before = str(p.v), after = compatSource(before, { r15: hasR15, local: it.cls === 'LocalScript' });
           if (after !== before) { p.v = enc.encode(after); bump('scripts given 2017+ API stand-ins'); }
         }
         // rbxassetid://123 -> http://www.roblox.com/asset/?id=123: this engine only fetches the second
