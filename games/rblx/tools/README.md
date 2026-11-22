@@ -57,7 +57,22 @@ python3 xml2bin.py "My Game.rbxl" "../places/My Game.rbxl"
 Then add an entry to `GAMES` in `../index.html` (and optionally a `../thumbs/<id>.jpg`
 square thumbnail plus a `<id>-wide.jpg` 16:9 one).
 
-Places that are already binary (`<roblox!` at the top) can go straight into `places/`.
+Places that are already binary (`<roblox!` at the top) can go straight into `places/`, but newer ones
+(2017 on) should be converted first, the way Upload a Place converts them in the browser (built-in maps
+aren't converted when they load):
+
+```bash
+node convert_place.js "My Game.rbxl" "../places/my-game.rbxl"
+```
+
+That also rewrites the few 2017+ script calls the 2016 engine doesn't have (`compatSource` in
+`../rbxfile.js`): `GetDescendants`, `GetPropertyChangedSignal`, a button's `Activated`,
+`FindFirstChildWhichIsA` / `FindFirstAncestorWhichIsA` / `FindFirstAncestorOfClass` / `FindFirstAncestor`
+and `BindToClose` become small stand-ins at the top of the script, and loading screens that wait for
+`ContentProvider.RequestQueueSize` (downloads from Roblox, which never come) see 0.
+
+Games that need two or more real players in one server (Murder Mystery 2, for example) won't start a
+round here: each player runs their own copy of the game, and the others are only stand-ins in it.
 
 ## Uploaded places
 
