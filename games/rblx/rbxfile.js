@@ -1191,7 +1191,21 @@
         if (!it.props.has('size') && it.props.has('InitialSize')) it.props.set('size', it.props.get('InitialSize'));
         it.set('formFactorRaw', 18, 3);
         it.set('shape', 18, 1);
-        bump('MeshParts turned into Parts');
+        // when its mesh is here (uploaded with the place, or in game-assets/), it keeps its shape: a
+        // SpecialMesh with that mesh, scaled from the mesh's own size (InitialSize) to the part's
+        const meshUrl = resolve(it.get('MeshId') || it.get('MeshID'));
+        if (meshUrl) {
+          const size = it.get('size') || [1, 1, 1], init = it.get('InitialSize') || size;
+          const m = new Inst('SpecialMesh');
+          m.set('Name', 1, enc.encode('Mesh'));
+          m.set('MeshType', 18, 5);
+          m.set('MeshId', 1, enc.encode(meshUrl));
+          const tex = resolve(it.get('TextureID') || it.get('TextureId'));
+          if (tex) m.set('TextureId', 1, enc.encode(tex));
+          m.set('Scale', 14, [0, 1, 2].map(k => init[k] ? size[k] / init[k] : 1));
+          m.parent = it; it.children.push(m);
+          bump('MeshParts kept their meshes');
+        } else bump('MeshParts turned into Parts');
       }
       if ((it.cls === 'ImageLabel' || it.cls === 'ImageButton') && it.props.has('Image')) {
         const r = resolve(it.get('Image'));
@@ -1500,7 +1514,7 @@
       } else if (DROP_UI.has(it.cls)) remove(it);
     }
     if (!needsCompat && !any) return;
-    if (!opts.compat) return;
+    if (!opts.compat || opts.model) return;
     // the library and the data, in ReplicatedFirst; the GUI helper in StarterPlayerScripts
     const service = cls => {
       let s = doc.roots.find(r => r.cls === cls);
@@ -1532,8 +1546,8 @@
     const count = {};
     const bump = k => { count[k] = (count[k] || 0) + 1; };
     fixSnapshots(doc, notes);
-    wrapModel(doc, notes);
-    ensureSpawn(doc, notes);
+    // (opts.model: a model a game inserts while it runs, not a place: no wrapping, spawn or helper scripts)
+    if (!opts.model) { wrapModel(doc, notes); ensureSpawn(doc, notes); }
     // scripts: first the stand-ins for 2017+ calls (compatSource), on the scripts as they were written and
     // only once; then newer games' Luau syntax and libraries -> 2016 Lua (luau.js + scripts/GNCompat.lua,
     // given as opts.compat)
@@ -1552,8 +1566,7 @@
     if (opts.modern !== false) modernize(doc, notes, bump, opts);
     standIns(doc, bump, opts);
     r15ToR6(doc, bump);
-    addCompatRuntime(doc, bump);
-    serviceModules(doc, bump);
+    if (!opts.model) { addCompatRuntime(doc, bump); serviceModules(doc, bump); }
 
     // property name -> type, where every class in the typemap agrees
     const nameType = {};

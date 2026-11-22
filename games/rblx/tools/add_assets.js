@@ -12,6 +12,12 @@ const path = require('path');
 global.window = {};
 require(path.join(__dirname, '..', 'assets.js'));
 const A = window.GNAssets;
+// models (inserted by scripts with InsertService:LoadAsset) are converted like places
+global.fzstd = require(path.join(__dirname, '..', 'vendor', 'fzstd.js'));
+const R = require(path.join(__dirname, '..', 'rbxfile.js'));
+const GNLuau = require(path.join(__dirname, '..', 'luau.js'));
+const TYPEMAP = JSON.parse(fs.readFileSync(path.join(__dirname, 'typemap.json'), 'utf8'));
+const COMPAT = fs.readFileSync(path.join(__dirname, '..', 'scripts', 'GNCompat.lua'), 'utf8');
 const OUT = path.join(__dirname, '..', 'game-assets');
 const INDEX = path.join(OUT, 'index.json');
 const EXT = { png: 'png', jpeg: 'jpg', mesh: 'mesh', obj: 'mesh', ogg: 'ogg', mp3: 'mp3', wav: 'wav', model: 'rbxm' };
@@ -37,6 +43,11 @@ for (const f of files) {
   try {
     if (kind === 'mesh') bytes = A.convertMesh(bytes);
     else if (kind === 'obj') bytes = A.objToMesh(new TextDecoder().decode(bytes));
+    else if (kind === 'model') {
+      const doc = R.read(bytes);
+      R.toEngine(doc, TYPEMAP, { compat: COMPAT, luau: GNLuau, model: true });
+      bytes = R.write(doc);
+    }
   } catch (e) { skipped.push(name + ' (' + e.message + ')'); continue; }
   const ext = EXT[kind];
   if (!ext) { skipped.push(name + ' (' + kind + ': not an image, mesh or sound the engine reads)'); continue; }
