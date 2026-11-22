@@ -357,8 +357,15 @@ def patch_js(s, PUSHSTRING_TABLE_INDEX):
 # 12. Requests to the engine's web server (http://localhost:4015) other than content files go to
 #     wb-api/<path> next to the page instead; the service worker hands them to webapi.js. When
 #     such a request failed, the engine never resumed the script waiting on it.
+# 17. Content files (images, meshes, sounds: /asset/?id=N, and roblox.com asset URLs) go to
+#     wb-asset/?id=N, which the service worker answers from the files uploaded with the place
+#     (assets.js), or with a 404.
 API_JS = ('if(/^https?:\\/\\/localhost:4015\\//i.test(url_)){var wbPath=url_.replace(/^https?:\\/\\/[^\\/]+/,"");'
-          'if(!/^\\/asset\\/?\\?/i.test(wbPath)||/modulePlaceId=/i.test(wbPath))url_=location.href.replace(/[?#].*$/,"").replace(/[^\\/]*$/,"")+"wb-api"+wbPath}')
+          'var wbDir=location.href.replace(/[?#].*$/,"").replace(/[^\\/]*$/,"");'
+          'if(!/^\\/asset\\/?\\?/i.test(wbPath)||/modulePlaceId=/i.test(wbPath))url_=wbDir+"wb-api"+wbPath;'
+          'else url_=wbDir+"wb-asset/"+wbPath.replace(/^\\/asset\\/?/i,"")}'
+          'else{var wbM=/^https?:\\/\\/[a-z0-9.]*roblox\\.com\\/(?:v1\\/)?asset\\/?\\?(?:.*&)?id=(\\d+)/i.exec(url_);'
+          'if(wbM)url_=location.href.replace(/[?#].*$/,"").replace(/[^\\/]*$/,"")+"wb-asset/?id="+wbM[1]}')
 
 
 def patch_js_webapi(s):

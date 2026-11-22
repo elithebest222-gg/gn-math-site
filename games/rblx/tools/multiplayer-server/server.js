@@ -4,8 +4,9 @@
 // (position, facing, animation, colors, hat) and any chat line, and gets back everyone
 // else in the same room. No dependencies: `node server.js` (PORT env, default 8080).
 //
-//   GET /sync?room=&id=&name=&s=&l=&c=&ack= -> text lines (see reply format below)
-//   (l = the player's leaderstats, "Cash:120,Logs:4")
+//   GET /sync?room=&id=&name=&s=&l=&c=&ack=&g=&v=&ga=&va= -> text lines (see reply format below)
+//   (l = the player's leaderstats, "Cash:120,Logs:4"; g = "topic|data", a message from the game's
+//   scripts for everyone else; v = "key|value", a value the whole room shares; see p2p.js)
 //   GET /rooms                             -> {"room": playerCount, ...}
 //
 // Public rooms are open to anyone on the site, so swear words in chat are masked (####).
@@ -16,12 +17,15 @@ const PORT = +process.env.PORT || 8080;
 const STALE_MS = 6000;          // players vanish this long after their last sync
 const MAX_PLAYERS = 30;         // per room
 const CHAT_KEEP = 50;           // chat lines kept per room
+const G_KEEP = 100, KV_MAX = 256, G_PER_SEC = 30;   // game messages kept, shared values, messages a second
+const TOPIC_RE = /^[A-Za-z0-9_.\-]{1,32}$/;
+const splitPair = t => { t = String(t || ''); const i = t.indexOf('|'), k = i < 0 ? t : t.slice(0, i); return TOPIC_RE.test(k) ? [k, (i < 0 ? '' : t.slice(i + 1)).replace(/[\r\n]/g, ' ')] : null; };
 
 const rooms = new Map();        // name -> { players: Map<id, player>, chat: [], seq }
 
 const ROOM_RE = /^(pub|priv)-[a-z0-9-]{1,60}$/;
 const ID_RE = /^[a-z0-9]{6,16}$/;
-const STATE_RE = /^[-0-9.,a-z]{1,160}$/;
+const STATE_RE = /^[-0-9.,a-z]{1,240}$/;
 const STATS_RE = /^[A-Za-z0-9 _.:,\-]{0,200}$/;
 const clean = (s, n) => String(s || '').replace(/[^A-Za-z0-9 _.\-!?,'@#:()]/g, '').trim().slice(0, n);
 // (same list as p2p.js)
@@ -30,7 +34,7 @@ const filterChat = text => text.replace(BAD_WORDS, w => '#'.repeat(w.length));
 
 function room(name) {
   let r = rooms.get(name);
-  if (!r) rooms.set(name, r = { players: new Map(), chat: [], seq: 0 });
+  if (!r) rooms.set(name, r = { players: new Map(), chat: [], seq: 0, game: [], gseq: 0, kv: new Map(), kver: 0 });
   return r;
 }
 
@@ -65,6 +69,17 @@ function sync(q, now) {
     if (r.chat.length > CHAT_KEEP) r.chat.shift();
   }
 
+  for (const [topic, data] of q.getAll('g').slice(0, 10).map(splitPair).filter(Boolean)) {
+    if (now - (me.gT || 0) > 1000) { me.gT = now; me.gN = 0; }
+    if (++me.gN > G_PER_SEC) break;
+    r.game.push({ seq: ++r.gseq, id, name: me.name, topic, data: data.slice(0, 400) });
+    if (r.game.length > G_KEEP) r.game.shift();
+  }
+  for (const [key, v] of q.getAll('v').slice(0, 10).map(splitPair).filter(Boolean)) {
+    if (!r.kv.has(key) && r.kv.size >= KV_MAX) continue;
+    r.kv.set(key, { v: v.slice(0, 200), ver: ++r.kver });
+  }
+
   // Reply: one line per other player, then chat lines newer than ?ack=, the server's clock
   // (ms; games use it to run timed rounds together), then the latest seq.
   //   P|id|name|state|stats     C|seq|id|name|text     T|ms     S|seq
@@ -74,6 +89,12 @@ function sync(q, now) {
   if (Number.isFinite(ack) && ack >= 0) {
     for (const m of r.chat) if (m.seq > ack && m.id !== id) out.push(`C|${m.seq}|${m.id}|${m.name}|${m.text}`);
   }
+  //   G|seq|id|name|topic|data (game messages newer than ?ga=)   V|version|key|value (newer than ?va=)
+  //   H|last message seq|last version
+  const ga = parseInt(q.get('ga'), 10), va = parseInt(q.get('va'), 10) || 0;
+  if (Number.isFinite(ga) && ga >= 0) for (const m of r.game) if (m.seq > ga && m.id !== id) out.push(`G|${m.seq}|${m.id}|${m.name}|${m.topic}|${m.data}`);
+  for (const [key, e] of [...r.kv].filter(([, e]) => e.ver > va).sort((a, b) => a[1].ver - b[1].ver).slice(0, 100)) out.push(`V|${e.ver}|${key}|${e.v}`);
+  out.push(`H|${r.gseq}|${r.kver}`);
   out.push(`T|${now}`);
   out.push(`S|${r.seq}`);
   return [200, out.join('\n') + '\n'];

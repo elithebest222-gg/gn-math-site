@@ -47,7 +47,9 @@ them in the browser when the game starts. It reads any Roblox place or model, XM
 - exact part colors (`Color3uint8`) become the nearest 2016 BrickColor (the engine's own 208-color palette),
 - WeldConstraints become ManualWelds that hold the parts where they are, font faces become fonts,
 - properties and objects the 2016 engine doesn't have are left out, linked scripts are cleared,
-- a model file gets put in a new place with a baseplate.
+- a model file gets put in a new place with a baseplate,
+- a place with no SpawnLocation and no floor in the middle of the map (where Roblox puts you when there's
+  no spawn) gets an invisible spawn on top of its biggest floor, so you don't fall forever.
 
 If the engine still rejects the place, `../play.html` reloads it once in safe mode, which also leaves
 out terrain and union data and any property the engine isn't known to read.
@@ -56,7 +58,24 @@ The converter also:
 
 - clears `Script.LinkedSource` links (they point at an asset server that no longer exists),
 - fixes `FogEnd = 0` in very old places,
-- rebuilds real services from "CreatorId=… PlaceId=…" snapshot models.
+- rebuilds real services from "CreatorId=… PlaceId=…" snapshot models,
+- turns `rbxassetid://123` links (in properties and in scripts) into `http://www.roblox.com/asset/?id=123`,
+  the only kind this engine fetches.
+
+### Images, meshes and sounds
+
+A place file only names its assets; the files are on Roblox's servers, which the site can't use. So a
+game's images, meshes and sounds can be uploaded with it: pick the place and the files together in Upload
+a Place, or one `.zip` with all of them, each file named with its asset id (`123456.png`,
+`Sword 123456.mesh`; the longest number in the name is the id). `../assets.js` keeps them in the browser
+(IndexedDB `webblox` / `files`, as `asset:<id>`), replacing the last game's, and converts what the 2016
+engine can't read: Roblox meshes from version 3.00 to 5.00 and `.obj` files become mesh 2.00 (the most
+detailed level), WebP / GIF / BMP / SVG images become PNG, and M4A / FLAC / WebM sounds become WAV.
+Mesh 6.00 and later (2023 onwards) can't be converted; export those from Studio as `.obj`.
+
+The engine asks for content as `localhost:4015/asset/?id=N` (and sometimes roblox.com asset URLs); rblx.js
+sends those to `wb-asset/?id=N` (engine patch 17), and the service worker answers from IndexedDB, or with a
+404. The game page lists the ids that were missing so the player knows which files to add.
 
 `typemap.json` lists the property types the engine expects. It was read out of the
 engine's own binary places, and the engine refuses a place whose property types don't match.
@@ -117,6 +136,11 @@ this folder). The main ones:
    and dropped any sound loaded before it; now it's set up at once and starts on your first click
    or key press (`../play.html` shows a "Click for sound" button until then).
 
+Later fixes (10 to 17) are listed in `patch_engine.py` too: steadier shift lock, DataStores, the web
+services answered by `../webapi.js`, typed symbols and capital letters, speed (the debug build's heap
+checks), smoother frames, and 17: images, meshes and sounds coming from the files uploaded with a place
+(`wb-asset/?id=N`, see "Images, meshes and sounds" above).
+
 If those files are ever replaced with a fresh build, re-run
 `python3 patch_engine.py ../rblx.wasm ../rblx.js` and bump `VERSION` in `../play.html`.
 
@@ -142,6 +166,34 @@ over PeerJS (WebRTC):
 - Replies also carry the room's clock (`T|ms`); `ReplicatedStorage.WebBlox` hands it, the room name
   and the other players' leaderstats to the game's own scripts and the player list.
 
+### Game scripts in multiplayer
+
+Every player runs their own copy of the world, so a game's scripts can't just change a part and have
+everyone see it. They can talk to each other's games through `ReplicatedStorage.WebBlox` instead:
+
+```lua
+local WB = game:GetService("ReplicatedStorage"):WaitForChild("WebBlox")
+WB.Send:Fire("tagged", targetId)                    -- a message for everyone else in the server
+WB.Message.Event:connect(function(topic, data, fromId, fromName) ... end)
+WB.SetShared:Fire("round", "3")                     -- a value the whole server shares
+WB.Shared:WaitForChild("round").Changed:connect(...) -- (StringValues; "" removes one)
+print(WB.MyId.Value)                                 -- your player id ("solo" offline)
+```
+
+Topics and keys are letters, digits, `_ . -` (up to 32); message data is text up to 400 characters,
+shared values up to 200. Other players' avatars, and your own character, carry a `GNPlayerId`
+StringValue, so a touch can be matched to the player it belongs to. The hub keeps the last 100 messages
+and every shared value (up to 256), so players who join later get the values; sync lines `G|`, `V|`
+and `H|` carry them (same in `multiplayer-server`).
+
+## Phone and tablet controls
+
+The 2016 engine only listens for a keyboard and a mouse. On touch screens (or with `?touch=1`),
+`../touch.js` draws 2016-style mobile controls and turns touches into those events: the thumbstick presses
+W A S D, the arrow button is Space, dragging is a right-button mouse drag (the camera), a tap is a click,
+press-and-hold then drag is a left-button drag, pinching is the mouse wheel, and the chat button opens the
+phone's keyboard and types into the game's chat.
+
 ## Natural Disaster Survival rounds
 
 Every player runs their own copy of the game, so out of the box everyone got their own random map
@@ -160,6 +212,17 @@ python3 nds_sync.py "in.rbxl" "out.rbxl"                                 # e.g. 
 `../config.js` can point at your own PeerJS server (`peerServer`) instead of the free cloud, or switch
 to the classic `multiplayer-server/` (`multiplayerServer`), which speaks the same protocol. Its README
 explains how to run it.
+
+## Faces and clothes in the Catalog
+
+`build_catalog.py <folder>` adds faces, shirts and pants made from images: `<folder>/Classic Faces/<asset id>.png`,
+`<folder>/shirt/<asset id>.png` and `<folder>/pants/<asset id>.png` (classic 585 x 559 templates). The images go in
+`../catalog/assets/`, and `../catalog/items.js` lists the items (names and prices for clothes are in the script).
+They're worn in their own outfit slots (`face`, `shirtTex`, `pantsTex`), over the color shirt and pants. The 3D avatar
+(`../avatar3d.js`) maps the templates onto the body; in games the face is the head's decal and the clothes are Shirt
+and Pants objects whose templates are `http://www.roblox.com/asset/?id=<asset id>`, which the service worker answers
+from `catalog/assets/` (so uploaded games that use the same faces get them too). Other players' stand-ins wear them
+(their ids ride along in the avatar state). Hats and hair need their mesh and texture files, which a `.rbxm` only names.
 
 ## Hats and gear
 

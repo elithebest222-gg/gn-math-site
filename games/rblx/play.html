@@ -13,6 +13,7 @@
   <script src="vendor/fzstd.js"></script>
   <script src="rbxfile.js"></script>
   <script src="webapi.js"></script>
+  <script src="touch.js"></script>
   <style>
     :root { --panel: #232527; --text: #fff; --muted: #b8b8b8; --blue: #00a2ff; --green: #02b757; --red: #d86868; }
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -46,6 +47,13 @@
     #sound[hidden] { display: none; }
     #sound svg { width: 16px; height: 16px; fill: currentColor; }
     #sound:hover { background: rgba(0,0,0,.75); }
+    #assets-note { position: fixed; top: 44px; left: 50%; transform: translateX(-50%); z-index: 30; width: min(560px, calc(100% - 24px)); background: rgba(25,27,29,.9);
+      border: 1px solid rgba(255,255,255,.2); border-radius: 4px; padding: 10px 40px 10px 14px; font-size: 15px; line-height: 1.35; color: #fff; }
+    #assets-note[hidden] { display: none; }
+    #assets-note button { font: inherit; color: #00a2ff; background: none; border: 0; cursor: pointer; padding: 0; text-decoration: underline; }
+    #assets-note .x { position: absolute; top: 6px; right: 10px; color: #ccc; text-decoration: none; font-size: 20px; line-height: 1; }
+    #assets-note code[hidden] { display: none; }
+    #assets-note code { display: block; margin-top: 6px; max-height: 90px; overflow: auto; font-size: 12px; color: #bbb; word-break: break-word; }
     @media (max-width: 600px) { #sound { left: auto; right: 8px; top: auto; bottom: 8px; } #loading .tip { display: none; } #loading .info { left: 18px; right: 96px; bottom: 26px; } #loading .ring { right: 20px; bottom: 26px; width: 46px; height: 46px; } }
   </style>
 </head>
@@ -69,13 +77,14 @@
     <div class="btns"><button class="primary" onclick="location.reload()">Reconnect</button><a class="secondary" href="./index.html">Leave</a></div>
   </div></div>
 
+  <div id="assets-note" hidden><button class="x" aria-label="Close">&times;</button><span id="assets-text"></span> <button id="assets-which">Which ones?</button><code id="assets-ids" hidden></code></div>
   <canvas id="canvas" oncontextmenu="return false"></canvas>
 
   <script>
     try { Object.defineProperty(navigator, 'hardwareConcurrency', { get: () => 32 }); } catch (e) {}
 
     (async function () {
-      const VERSION = '47';                       // bump when rblx.js / rblx.wasm change
+      const VERSION = '49';                       // bump when rblx.js / rblx.wasm change
       const CHUNKS = 12, CHUNK_SIZE = 25165824, DATA_SIZE = 289418733;
       const $ = id => document.getElementById(id);
       const canvas = $('canvas'), loading = $('loading');
@@ -85,6 +94,10 @@
       const TIPS = ['Tip: hold right mouse button to turn the camera.', 'Tip: use W A S D to walk and Space to jump.',
                     'Tip: press / to chat.', 'Tip: scroll or use I / O to zoom in and out.'];
 
+      // phones and tablets get on-screen controls (touch.js); ?touch=1 shows them anywhere
+      const touchControls = window.GNTouch && (params.has('touch') || GNTouch.isTouch());
+      if (touchControls) TIPS.splice(0, TIPS.length, 'Tip: the stick in the lower left walks; drag anywhere else to turn the camera.',
+        'Tip: tap the arrow button to jump.', 'Tip: pinch to zoom in and out.', 'Tip: tap the chat button to talk.');
       document.title = title + ' - GN-BLOX';
       $('game-title').textContent = title;
       $('game-by').textContent = 'By ' + (params.get('by') || 'GN-BLOX');
@@ -127,6 +140,30 @@
         else if (fps >= 57 && ++smoothFor >= 3 && autoScale < top) { autoScale = Math.min(top, autoScale * 1.1); smoothFor = 0; }
         if (Math.abs(autoScale - before) > 0.001) window.dispatchEvent(new Event('resize'));
       };
+
+      // Images, meshes and sounds an uploaded game asked for that weren't uploaded with it (the
+      // service worker answers those with a 404 and says so here): tell the player which ids to add.
+      const missingAssets = new Set();
+      let missingTimer = 0;
+      try {
+        new BroadcastChannel('gnblox-assets').onmessage = e => {
+          const id = String((e.data || {}).missing || '');
+          if (!id || missingAssets.has(id)) return;
+          missingAssets.add(id);
+          clearTimeout(missingTimer);
+          missingTimer = setTimeout(() => {
+            const ids = [...missingAssets];
+            console.log('GN-BLOX: assets this game uses that weren\'t uploaded with it: ' + ids.join(', '));
+            if (!params.get('custom')) return;
+            $('assets-text').textContent = 'This game uses ' + ids.length + ' image' + (ids.length === 1 ? '' : 's') + ', mesh' + (ids.length === 1 ? '' : 'es') +
+              ' or sound' + (ids.length === 1 ? ' that wasn\'t' : 's that weren\'t') + ' uploaded with it.';
+            $('assets-ids').textContent = 'Asset ids: ' + ids.join(', ') + '. Upload the place again together with those files, each named with its id (like ' + ids[0] + '.png), or all of them in a .zip.';
+            $('assets-note').hidden = false;
+          }, 2500);
+        };
+        $('assets-which').onclick = () => { $('assets-ids').hidden = !$('assets-ids').hidden; };
+        $('assets-note').querySelector('.x').onclick = () => { $('assets-note').hidden = true; };
+      } catch (e) {}
 
       // Signals from the game's scripts (the engine posts https://webblox.signal/<message> here)
       try {
@@ -210,7 +247,7 @@
         ready = true;
         setTimeout(updateSound, 300);
         $('bar').style.width = '100%';
-        setTimeout(() => { loading.style.display = 'none'; canvas.focus(); }, 250);
+        setTimeout(() => { loading.style.display = 'none'; canvas.focus(); if (touchControls) GNTouch.start(canvas); }, 250);
       };
       window.addEventListener('error', e => {
         if (/ResizeObserver|PeerJS/i.test(e.message || '')) return;
@@ -525,7 +562,9 @@
         return 'local WEBBLOX = {\n' +
           '  mp = { url = ' + str(mp.url, /[^A-Za-z0-9.:\/_\-]/g) + ', room = ' + str(mp.room) + ', name = ' + str(name) + ', id = ' + str(id) + ', private = ' + (mp.code ? 'true' : 'false') + ' },\n' +
           '  role = ' + (myRole() ? str(myRole(), /[^a-z]/g) : 'nil') + ',\n' +
-          '  look = { skin = ' + int(outfit.skin) + ', shirt = ' + int(outfit.shirt) + ', pants = ' + int(outfit.pants) + ', hat = ' + (outfit.hat ? str(outfit.hat, /[^a-z]/g) : 'nil') + ', gear = ' + lua(carried) + ' },\n' +
+          '  look = { skin = ' + int(outfit.skin) + ', shirt = ' + int(outfit.shirt) + ', pants = ' + int(outfit.pants) + ', hat = ' + (outfit.hat ? str(outfit.hat, /[^a-z]/g) : 'nil') + ', gear = ' + lua(carried) +
+            // faces and clothes from the Catalog: asset ids (the service worker serves catalog/assets/<id>.png)
+            ['face', 'shirtTex', 'pantsTex'].map(k => ', ' + k + ' = ' + (/^\d{1,20}$/.test(String(outfit[k] || '')) ? str(String(outfit[k])) : 'nil')).join('') + ' },\n' +
           '  hats = ' + lua(W.HATS || {}) + ',\n' +
           '  gear = ' + lua(gear) + ',\n' +
           '}';

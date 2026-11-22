@@ -16,6 +16,10 @@
 // server moves down when a lower one is free or reachable again, so players gather together.
 // Private rooms (invite links) are a single server.
 //
+// The place's own scripts can talk to each other's games too (ReplicatedStorage.WebBlox.Send /
+// Message, and SetShared / Shared for values the whole server shares): the hub keeps the last
+// messages and every shared value, so players who join later get the values.
+//
 // The site's owner and moderators (config.js, by account ID) can use admin commands in chat
 // (:kick, :ban, :m ... :cmds lists them). A command is signed with the account's key and passed
 // to everyone through the hub; each player's game checks the signature against config.js before
@@ -25,7 +29,7 @@
   'use strict';
   const STALE_MS = 5000, MAX_PLAYERS = 30, CHAT_KEEP = 50, SEND_MS = 120, HUB_SILENT_MS = 4000;
   const PUBLIC_SERVERS = 5, JOIN_TIMEOUT_MS = 9000, KEEPALIVE_MS = 2000, CONN_SILENT_MS = 12000;
-  const STATE_RE = /^[-0-9.,a-z]{1,160}$/;
+  const STATE_RE = /^[-0-9.,a-z]{1,240}$/;
   const STATS_RE = /^[A-Za-z0-9 _.:,\-]{0,200}$/;      // leaderstats: "Cash:120,Logs:4"
   const statsOf = v => (typeof v === 'string' && STATS_RE.test(v) ? v : '');
   const OFFLINE_ERRORS = /^(network|server-error|socket-error|socket-closed|browser-incompatible|ssl-unavailable)$/;
@@ -67,6 +71,43 @@
     const chat = [];
     let seq = 0, hubSince = 0;
 
+    // game messages and shared values (WebBlox.Send / SetShared in the place's scripts)
+    const G_KEEP = 100, KV_MAX = 256, G_PER_SEC = 30;
+    const TOPIC_RE = /^[A-Za-z0-9_.\-]{1,32}$/;
+    let gmsgs = [], gseq = 0;                    // hub: the last messages ({ seq, id, name, topic, data })
+    const kv = new Map();                        // key -> { v, ver }: everyone keeps a copy
+    let kver = 0;
+    const outGame = [], outKV = [];              // ours, waiting to go to the hub
+    const gRate = new Map();                     // hub: id -> { t, n }
+    const gameData = d => String(d == null ? '' : d).replace(/[\r\n]/g, ' ').slice(0, 400);
+    const kvValue = v => String(v == null ? '' : v).replace(/[\r\n]/g, ' ').slice(0, 200);
+    function splitPair(text) {                   // "topic|data" -> [topic, data]
+      const t = String(text || ''), i = t.indexOf('|');
+      const k = i < 0 ? t : t.slice(0, i);
+      return TOPIC_RE.test(k) ? [k, i < 0 ? '' : t.slice(i + 1)] : null;
+    }
+    function addGame(id, name, topic, data) {
+      const now = Date.now(), r = gRate.get(id) || { t: now, n: 0 };
+      if (now - r.t > 1000) { r.t = now; r.n = 0; }
+      if (++r.n > G_PER_SEC) return;
+      gRate.set(id, r);
+      gmsgs.push({ seq: ++gseq, id, name, topic, data: gameData(data) });
+      if (gmsgs.length > G_KEEP) gmsgs.shift();
+    }
+    function setKV(key, v) {
+      if (!TOPIC_RE.test(key) || (!kv.has(key) && kv.size >= KV_MAX)) return;
+      kv.set(key, { v: kvValue(v), ver: ++kver });
+    }
+    function mergeKV(list, vv) {                 // from the hub: [[key, value, version], ...]
+      for (const e of Array.isArray(list) ? list : []) {
+        if (!Array.isArray(e) || !TOPIC_RE.test(String(e[0])) || !Number.isFinite(e[2])) continue;
+        const cur = kv.get(e[0]);
+        if (!cur || cur.ver < e[2]) kv.set(e[0], { v: kvValue(e[1]), ver: e[2] });
+      }
+      if (Number.isFinite(vv) && vv > kver) kver = vv;
+    }
+    const kvSince = ver => [...kv].filter(([, e]) => e.ver > ver).sort((a, b) => a[1].ver - b[1].ver);
+
     function addChat(id, name, text) {
       if (!text) return;
       chat.push({ seq: ++seq, id, name, text: filterChat(text) });
@@ -79,7 +120,8 @@
         if (pl.state) p.push([id, pl.name, pl.state, pl.stats || '', pl.k || '', pl.pr || '']);
       }
       trimActs();
-      return { t: 'r', p, c: chat.slice(-20).map(m => [m.seq, m.id, m.name, m.text]), q: seq, h: me.id, T: roomNow(), a: acts };
+      return { t: 'r', p, c: chat.slice(-20).map(m => [m.seq, m.id, m.name, m.text]), q: seq, h: me.id, T: roomNow(), a: acts,
+        g: gmsgs.slice(-40).map(m => [m.seq, m.id, m.name, m.topic, m.data]), gq: gseq, vv: kver };
     }
 
     // ---- owners and moderators ---------------------------------------------------------------
@@ -271,11 +313,17 @@
       let c = clean(q.get('c'), 120);
       const rawChat = String(q.get('c') || '').replace(/[|\r\n]/g, ' ').slice(0, 200);
       if (/^[:;]\S/.test(rawChat) && myRole && ident) { runCommand(':' + rawChat.slice(1)); c = ''; }
+      const games = q.getAll('g').slice(0, 10).map(splitPair).filter(Boolean);
+      const sets = q.getAll('v').slice(0, 10).map(splitPair).filter(Boolean);
       if (isHub) {
         players.set(id, { name: me.name, state: me.state, stats: me.stats, t: Date.now(), conn: null, k: me.pr ? me.k : '', pr: me.pr });
         if (c) addChat(id, me.name, c);
+        for (const [topic, data] of games) addGame(id, me.name, topic, data);
+        for (const [key, v] of sets) setKV(key, v);
       } else {
         if (c) outChat.push(c);
+        for (const m of games) if (outGame.length < 100) outGame.push(m);
+        for (const m of sets) { const i = outKV.findIndex(x => x[0] === m[0]); if (i >= 0) outKV.splice(i, 1); outKV.push(m); }
         sendToHub();
       }
       let view = isHub ? hubSnapshot() : snapshot;
@@ -299,6 +347,12 @@
       }
       consumeActs(isHub ? acts : snapshot.a);
       while (luaQueue.length) out.push(luaQueue.shift());
+      // G|seq|id|name|topic|data   V|version|key|value   H|last message seq|last version
+      const ga = parseInt(q.get('ga'), 10), va = parseInt(q.get('va'), 10) || 0;
+      const glist = isHub ? gmsgs : (snapshot.g || []).map(m => ({ seq: m[0], id: m[1], name: m[2], topic: m[3], data: m[4] }));
+      if (Number.isFinite(ga) && ga >= 0) for (const m of glist) if (m.seq > ga && m.id !== id && TOPIC_RE.test(String(m.topic))) out.push(`G|${m.seq}|${m.id}|${clean(m.name, 20)}|${m.topic}|${gameData(m.data)}`);
+      for (const [key, e] of kvSince(va).slice(0, 100)) out.push(`V|${e.ver}|${key}|${e.v}`);
+      out.push(`H|${isHub ? gseq : snapshot.gq | 0}|${kver}`);
       out.push(`T|${Math.round(roomNow())}`);
       out.push(`S|${view.q}`);
       return out.join('\n') + '\n';
@@ -308,9 +362,12 @@
     function sendToHub() {
       if (!toHub || !toHub.open || !me.id) return;
       const now = Date.now();
-      if (now - lastSent < 60 && !outChat.length) return;
+      if (now - lastSent < 60 && !outChat.length && !outGame.length && !outKV.length) return;
       lastSent = now;
-      try { toHub.send({ t: 'u', id: me.id, n: me.name, s: me.state, l: me.stats, c: outChat.splice(0, 3), q: snapshot.q, k: me.pr ? me.k : '', pr: me.pr }); } catch (e) {}
+      try {
+        toHub.send({ t: 'u', id: me.id, n: me.name, s: me.state, l: me.stats, c: outChat.splice(0, 3), q: snapshot.q, k: me.pr ? me.k : '', pr: me.pr,
+          g: outGame.splice(0, 20), v: outKV.splice(0, 20), vv: kver, gq: snapshot.gq | 0 });
+      } catch (e) {}
     }
 
     const banned = myBan();
@@ -387,6 +444,9 @@
       players.clear();
       if (Date.now() - heard < STALE_MS) for (const [id, name, st, stats] of snapshot.p) if (id !== snapshot.h) players.set(id, { name, state: st, stats: statsOf(stats), t: Date.now() - 2000, conn: null });
       seq = Math.max(seq, snapshot.q || 0);
+      gmsgs = (snapshot.g || []).map(m => ({ seq: m[0], id: m[1], name: m[2], topic: m[3], data: m[4] }));
+      gseq = Math.max(gseq, snapshot.gq || 0);
+      kver += 1000;   // (so values set from now on are newer than anything a player has heard)
       for (const a of snapshot.a || []) if (validAct(a) && !acts.some(x => x.n === a.n)) acts.push(a);
       setConn('hub');
       p.on('connection', c => {
@@ -411,6 +471,10 @@
           // after a hub handover, keep chat numbers moving forward so nobody skips new messages
           const q = d.q | 0; if (q > seq && q < seq + 1e6) seq = q;
           for (const text of (Array.isArray(d.c) ? d.c : []).slice(0, 3)) addChat(d.id, name, clean(text, 120));
+          for (const m of (Array.isArray(d.g) ? d.g : []).slice(0, 20)) if (Array.isArray(m) && TOPIC_RE.test(String(m[0]))) addGame(d.id, name, String(m[0]), m[1]);
+          for (const m of (Array.isArray(d.v) ? d.v : []).slice(0, 20)) if (Array.isArray(m)) setKV(String(m[0]), m[1]);
+          if (Number.isFinite(d.vv)) c.wbVV = d.vv;
+          const gq = d.gq | 0; if (gq > gseq && gq < gseq + 1e6) gseq = gq;
         });
         c.on('close', () => { conns.delete(c); for (const [id, pl] of players) if (pl.conn === c) players.delete(id); });
         c.on('error', () => {});
@@ -487,7 +551,9 @@
         return;
       }
       if (d.t === 'r') {
-        snapshot = { p: Array.isArray(d.p) ? d.p : [], c: Array.isArray(d.c) ? d.c : [], q: d.q | 0, h: String(d.h || ''), a: Array.isArray(d.a) ? d.a.slice(-30) : [] };
+        snapshot = { p: Array.isArray(d.p) ? d.p : [], c: Array.isArray(d.c) ? d.c : [], q: d.q | 0, h: String(d.h || ''), a: Array.isArray(d.a) ? d.a.slice(-30) : [],
+          g: Array.isArray(d.g) ? d.g.slice(-40) : [], gq: d.gq | 0 };
+        mergeKV(d.v, d.vv);
         heard = Date.now();
         if (Number.isFinite(d.T)) offset = d.T - Date.now();
       } else if (d.t === 'locked') {
@@ -591,7 +657,11 @@
             conns.delete(c);
             for (const [id, pl] of players) if (pl.conn === c) players.delete(id);
             try { c.close(); } catch (e) {}
-          } else if (c.open) { try { c.send(snap); } catch (e) {} }
+          } else if (c.open) {
+            const delta = kvSince(c.wbVV | 0).slice(0, 100);
+            try { c.send(delta.length ? Object.assign({}, snap, { v: delta.map(([k, e]) => [k, e.v, e.ver]) }) : snap); } catch (e) {}
+            if (delta.length) c.wbVV = delta[delta.length - 1][1].ver;
+          }
         }
         if (SERVERS > 1) consolidate();
       } else if (toHub && now - heard > HUB_SILENT_MS) {

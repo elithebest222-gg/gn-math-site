@@ -118,10 +118,22 @@
     { id: 'skin-robot', name: 'Robot Grey Skin', type: 'skin', value: 194, price: 10, desc: 'Beep boop.' },
     { id: 'skin-zombie', name: 'Zombie Green Skin', type: 'skin', value: 37, price: 10, featured: true, desc: 'For when you are not feeling your best.' },
   ];
-  const CATEGORY = { hat: 'Hats', gear: 'Gear', shirt: 'Shirts', pants: 'Pants', skin: 'Body Colors' };
+  // Items made from images (catalog/items.js, see tools/build_catalog.py): faces, and classic shirt and
+  // pants templates. They go in their own outfit slots (face, shirtTex, pantsTex), so a template shirt
+  // sits over your shirt color the way Roblox clothes sit over body colors.
+  const TEX = window.GNCATALOG || {};
+  (TEX.face || []).forEach(([id, name, price, featured], i) => ITEMS.push({ id: 'face-' + id, name: name || 'Classic Face ' + (i + 1), type: 'face', value: id,
+    price, featured: !!featured || i % 120 === 7, desc: 'A classic face for your avatar. It shows in every game.' }));
+  (TEX.shirt || []).forEach(([id, name, price, featured]) => ITEMS.push({ id: 'shirt-' + id, name: name || 'Shirt ' + id, type: 'shirtTex', value: id,
+    price, featured: !!featured, desc: 'A shirt with sleeves, worn over your shirt color (it shows wherever the shirt is see-through).' }));
+  (TEX.pants || []).forEach(([id, name, price, featured]) => ITEMS.push({ id: 'pants-' + id, name: name || 'Pants ' + id, type: 'pantsTex', value: id,
+    price, featured: !!featured, desc: 'Pants, worn over your pants color (it shows wherever they\'re see-through).' }));
+  const CATEGORY = { hat: 'Hats', gear: 'Gear', face: 'Faces', shirt: 'Shirts', shirtTex: 'Shirts', pants: 'Pants', pantsTex: 'Pants', skin: 'Body Colors' };
+  // an image item's file (faces and templates); games get the same file as asset id <id>
+  const assetUrl = id => 'catalog/assets/' + String(id).replace(/[^0-9]/g, '') + '.png';
 
   const WB = {
-    esc, BRICK, ITEMS, CATEGORY, DEFAULT_LOOK, HATS, GEAR,
+    esc, BRICK, ITEMS, CATEGORY, DEFAULT_LOOK, HATS, GEAR, assetUrl,
     item: id => ITEMS.find(i => i.id === id),
     colorHex: n => BRICK[n] || '#a3a2a5',
     robux: () => { const n = load('webblox-robux', 8451); return Number.isFinite(n) ? n : 8451; },
@@ -170,7 +182,8 @@
       default: return '';
     }
   }
-  function face() {
+  function face(id) {
+    if (id) return `<image href="${assetUrl(id)}" x="33" y="22" width="34" height="28" preserveAspectRatio="xMidYMid meet"/>`;
     return '<circle cx="44" cy="34" r="2.3" fill="#191919"/><circle cx="56" cy="34" r="2.3" fill="#191919"/><path d="M43,40 Q50,46 57,40" stroke="#191919" stroke-width="2.2" fill="none" stroke-linecap="round"/>';
   }
   // mode: 'full' (whole body), 'head' (headshot), 'hatonly' (hat on a grey mannequin head)
@@ -180,11 +193,27 @@
     const body = `<rect x="10" y="52" width="18" height="40" rx="2" fill="${skin}"/><rect x="72" y="52" width="18" height="40" rx="2" fill="${skin}"/>
       <rect x="30" y="94" width="19" height="40" rx="2" fill="${pants}"/><rect x="51" y="94" width="19" height="40" rx="2" fill="${pants}"/>
       <rect x="30" y="52" width="40" height="40" rx="2" fill="${shirt}"/>`;
-    const head = `<rect x="33" y="22" width="34" height="28" rx="8" fill="${mode === 'hatonly' ? '#d4d4d4' : skin}"/>` + (mode === 'hatonly' ? '' : face());
+    const head = `<rect x="33" y="22" width="34" height="28" rx="8" fill="${mode === 'hatonly' ? '#d4d4d4' : skin}"/>` + (mode === 'hatonly' ? '' : face(look.face));
     const vb = mode === 'full' ? '-6 -6 112 148' : mode === 'hatonly' ? '14 -6 72 72' : '10 -2 80 80';
     const back = bg ? `<rect x="-20" y="-20" width="160" height="200" fill="${bg}"/>` : '';
-    return `<svg viewBox="${vb}" width="100%" height="100%" aria-hidden="true">${back}${mode === 'hatonly' ? '' : body}${head}${hatSVG(look.hat)}</svg>`;
+    const clothes = mode === 'full' ? templateSVG(look.pantsTex, true) + templateSVG(look.shirtTex, false) : '';
+    return `<svg viewBox="${vb}" width="100%" height="100%" aria-hidden="true">${back}${mode === 'hatonly' ? '' : body + clothes}${head}${hatSVG(look.hat)}</svg>`;
   };
+  // the front of a classic 585 x 559 clothing template on the 2D drawing: torso, and arms (shirt) or legs (pants)
+  let clipN = 0;
+  function templateSVG(id, pants) {
+    if (!id) return '';
+    const url = assetUrl(id), out = [];
+    const piece = (sx, sy, sw, sh, dx, dy, dw, dh) => {
+      const kx = dw / sw, ky = dh / sh, c = 'wbclip' + (++clipN);
+      out.push(`<clipPath id="${c}"><rect x="${dx}" y="${dy}" width="${dw}" height="${dh}" rx="2"/></clipPath><image href="${url}" clip-path="url(#${c})" preserveAspectRatio="none"
+        x="${dx - sx * kx}" y="${dy - sy * ky}" width="${585 * kx}" height="${559 * ky}"/>`);
+    };
+    piece(231, 74, 128, 128, 30, 52, 40, 40);                                   // torso front
+    if (pants) { piece(217, 355, 64, 128, 30, 94, 19, 40); piece(308, 355, 64, 128, 51, 94, 19, 40); }   // right leg, left leg
+    else { piece(217, 355, 64, 128, 10, 52, 18, 40); piece(308, 355, 64, 128, 72, 52, 18, 40); }        // right arm, left arm
+    return out.join('');
+  }
   // Your avatar as a picture: a 3D render when the page loads avatar3d.js (and WebGL works),
   // otherwise the 2D drawing. mode: 'full' | 'head'
   WB.avatarImg = function (look, mode, bg, size) {
@@ -198,6 +227,20 @@
   };
   WB.itemThumb = function (item, size) {
     const bg = '#ebebeb';
+    if (item.type === 'face') {
+      return `<svg viewBox="0 0 100 100" width="100%" height="100%" aria-hidden="true"><rect width="100" height="100" fill="${bg}"/>
+        <rect x="14" y="18" width="72" height="64" rx="18" fill="${WB.colorHex(24)}"/><image href="${assetUrl(item.value)}" x="18" y="20" width="64" height="60" preserveAspectRatio="xMidYMid meet"/></svg>`;
+    }
+    if (item.type === 'shirtTex' || item.type === 'pantsTex') {
+      const look = { skin: 194, shirt: 194, pants: 194, [item.type]: item.value };
+      if (window.WB3D) {
+        try {
+          const src = window.WB3D.snapshot(look, { mode: 'full', size: size || 200, mannequin: true });
+          return `<img src="${src}" alt="" style="width:100%;height:100%;object-fit:contain;display:block;background:${bg}" />`;
+        } catch (e) { /* fall back to the drawing */ }
+      }
+      return WB.avatarSVG(look, 'full', bg);
+    }
     if (window.WB3D && /^(hat|gear|skin)$/.test(item.type)) {
       try {
         const src = item.type === 'skin'
@@ -278,7 +321,7 @@
     </aside>
     <div class="scrim" onclick="document.body.classList.remove('nav-open')"></div>
     <div class="confirm launch" id="launch"><div class="box"><div class="spinner"></div><h3>GN-BLOX is now loading.</h3><p>Get ready to play!</p></div></div>
-    <input type="file" id="rbxl" accept=".rbxl,.rbxlx,.rbxm,.rbxmx" hidden />`;
+    <input type="file" id="rbxl" accept=".rbxl,.rbxlx,.rbxm,.rbxmx,.zip,.mesh,.obj,image/*,audio/*,.ogg,.mp3,.wav" multiple hidden />`;
     document.body.insertAdjacentHTML('afterbegin', html);
     document.getElementById('who').textContent = WB.displayName();
     WB.updateRobux();
@@ -410,10 +453,30 @@
   };
 
   // Uploaded places go through IndexedDB: sessionStorage can't hold files bigger than a few MB.
+  // The place can come with its images, meshes and sounds: pick them together, or a .zip of them
+  // all, each named with its asset id (assets.js; the game gets them from the service worker).
   WB.pickPlace = function () { document.body.classList.remove('nav-open'); document.getElementById('rbxl').click(); };
+  const loadScript = src => new Promise((resolve, reject) => { const s = document.createElement('script'); s.src = src; s.onload = resolve; s.onerror = reject; document.head.appendChild(s); });
   async function uploadPlace(e) {
-    const f = e.target.files[0]; if (!f) return;
-    const buf = await f.arrayBuffer();
+    const files = [...e.target.files];
+    e.target.value = '';
+    if (!files.length) return;
+    let place = null, assets = [], skipped = [];
+    const onlyPlace = files.length === 1 && /\.(rbxl|rbxlx|rbxm|rbxmx)$/i.test(files[0].name);
+    try {
+      if (onlyPlace) place = { name: files[0].name, bytes: new Uint8Array(await files[0].arrayBuffer()) };
+      else {
+        if (!window.GNAssets) await loadScript('assets.js');
+        ({ place, assets, skipped } = await GNAssets.sort(files));
+      }
+    } catch (err) {
+      alert('Could not read those files: ' + (err.message || err));
+      return;
+    }
+    if (!place) {
+      alert('Pick the place file (.rbxl or .rbxlx) too, together with its images, meshes and sounds (or put them all in a .zip).');
+      return;
+    }
     try {
       await new Promise((resolve, reject) => {
         const req = indexedDB.open('webblox', 1);
@@ -421,15 +484,24 @@
         req.onerror = () => reject(req.error);
         req.onsuccess = () => {
           const tx = req.result.transaction('files', 'readwrite');
-          tx.objectStore('files').put(buf, 'upload');
+          const st = tx.objectStore('files');
+          st.put(place.bytes.buffer.slice(place.bytes.byteOffset, place.bytes.byteOffset + place.bytes.byteLength), 'upload');
+          // a new game: the last one's assets go
+          st.delete(IDBKeyRange.bound('asset:', 'asset:\uffff'));
           tx.oncomplete = resolve; tx.onerror = () => reject(tx.error);
         };
       });
+      if (assets.length) await GNAssets.store(assets);
     } catch (err) {
       alert('Could not open that file in this browser (storage is blocked or full).');
       return;
     }
-    WB.launch('play.html?custom=1&title=' + encodeURIComponent(f.name.replace(/\.rbx[lm]x?$/i, '')));
+    if (skipped.length) {
+      const list = skipped.slice(0, 12).join('\n') + (skipped.length > 12 ? '\n...and ' + (skipped.length - 12) + ' more' : '');
+      alert((assets.length ? assets.length + ' asset' + (assets.length === 1 ? '' : 's') + ' added. ' : '') + 'These files were left out:\n\n' + list +
+        '\n\nAsset files need the asset id in their name, like 123456.png, and have to be an image, a mesh (.mesh or .obj) or a sound.');
+    }
+    WB.launch('play.html?custom=1&title=' + encodeURIComponent(place.name.replace(/\.rbx[lm]x?$/i, '')));
   }
 
   window.WB = WB;
