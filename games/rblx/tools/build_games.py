@@ -630,7 +630,7 @@ def undead_nights():
         if abs(x) < 22 and abs(z) < 22:
             continue
         pl.part((x, 1.5, z), (rng.choice([6, 8, 10]), 3, 2), 192, 'Barricade', town, mat='planks', r=(0, rng.uniform(0, 180), 0), surface=SMOOTH)
-    for (x, z) in ((10, 10), (-12, 8), (8, -12)):
+    for (x, z) in ((10, -8), (-12, -6), (24, -14)):
         pl.part((x, 2, z), (4, 4, 4), 192, 'Crate', town, mat='planks', surface=SMOOTH)
     # a watchtower in the square
     pl.part((-14, 6, -14), (6, 12, 6), 192, 'Tower', town, mat='wood', surface=SMOOTH)

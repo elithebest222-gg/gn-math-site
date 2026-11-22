@@ -71,6 +71,13 @@ do
 			if s then s:Fire(ids) end
 		end)
 	end
+	-- make gear stronger / faster for everyone playing: NET.boostGear("pistol" or "all", 1.5, 1.2)
+	function NET.boostGear(id, damage, rate)
+		spawn(function()
+			local s = wb("GearBoost", true)
+			if s then s:Fire(id, damage, rate) end
+		end)
+	end
 	function NET.myId()
 		local v = wb("MyId")
 		return v and v.Value ~= "" and v.Value or "solo"
