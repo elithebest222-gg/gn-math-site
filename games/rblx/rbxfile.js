@@ -1534,8 +1534,21 @@
     fixSnapshots(doc, notes);
     wrapModel(doc, notes);
     ensureSpawn(doc, notes);
-    // newer games' scripts (Luau syntax, newer libraries) -> 2016 Lua first (luau.js + scripts/GNCompat.lua,
-    // given as opts.compat); compatSource below fills in what's left
+    // scripts: first the stand-ins for 2017+ calls (compatSource), on the scripts as they were written and
+    // only once; then newer games' Luau syntax and libraries -> 2016 Lua (luau.js + scripts/GNCompat.lua,
+    // given as opts.compat)
+    {
+      const every = [];
+      const addAll = it => { every.push(it); it.children.forEach(addAll); };
+      doc.roots.forEach(addAll);
+      const r15 = every.some(i => i.cls === 'Humanoid' && i.parent && i.parent.children.some(c => c.name === 'UpperTorso'));
+      for (const it of every) {
+        const p = it.props.get('Source');
+        if (!p || p.t !== 1 || !p.v || !p.v.length) continue;
+        const before = str(p.v), after = compatSource(before, { r15, local: it.cls === 'LocalScript' });
+        if (after !== before) { p.v = enc.encode(after); bump('scripts given 2017+ API stand-ins'); }
+      }
+    }
     if (opts.modern !== false) modernize(doc, notes, bump, opts);
     standIns(doc, bump, opts);
     r15ToR6(doc, bump);
@@ -1554,7 +1567,6 @@
     const all = [];
     const add = it => { all.push(it); it.children.forEach(add); };
     doc.roots.forEach(add);
-    const hasR15 = all.some(i => i.cls === 'Humanoid' && i.parent && i.parent.children.some(c => c.name === 'UpperTorso'));
 
     for (const it of all) {
       if (RENAME_CLASS[it.cls]) { it.cls = RENAME_CLASS[it.cls]; bump('classes renamed'); }
@@ -1583,10 +1595,6 @@
       }
       for (const [pn, p] of [...P]) {
         if (pn === 'LinkedSource' && p.t === 1 && p.v.length) { p.v = new Uint8Array(0); bump('linked scripts cleared'); }
-        if (pn === 'Source' && p.t === 1 && p.v && p.v.length) {
-          const before = str(p.v), after = compatSource(before, { r15: hasR15, local: it.cls === 'LocalScript' });
-          if (after !== before) { p.v = enc.encode(after); bump('scripts given 2017+ API stand-ins'); }
-        }
         // rbxassetid://123 -> http://www.roblox.com/asset/?id=123: this engine only fetches the second
         // kind (as wb-asset/?id=123, the files uploaded with the place). In scripts too, where games
         // build them as "rbxassetid://" .. id.
