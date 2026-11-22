@@ -246,6 +246,15 @@ local Debris = game:GetService("Debris")
 local fxFolder = Instance.new("Folder")
 fxFolder.Name = "GNCombatFx"
 fxFolder.Parent = workspace
+-- a game can make gear stronger or faster: WebBlox.GearBoost:Fire(id or "all", damage multiplier, rate multiplier)
+local boosts = {}
+bindable("GearBoost").Event:connect(function(id, dmg, rate)
+	boosts[tostring(id)] = { dmg = tonumber(dmg) or 1, rate = tonumber(rate) or 1 }
+end)
+local function boostOf(spec)
+	local a, b = boosts[spec.id or ""] or {}, boosts.all or {}
+	return (a.dmg or 1) * (b.dmg or 1), (a.rate or 1) * (b.rate or 1)
+end
 local standInOf = function(id) return nil end
 local watchStandIn, holdGear   -- (set by the multiplayer part below)
 local lastAttack = 0                             -- when you last used any tool
@@ -363,11 +372,11 @@ local function shoot(spec, origin, vel, color, real, ignoreModel)
 				local hum = humanoidOf(hit)
 				if hum and not hitOnce[hum] then
 					hitOnce[hum] = true
-					if real and not c.blast then hurt(hum, c.damage or 10) end
+					if real and not c.blast then hurt(hum, (c.damage or 10) * (boostOf(spec))) end
 				end
 				if c.blast then
 					if real then
-						blast(at, c.blast, c.damage or 100, true)
+						blast(at, c.blast, (c.damage or 100) * (boostOf(spec)), true)
 						sendEvent:Fire("gn.fx", "boom|" .. v3s(at) .. "|" .. c.blast)
 					end
 					break
@@ -458,7 +467,7 @@ local function useGear(spec, tool)
 		anim.Value = lunge and "Lunge" or "Slash"
 		anim.Parent = tool
 		sound(handle, lunge and "swordlunge" or "swordslash", 0.7)
-		spec._hitting = lunge and (c.lunge or 30) or (c.damage or 10)
+		spec._hitting = (lunge and (c.lunge or 30) or (c.damage or 10)) * (boostOf(spec))
 		spec._until = now + (lunge and 0.9 or 0.5)
 		if lunge then
 			local root = char:FindFirstChild("HumanoidRootPart")
@@ -490,24 +499,36 @@ local function useGear(spec, tool)
 	-- an arcing shot aims a little high so it lands near where you clicked
 	local dist = (target - from).magnitude
 	local lift = (c.drop or 0) > 0 and math.min(0.5, gravity() * c.drop * dist / (2 * speed * speed)) or 0
-	local vel = (dir + Vector3.new(0, lift, 0)).unit * speed
 	local color = c.color or randomColor()
-	shoot(spec, from, vel, color, true, char)
-	if c.sound then sound(handle, c.sound, 0.7) end
-	sendEvent:Fire("gn.fx", "shot|" .. spec.id .. "|" .. v3s(from) .. "|" .. v3s(vel) .. "|" .. color)
+	-- (a shotgun fires several pellets, spread out)
+	for i = 1, c.pellets or 1 do
+		local d = dir + Vector3.new(0, lift, 0)
+		if c.spread then d = d + Vector3.new((math.random() - 0.5) * c.spread, (math.random() - 0.5) * c.spread, (math.random() - 0.5) * c.spread) end
+		local vel = d.unit * speed
+		shoot(spec, from, vel, color, true, char)
+		if i <= 3 then sendEvent:Fire("gn.fx", "shot|" .. spec.id .. "|" .. v3s(from) .. "|" .. v3s(vel) .. "|" .. color) end
+	end
+	if c.sound then sound(handle, c.sound, c.volume or 0.7) end
 end
 
 local function arm(spec, tool)
 	local c = spec.combat
-	local ready = true
+	local ready, held = true, false
+	local function cooldown() local _, rate = boostOf(spec) return (c.cooldown or 0.5) / rate end
 	tool.Activated:connect(function()
+		held = true
 		if not ready then return end
 		ready = false
-		lastAttack = tick()
-		pcall(useGear, spec, tool)
-		wait(c.cooldown or 0.5)
+		repeat
+			lastAttack = tick()
+			pcall(useGear, spec, tool)
+			wait(cooldown())
+		-- (automatic guns keep firing while the button is held)
+		until not (c.auto and held and tool.Parent == player.Character)
 		ready = true
 	end)
+	tool.Deactivated:connect(function() held = false end)
+	tool.Unequipped:connect(function() held = false end)
 	if c.kind == "sword" then
 		tool.Equipped:connect(function() pcall(sound, tool:FindFirstChild("Handle"), "unsheath", 0.6) end)
 		-- a sword hurts what its blade touches while it swings (and a little when it's just held)

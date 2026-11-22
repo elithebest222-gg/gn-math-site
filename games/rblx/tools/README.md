@@ -18,7 +18,8 @@ Lua in `games/`:
 - `common.lua` (helpers: leaderstats, messages, the top bar, sounds) and `npc.lua` (blocky NPCs that
   walk to the nearest player and hit them, or `hit` does something else, e.g. arrest; they can patrol
   points; combat gear hurts them) are under the newer games:
-  - `zombies.lua`: Undead Nights' waves (more, tougher zombies; gear unlocks with `NET.giveGear`).
+  - `zombies.lua`: Undead Nights' waves (more, tougher zombies), Cash for kills and waves, and the gun shop
+    in the square (guns with `NET.giveGear`, damage / fire-rate levels with `NET.boostGear("all", dmg, rate)`).
   - `towers.lua`: Brick Battle Peaks (the whole combat kit; bots from the other towers).
   - `arena.lua`: Sword Clash Arena (challengers one at a time; win streaks).
   - `prison.lua`: Cellblock Breakout (spoon → loose wall → keycard → security door → over the yard wall;

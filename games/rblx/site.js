@@ -85,6 +85,27 @@
       pieces: [ball(1, [0, 0, 0], 23, { neon: true })],
       combat: { kind: 'shot', speed: 75, drop: 1, size: [2, 2, 2], ball: true, damage: 15, bounce: 6, keep: 0.85, stop: false, cooldown: 2, sound: 'swoosh', boing: 'Rubber band', life: 6 },
     },
+    // guns that games hand out (not sold in the Catalog): Undead Nights' gun shop
+    pistol: {
+      name: 'Pistol',
+      pieces: [box([0.3, 0.8, 0.4], [0, 0, 0], 26), box([0.35, 0.45, 1.5], [0, 0.55, -0.45], 1002), box([0.12, 0.12, 0.3], [0, 0.6, -1.25], 26)],
+      combat: { kind: 'shot', speed: 320, size: [0.25, 0.25, 1.4], neon: true, damage: 22, color: 24, cooldown: 0.35, sound: 'snap', life: 1.2 },
+    },
+    shotgun: {
+      name: 'Shotgun',
+      pieces: [box([0.3, 0.9, 0.45], [0, 0, 0], 192), box([0.4, 0.4, 3.2], [0, 0.55, -1.1], 26), box([0.45, 0.35, 1.2], [0, 0.2, 0.8], 192)],
+      combat: { kind: 'shot', speed: 260, size: [0.25, 0.25, 0.8], neon: true, damage: 12, pellets: 6, spread: 0.12, color: 24, cooldown: 0.9, sound: 'impact_explosion_02', volume: 0.35, life: 0.6 },
+    },
+    rifle: {
+      name: 'Rifle',
+      pieces: [box([0.3, 0.9, 0.4], [0, 0, 0], 26), box([0.35, 0.45, 3.6], [0, 0.55, -1.2], 28), box([0.3, 0.6, 0.25], [0, 0.1, -1], 26), box([0.4, 0.5, 1.2], [0, 0.45, 1], 28)],
+      combat: { kind: 'shot', speed: 380, size: [0.2, 0.2, 1.6], neon: true, damage: 16, auto: true, color: 24, cooldown: 0.13, sound: 'snap', volume: 0.45, life: 1.2 },
+    },
+    minigun: {
+      name: 'Minigun',
+      pieces: [box([0.4, 1, 0.5], [0, 0, 0], 26), cyl(3.8, 1, 0, 199, { p: [0, 0.65, -1.4], r: [0, 90, 0] }), box([0.8, 0.8, 1.2], [0, 0.65, 0.9], 26)],
+      combat: { kind: 'shot', speed: 360, size: [0.2, 0.2, 1.4], neon: true, damage: 14, auto: true, spread: 0.05, color: 1004, cooldown: 0.06, sound: 'snap', volume: 0.3, life: 1 },
+    },
     paintballgun: {
       pieces: [box([0.35, 0.9, 0.4], [0, 0, 0], 23), box([0.4, 0.45, 2.2], [0, 0.6, -0.7], 26), ball(0.7, [0, 1.15, 0.1], 24)],
       combat: { kind: 'shot', speed: 200, drop: 0.1, size: [0.5, 0.5, 0.5], ball: true, neon: true, splat: true, damage: 15, cooldown: 0.2, sound: 'electronicpingshort', life: 3 },
