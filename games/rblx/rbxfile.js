@@ -759,6 +759,7 @@
   //   x:FindFirstAncestor(name)        -> the same, done by hand
   //   Instance.new("UI...")            -> a stand-in table when the engine doesn't have that class
   //                                       (UIAspectRatioConstraint, UIListLayout... from 2017 on)
+  //   Sound.PlaybackSpeed              -> Sound.Pitch;  workspace.Gravity -> 196.2 (setting it does nothing)
   //   ContentProvider.RequestQueueSize -> 0                     (loading screens waiting for downloads
   //                                                              from Roblox, which never come here)
   const COMPAT_LUA = {
@@ -796,7 +797,7 @@
     return i < end ? i : -1;
   }
   function compatSource(src) {
-    if (!/GetDescendants|GetPropertyChangedSignal|\.Activated\b|RequestQueueSize|BindToClose|WhichIsA|FindFirstAncestor|Instance\.new\s*\(\s*["']UI/.test(src)) return src;
+    if (!/GetDescendants|GetPropertyChangedSignal|\.Activated\b|RequestQueueSize|BindToClose|WhichIsA|FindFirstAncestor|Instance\.new\s*\(\s*["']UI|PlaybackSpeed|\.Gravity\b/.test(src)) return src;
     const used = new Set();
     let out = src;
     const rewrite = (re, make) => {
@@ -821,6 +822,10 @@
     rewrite(/:\s*BindToClose\s*\(/g, recv => { used.add('__gnBTC'); return '__gnBTC(' + recv + ', '; });
     rewrite(/\.Activated(?=\s*:\s*(?:[Cc]onnect|[Ww]ait)\b)/g, recv => { used.add('__gnAct'); return '__gnAct(' + recv + ')'; });
     out = out.replace(/\.RequestQueueSize\b(?!\s*=[^=])/g, '.RequestQueueSize*0');
+    // Sound.PlaybackSpeed (2017) is the 2016 Pitch; workspace.Gravity (2017) is always 196.2 here
+    out = out.replace(/\.PlaybackSpeed\b/g, '.Pitch');
+    out = out.replace(/\b((?:game\s*[.:]\s*(?:GetService\s*\(\s*["']Workspace["']\s*\)|Workspace)|[Ww]orkspace))\s*\.\s*Gravity\b(\s*=(?!=))?/g,
+      (m0, w, assign) => assign ? 'local __gnGravity =' : '196.2');
     out = out.replace(/\bInstance\.new\s*\(\s*(["']UI\w+["'])/g, (_, c) => { used.add('__gnNew'); return '__gnNew(' + c; });
     if (!used.size) return out;
     return [...used].map(k => COMPAT_LUA[k]).join('') + out;
