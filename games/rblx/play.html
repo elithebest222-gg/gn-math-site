@@ -13,6 +13,7 @@
   <script src="vendor/fzstd.js"></script>
   <script src="rbxfile.js"></script>
   <script src="webapi.js"></script>
+  <script src="touch.js"></script>
   <style>
     :root { --panel: #232527; --text: #fff; --muted: #b8b8b8; --blue: #00a2ff; --green: #02b757; --red: #d86868; }
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -75,7 +76,7 @@
     try { Object.defineProperty(navigator, 'hardwareConcurrency', { get: () => 32 }); } catch (e) {}
 
     (async function () {
-      const VERSION = '47';                       // bump when rblx.js / rblx.wasm change
+      const VERSION = '48';                       // bump when rblx.js / rblx.wasm change
       const CHUNKS = 12, CHUNK_SIZE = 25165824, DATA_SIZE = 289418733;
       const $ = id => document.getElementById(id);
       const canvas = $('canvas'), loading = $('loading');
@@ -85,6 +86,10 @@
       const TIPS = ['Tip: hold right mouse button to turn the camera.', 'Tip: use W A S D to walk and Space to jump.',
                     'Tip: press / to chat.', 'Tip: scroll or use I / O to zoom in and out.'];
 
+      // phones and tablets get on-screen controls (touch.js); ?touch=1 shows them anywhere
+      const touchControls = window.GNTouch && (params.has('touch') || GNTouch.isTouch());
+      if (touchControls) TIPS.splice(0, TIPS.length, 'Tip: the stick in the lower left walks; drag anywhere else to turn the camera.',
+        'Tip: tap the arrow button to jump.', 'Tip: pinch to zoom in and out.', 'Tip: tap the chat button to talk.');
       document.title = title + ' - GN-BLOX';
       $('game-title').textContent = title;
       $('game-by').textContent = 'By ' + (params.get('by') || 'GN-BLOX');
@@ -210,7 +215,7 @@
         ready = true;
         setTimeout(updateSound, 300);
         $('bar').style.width = '100%';
-        setTimeout(() => { loading.style.display = 'none'; canvas.focus(); }, 250);
+        setTimeout(() => { loading.style.display = 'none'; canvas.focus(); if (touchControls) GNTouch.start(canvas); }, 250);
       };
       window.addEventListener('error', e => {
         if (/ResizeObserver|PeerJS/i.test(e.message || '')) return;
