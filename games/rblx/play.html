@@ -86,7 +86,7 @@
     try { Object.defineProperty(navigator, 'hardwareConcurrency', { get: () => 32 }); } catch (e) {}
 
     (async function () {
-      const VERSION = '54';                       // bump when rblx.js / rblx.wasm change
+      const VERSION = '55';                       // bump when rblx.js / rblx.wasm change
       const CHUNKS = 12, CHUNK_SIZE = 25165824, DATA_SIZE = 289418733;
       const $ = id => document.getElementById(id);
       const canvas = $('canvas'), loading = $('loading');
@@ -413,6 +413,8 @@
           const holders = { __WEBBLOX_NAME__: '"' + playerName() + '"', __WEBBLOX_GFX__: String(gfxLevel()), __WEBBLOX_FULLSCREEN__: document.fullscreenElement ? 'true' : 'false',
             __WEBBLOX_TAG__: role === 'owner' ? '"[Owner] "' : role === 'mod' ? '"[Mod] "' : '""',
             __WEBBLOX_ROLEICON__: role === 'owner' ? '"rbxasset://textures/ui/gn-owner.png"' : role === 'mod' ? '"rbxasset://textures/ui/gn-mod.png"' : '""' };
+          // the engine asks for some of its own files as "Textures/..." (the tool cursors); the folder is "textures"
+          try { FS.symlink('/content/textures', '/content/Textures'); } catch (e) {}
           // the GN logo for owner / moderator tags
           for (const [file, bytes] of Object.entries(roleIcons)) if (bytes) { try { FS.writeFile('/content/textures/ui/' + file, bytes); } catch (e) {} }
           for (const [file, list] of Object.entries(CORE_EDITS)) {
