@@ -604,12 +604,17 @@ local function gearEffect(effect, on)
 		bf.Parent = torso
 	end
 end
+local gameGear = {}   -- gear a game hands out (WebBlox.GiveGear), given again after each respawn
 local function giveGear()
 	local backpack = player:FindFirstChild("Backpack") or player:WaitForChild("Backpack", 10)
-	if not backpack or not WB.look or not WB.look.gear then return end
-	for _, id in ipairs(WB.look.gear) do
+	if not backpack then return end
+	local list = {}
+	for _, id in ipairs(WB.look and WB.look.gear or {}) do list[#list + 1] = id end
+	for _, id in ipairs(gameGear) do list[#list + 1] = id end
+	for _, id in ipairs(list) do
 		local spec = GEAR[id]
-		if spec and spec.pieces and not backpack:FindFirstChild(spec.name or id) then
+		local char = player.Character
+		if spec and spec.pieces and not backpack:FindFirstChild(spec.name or id) and not (char and char:FindFirstChild(spec.name or id)) then
 			local tool = Instance.new("Tool")
 			tool.Name = spec.name or id
 			pcall(function() tool.CanBeDropped = false end)
@@ -633,6 +638,15 @@ local function giveGear()
 end
 player.CharacterAdded:connect(function() wait(0.5) giveGear() end)
 if player.Character then spawn(giveGear) end
+-- A game can hand out Catalog gear: WebBlox.GiveGear:Fire("sword") (or a list: "sword,rocketlauncher")
+bindable("GiveGear").Event:connect(function(ids)
+	for id in string.gmatch(tostring(ids or ""), "[%w]+") do
+		local known = false
+		for _, g in ipairs(gameGear) do if g == id then known = true end end
+		if GEAR[id] and not known then gameGear[#gameGear + 1] = id end
+	end
+	spawn(giveGear)
+end)
 
 local function colorFor(look, partName)
 	local n = look and tonumber(look[SLOT[partName]])

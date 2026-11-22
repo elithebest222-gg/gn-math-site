@@ -725,5 +725,47 @@
     });
   }
 
-  window.WebBloxP2P = { start, peerOptions, countServers };
+  // Who's playing in many games at once (the home page's cards), over one PeerJS connection:
+  // resolves to { room: players in all its public servers, or null if no hub answered }, or null
+  // when PeerJS itself can't be reached.
+  function countRooms(rooms, peer) {
+    return new Promise(resolve => {
+      const want = [];
+      for (const room of rooms) for (let k = 1; k <= PUBLIC_SERVERS; k++) want.push([room, serverId(room, k)]);
+      const got = new Map();
+      let p, done = false;
+      const finish = ok => {
+        if (done) return;
+        done = true;
+        clearTimeout(timer);
+        setTimeout(() => { try { p && p.destroy(); } catch (e) {} }, 50);
+        if (!ok) return resolve(null);
+        const out = {};
+        for (const [room, id] of want) {
+          const v = got.get(id);
+          if (v === undefined) { if (!(room in out)) out[room] = null; continue; }
+          out[room] = (out[room] || 0) + v;
+        }
+        resolve(out);
+      };
+      const set = (id, v) => { if (!got.has(id)) got.set(id, v); if (got.size >= want.length) finish(true); };
+      const timer = setTimeout(() => finish(got.size > 0), 12000);
+      try { p = new Peer(Object.assign({ debug: 0 }, peer || {})); } catch (e) { return finish(false); }
+      p.on('open', () => {
+        for (const [, id] of want) {
+          const c = p.connect(id, { reliable: true });
+          c.on('open', () => { try { c.send({ t: 'who' }); } catch (e) {} });
+          c.on('data', d => { if (d && d.t === 'who') { set(id, Math.max(0, d.n | 0)); try { c.close(); } catch (e) {} } });
+          c.on('error', () => {});
+        }
+      });
+      p.on('error', err => {
+        if (err.type !== 'peer-unavailable') return finish(false);
+        const id = (String(err.message || '').match(/(\S+)$/) || [])[1];
+        if (id && want.some(w => w[1] === id)) set(id, 0);
+      });
+    });
+  }
+
+  window.WebBloxP2P = { start, peerOptions, countServers, countRooms };
 })();

@@ -134,7 +134,6 @@
           <h2 id="gp-title"></h2>
           <div class="by" id="gp-by"></div>
           <button class="play" id="gp-play" aria-label="Play"><svg class="i"><use href="#i-play"/></svg></button>
-          <div class="rate"><svg class="i"><use href="#i-thumb"/></svg><span id="gp-up"></span><div class="vbar"><i id="gp-bar"></i></div><span id="gp-pct"></span></div>
         </div>
       </div>
       <div class="tabs" role="tablist">
@@ -156,25 +155,55 @@
   </div>
 
   <script>
+    // The games on the home page. "Playing" is real: how many people are in each game's public
+    // servers right now (asked over PeerJS, see liveCounts below). Popular puts the busiest first;
+    // games nobody is playing keep this order.
     const GAMES = [
-      { id: 'nds', title: 'Natural Disaster Survival', by: 'GN-BLOX', genre: 'Adventure', playing: 4127, visits: '1.2M', up: 95,
+      { id: 'nds', title: 'Natural Disaster Survival', by: 'GN-BLOX', genre: 'Adventure',
         desc: 'Survive natural disasters on a randomly chosen island. Each round brings a new map and a new disaster: floods, tsunamis, tornadoes, volcanoes, meteor showers and more.\n\nEveryone in a server gets the same map and the same disaster at the same time. How many can you survive?' },
-      { id: 'obby', map: 'rainbow-obby.rbxl', title: 'Rainbow Obby', by: 'GN-BLOX', genre: 'Adventure', playing: 3864, visits: '987K', up: 94,
+      { id: 'undead', map: 'undead-nights.rbxl', title: 'Undead Nights', by: 'GN-BLOX', genre: 'Horror',
+        desc: 'Night falls on a walled town and the zombies come through the gates. Hold them off wave after wave with your sword and slingshot.\n\nEvery wave brings more zombies, bigger zombies and new gear: a paintball gun, a rocket launcher, time bombs. How many nights can you survive?' },
+      { id: 'peaks', map: 'brick-battle-peaks.rbxl', title: 'Brick Battle Peaks', by: 'GN-BLOX', genre: 'Fighting',
+        desc: 'Four castle towers on a floating island: red, blue, green and yellow. Grab your sword, rocket launcher, slingshot, superball and time bombs and battle the bots from the other towers.\n\nOther players are fair game too. Climb the stairs and fight from the top!' },
+      { id: 'prison', map: 'cellblock-breakout.rbxl', title: 'Cellblock Breakout', by: 'GN-BLOX', genre: 'Adventure',
+        desc: 'You wake up behind bars. Find something to dig with, break through the cracked wall, sneak past the guards for a keycard, cross the yard and climb over the wall to freedom.\n\nIf a guard catches you, it\'s back to your cell. How many times can you break out?' },
+      { id: 'tide', map: 'rising-tide.rbxl', title: 'Rising Tide', by: 'GN-BLOX', genre: 'Adventure',
+        desc: 'The water is rising! Each round floods a different map: the Sunken Temple, the Old Shipyard and the Waterworks. Press the buttons to open the hatches and climb to the exit before the water gets you.\n\nEvery escape earns coins.' },
+      { id: 'burger', map: 'burger-tycoon.rbxl', title: 'Burger Tycoon', by: 'GN-BLOX', genre: 'Town and City',
+        desc: 'Build the biggest burger joint in town! Buy grills, toasters and shake machines, send the food down the conveyor and cash it in. Upgrade it with sauce stations and golden wrappers, then build walls, a roof and a giant burger statue.\n\nYour restaurant is saved, so come back and keep building.' },
+      { id: 'mine', map: 'crystal-mine-tycoon.rbxl', title: 'Crystal Mine Tycoon', by: 'GN-BLOX', genre: 'Town and City',
+        desc: 'Dig for glowing crystals! Buy pickaxe rigs, crushers, drills and laser cutters, polish and enchant the crystals for more money, and build your mine up to the giant drill.\n\nYour mine is saved, so come back and keep digging.' },
+      { id: 'arena', map: 'sword-clash-arena.rbxl', title: 'Sword Clash Arena', by: 'GN-BLOX', genre: 'Fighting',
+        desc: 'One sword, one ring over the lava. Beat the Rookie, then the Squire, the Knight, the Duelist and on up to the Legend. Each challenger is faster and hits harder.\n\nHow long a win streak can you get?' },
+      { id: 'obby', map: 'rainbow-obby.rbxl', title: 'Rainbow Obby', by: 'GN-BLOX', genre: 'Adventure',
         desc: '30 stages of obby fun! Jump across stepping stones, dodge spinning lava bars, ride moving platforms, bounce on trampolines, climb trusses and run across a belt that pushes you back.\n\nCheckpoints save your stage, so you only go back to the last one you reached. Reach the golden trophy to win!' },
-      { id: 'tower', map: 'sky-tower.rbxl', title: 'Sky Tower', by: 'GN-BLOX', genre: 'Adventure', playing: 2296, visits: '640K', up: 93,
-        desc: 'A tower in the clouds, ten floors high. Jump from platform to platform as they spiral up around it. The higher you go, the smaller they get, and some of them vanish or move.\n\nEvery floor has a checkpoint. Make it to the roof to win!' },
-      { id: 'lava', map: 'floor-is-lava.rbxl', title: 'The Floor is Lava', by: 'GN-BLOX', genre: 'Funny', playing: 2941, visits: '812K', up: 95,
+      { id: 'mega-obby', map: 'mega-obby.rbxl', title: 'Mega Obby', by: 'GN-BLOX', genre: 'Adventure',
+        desc: 'SIXTY stages! The longest obby on GN-BLOX, with every kind of jump, spinner, vanishing tile and trampoline mixed up. Checkpoints save your stage.' },
+      { id: 'lava', map: 'floor-is-lava.rbxl', title: 'The Floor is Lava', by: 'GN-BLOX', genre: 'Funny',
         desc: 'THE FLOOR IS LAVA! Every minute the lava rises out of the floor of a giant living room. Climb the couches, shelves, bunk beds and the tower before it gets you.\n\nEveryone who survives the round gets a win. Everyone in a server faces the same lava at the same time.' },
-      { id: 'pizza', map: 'pizza-shift.rbxl', title: 'Pizza Shift', by: 'GN-BLOX', genre: 'Town and City', playing: 3318, visits: '904K', up: 94,
+      { id: 'neon-obby', map: 'neon-night-obby.rbxl', title: 'Neon Night Obby', by: 'GN-BLOX', genre: 'Adventure',
+        desc: 'An obby that glows in the dark: 30 stages of neon platforms under the stars.' },
+      { id: 'pizza', map: 'pizza-shift.rbxl', title: 'Pizza Shift', by: 'GN-BLOX', genre: 'Town and City',
         desc: 'Work a shift at the busiest pizza place in town! Take the order at the register, grab some dough, add the right topping, bake it, box it and hand it to the customer.\n\nFast service gets bigger tips. How much money can you make?' },
-      { id: 'speeding-wall', map: 'Be crushed by speeding wall.rbxl', title: 'Be Crushed by a Speeding Wall', genre: 'Comedy', playing: 2381, visits: '845K', up: 91,
+      { id: 'ice-obby', map: 'ice-cave-obby.rbxl', title: 'Ice Cave Obby', by: 'GN-BLOX', genre: 'Adventure',
+        desc: '30 stages made of ice. It\'s slippery! Take it slow on the jumps.' },
+      { id: 'tower', map: 'sky-tower.rbxl', title: 'Sky Tower', by: 'GN-BLOX', genre: 'Adventure',
+        desc: 'A tower in the clouds, ten floors high. Jump from platform to platform as they spiral up around it. The higher you go, the smaller they get, and some of them vanish or move.\n\nEvery floor has a checkpoint. Make it to the roof to win!' },
+      { id: 'volcano-obby', map: 'volcano-obby.rbxl', title: 'Volcano Obby', by: 'GN-BLOX', genre: 'Adventure',
+        desc: '30 stages of rock and fire over a sea of lava. Don\'t look down!' },
+      { id: 'candy-obby', map: 'candy-land-obby.rbxl', title: 'Candy Land Obby', by: 'GN-BLOX', genre: 'Adventure',
+        desc: 'A sweet 30-stage obby in candy colors. Easy to start, tricky to finish!' },
+      { id: 'speeding-wall', map: 'Be crushed by speeding wall.rbxl', title: 'Be Crushed by a Speeding Wall', genre: 'Comedy',
         desc: 'Stand in front of the wall. Wait for it. Try to survive, or just accept your fate.' },
-      { id: 'speedrun', map: 'speed-run.rbxl', title: 'Speed Run', by: 'GN-BLOX', genre: 'Sports', playing: 1527, visits: '433K', up: 92,
+      { id: 'speedrun', map: 'speed-run.rbxl', title: 'Speed Run', by: 'GN-BLOX', genre: 'Sports',
         desc: 'How fast can you go? Cross the line and race over speed pads, gaps, trampolines, stepping stones and a balance beam to the finish.\n\nYour best time goes on the leaderboard. Fall off and you start again!' }
     ];
-    const RECENT = ['nds', 'pizza', 'obby', 'speeding-wall', 'lava', 'tower'];
-    const FAVS = ['pizza', 'obby', 'nds', 'speedrun', 'lava', 'speeding-wall'];
+    const RECENT = ['undead', 'peaks', 'prison', 'tide', 'burger', 'nds'];
+    const FAVS = ['nds', 'arena', 'mega-obby', 'mine', 'lava', 'pizza'];
     const NEWS = [
+      ['12 new games!', 'Fight off zombies in Undead Nights, battle on Brick Battle Peaks, break out of Cellblock Breakout, outrun the flood in Rising Tide, build Burger Tycoon and Crystal Mine Tycoon, duel in Sword Clash Arena and try five new obbies.', 'Nov 22, 2026'],
+      ['Combat gear', 'The Sword, Slingshot, Rocket Launcher, Time Bomb, Superball and Paintball Gun are in the Catalog, and they work on other players too.', 'Nov 22, 2026'],
+      ['Real player counts', 'The number on each game is now how many people are really playing it right now. Popular shows the busiest games first.', 'Nov 22, 2026'],
       ['Faster games, real physics', 'Games run much smoother on sharp screens (pick Fast, Normal or Sharp graphics in a game), things fall at full speed instead of slow motion, and games load from your device after the first time.', 'Nov 21, 2026'],
       ['Now open: Pizza Shift', 'Take orders, bake pizzas and earn tips in our new restaurant game. Plus: Be Crushed by a Speeding Wall is back, and you can make a GN-BLOX account to keep your stuff.', 'Nov 21, 2026'],
       ['New games: obbies and more!', 'Try the Rainbow Obby, climb the Sky Tower, survive The Floor is Lava and race the clock in Speed Run.', 'Nov 21, 2026'],
@@ -195,12 +224,37 @@
     const playUrl = (g, room, ps) => 'play.html?' + (g.map ? 'map=' + encodeURIComponent(g.map) + '&' : '') + 'title=' + encodeURIComponent(g.title)
       + (g.by ? '&by=' + encodeURIComponent(g.by) : '') + '&id=' + g.id + (room ? '&room=' + room : '') + (ps > 1 ? '&ps=' + ps : '');
 
+    // live[id]: players in the game's public servers right now (undefined: still checking, null: unknown)
+    const live = {};
+    const playingText = g => live[g.id] === undefined ? 'Checking…' : live[g.id] === null ? '&nbsp;' : fmt(live[g.id]) + ' Playing';
+    async function liveCounts() {
+      if (CFG.multiplayer === false) { GAMES.forEach(g => { live[g.id] = null; }); return render(); }
+      let counts = null;
+      try {
+        if (server) {
+          const r = await fetch(server + '/rooms', { cache: 'no-store' });
+          const rooms = await r.json();
+          counts = Object.fromEntries(GAMES.map(g => ['pub-' + slug(g), rooms['pub-' + slug(g)] || 0]));
+        } else {
+          await loadP2P();
+          const params = new URLSearchParams(location.search);
+          if (window.WebBloxP2P && window.Peer) counts = await WebBloxP2P.countRooms(GAMES.map(g => 'pub-' + slug(g)), WebBloxP2P.peerOptions(params.get('peerserver') || CFG.peerServer));
+        }
+      } catch (e) { /* offline */ }
+      GAMES.forEach(g => { live[g.id] = counts ? (counts['pub-' + slug(g)] ?? 0) : null; });
+      render();
+      if (current) document.getElementById('gp-stats').innerHTML = statsHtml(current);
+    }
+    function statsHtml(g) {
+      const n = live[g.id];
+      return [['Playing', n === undefined ? '…' : n === null ? '?' : fmt(n)], ['Max Players', 30], ['Genre', g.genre || 'All'], ['Creator', g.by || 'GN-BLOX']]
+        .map(([k, v]) => `<div><dt>${k}</dt><dd>${esc(String(v))}</dd></div>`).join('');
+    }
     function card(g) {
       return `<button class="card" data-id="${g.id}" onclick="openGame('${g.id}')">
         <span class="thumb" style="background-image:url('${thumbUrl(g)}')"></span>
         <span class="name">${esc(g.title)}</span>
-        <span class="playing">${fmt(g.playing)} Playing</span>
-        <span class="votes"><span>${g.up}%</span><span class="vbar" title="${g.up}% liked"><i style="width:${g.up}%"></i></span></span>
+        <span class="playing">${playingText(g)}</span>
         <span class="creator">by <b>${esc(g.by || 'GN-BLOX')}</b></span>
       </button>`;
     }
@@ -212,7 +266,8 @@
       };
       fill('recent', RECENT);
       fill('favs', FAVS);
-      fill('popular', GAMES.slice().sort((a, b) => b.playing - a.playing).map(g => g.id));
+      const order = new Map(GAMES.map((g, i) => [g.id, i]));
+      fill('popular', GAMES.slice().sort((a, b) => (live[b.id] || 0) - (live[a.id] || 0) || order.get(a.id) - order.get(b.id)).map(g => g.id));
     }
 
     let current = null;
@@ -223,12 +278,8 @@
       document.getElementById('gp-shot').style.backgroundImage = `url('${thumbUrl(g).replace('.jpg', '-wide.jpg')}'), url('${thumbUrl(g)}')`;
       document.getElementById('gp-title').textContent = g.title;
       document.getElementById('gp-by').innerHTML = 'By <b>' + esc(g.by || 'GN-BLOX') + '</b>';
-      document.getElementById('gp-up').textContent = g.up + '%';
-      document.getElementById('gp-bar').style.width = g.up + '%';
-      document.getElementById('gp-pct').textContent = fmt(Math.round(g.playing * 3.1)) + ' votes';
       document.getElementById('gp-desc').textContent = g.desc;
-      document.getElementById('gp-stats').innerHTML = [['Playing', fmt(g.playing)], ['Visits', g.visits], ['Created', '3/14/2016'], ['Updated', '11/21/2026'], ['Max Players', 30], ['Genre', g.genre]]
-        .map(([k, v]) => `<div><dt>${k}</dt><dd>${esc(v)}</dd></div>`).join('');
+      document.getElementById('gp-stats').innerHTML = statsHtml(g);
       document.getElementById('gp-play').onclick = () => WB.launch(playUrl(g));
       showTab('about');
       document.getElementById('game-modal').classList.add('open');
@@ -350,6 +401,8 @@
     document.getElementById('q').addEventListener('input', render);
     document.addEventListener('keydown', e => { if (e.key === 'Escape') closeGame(); });
     render();
+    liveCounts();
+    setInterval(() => { if (!document.hidden) liveCounts(); }, 60000);
     renderFeed();
     const m = location.hash.match(/^#game=([\w-]+)/); if (m) openGame(m[1]);
     window.addEventListener('hashchange', () => { const h = location.hash.match(/^#game=([\w-]+)/); if (h) openGame(h[1]); });
