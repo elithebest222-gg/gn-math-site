@@ -352,6 +352,22 @@
         if (['end', 'for', 'while', 'do', 'repeat', 'local', 'return', 'if', 'function', 'break'].includes(val(j))) continue;
         if (segs.some(sg => sg[2] <= sg[1])) continue;
         if (segs.some(sg => sg[0] !== 'cond' && ['for', 'while', 'do', 'repeat', 'local', 'return', 'if', 'function', 'break', 'end'].includes(val(sg[1])))) continue;
+        // a branch with a ; or two things side by side (print(a) foo()) holds statements, not a value
+        const NOT_START = new Set(['and', 'or', 'then', 'else', 'elseif', 'end', 'in', 'do']);
+        const ends = x => { const w = val(x), t = tk(x); return w === ')' || w === ']' || w === '}' || (t && (t.t === 'name' || t.t === 'str' || t.t === 'num') && !KEYWORDS.has(w)); };
+        let sideBySide = false;
+        for (const sg of segs) {
+          let d = 0;
+          for (let x = sg[1]; x < sg[2] && !sideBySide; x++) {
+            const w = val(x);
+            if (w === '(' || w === '{' || w === '[') d++;
+            else if (w === ')' || w === '}' || w === ']') d--;
+            if (d) continue;
+            if (w === ';') sideBySide = true;
+            else if (x > sg[1] && tk(x) && tk(x).t === 'name' && !NOT_START.has(w) && ends(x - 1) && val(x - 1) !== '.' && val(x - 1) !== ':') sideBySide = true;
+          }
+        }
+        if (sideBySide) continue;
         let stmt = false;
         for (const sg of segs) { let d = 0; for (let x = sg[1]; x < sg[2]; x++) { const w = val(x); if (w === '(' || w === '{' || w === '[') d++; else if (w === ')' || w === '}' || w === ']') d--; else if (!d && (w === '=' || w === 'local' || w === 'return' || w === 'end')) stmt = true; } }
         if (stmt) continue;
