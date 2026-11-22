@@ -361,6 +361,66 @@ end
 player.CharacterAdded:connect(function(c) dressMe(c) end)
 if player.Character then spawn(function() dressMe(player.Character) end) end
 
+-- Never fall forever. Some uploaded games spawn you over nothing (a spawn you fall through, no floor
+-- where you appear), or put the void miles down. If you haven't landed since you spawned and you're
+-- falling with nothing below, you're put on the place's biggest floor; if you've been falling with
+-- nothing below for 5 seconds, back where you last stood. (An ordinary fall off a map still ends the
+-- usual way: the void is reached well before that.)
+-- the first solid part below (rays hit parts you can walk through too, like a spawn you fall through)
+local function solidBelow(root, char, dist)
+	local ignore = { char }
+	for _ = 1, 8 do
+		local hit = workspace:FindPartOnRayWithIgnoreList(Ray.new(root.Position, Vector3.new(0, -dist, 0)), ignore)
+		if not hit or hit.CanCollide then return hit end
+		table.insert(ignore, hit)
+	end
+	return nil
+end
+-- (a short ray down from the root: the 2016 Humanoid's FloorMaterial doesn't turn to Air in the air)
+local function onGround(hum, root, char) return solidBelow(root, char, 4.5) ~= nil end
+local function nothingBelow(root, char) return solidBelow(root, char, 999) == nil end
+local function safeSpot()
+	local best, area = nil, 0
+	local function scan(o)
+		for _, c in pairs(o:GetChildren()) do
+			if c:IsA("BasePart") then
+				if c.CanCollide and c.Transparency < 0.95 and c.Size.Y < 60 and c.Size.X * c.Size.Z > area then best, area = c, c.Size.X * c.Size.Z end
+			elseif not c:FindFirstChild("Humanoid") then
+				scan(c)
+			end
+		end
+	end
+	scan(workspace)
+	return best and (best.Position + Vector3.new(0, best.Size.Y / 2, 0))
+end
+local function watchFalls(char)
+	local hum = char:WaitForChild("Humanoid")
+	local root = char:WaitForChild("HumanoidRootPart")
+	-- (CharacterAdded comes before the character is put in the world)
+	for _ = 1, 100 do if char.Parent then break end wait(0.1) end
+	local landed, last, fallSince = false, nil, nil
+	while char.Parent and hum.Health > 0 do
+		wait(0.25)
+		if onGround(hum, root, char) then
+			landed, last, fallSince = true, root.Position, nil
+		elseif root.Velocity.Y < -25 and nothingBelow(root, char) then
+			fallSince = fallSince or tick()
+			if tick() - fallSince > (landed and 5 or 1.2) then
+				local to = landed and last or safeSpot()
+				if to then
+					root.Velocity = Vector3.new(0, 0, 0)
+					root.CFrame = CFrame.new(to + Vector3.new(0, 4, 0))
+				end
+				fallSince = nil
+			end
+		else
+			fallSince = nil
+		end
+	end
+end
+player.CharacterAdded:connect(function(c) watchFalls(c) end)
+if player.Character then spawn(function() watchFalls(player.Character) end) end
+
 ---------------------------------------------------------------------------------------------
 -- Chat: yours and other players' messages go in the game's chat window (play.html hooks the
 -- engine's Chat module up to WebBlox.ChatMessage), with a speech bubble over the speaker. (In

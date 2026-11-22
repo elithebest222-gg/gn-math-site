@@ -709,13 +709,19 @@
 
   // No SpawnLocation: Roblox puts you at the middle of the map (0, 0, 0). When there's no floor
   // there either, you'd fall forever, so add an invisible spawn on top of the biggest floor.
+  // A spawn only counts if it works: turned on, and for everyone (Neutral) or for a team that players
+  // get put on (AutoAssignable). Team-only spawns with no such team left players in the void too.
   function ensureSpawn(doc, notes) {
     const ws = doc.roots.find(it => it.cls === 'Workspace');
     if (!ws) return;
     const parts = [];
-    const walk = it => { for (const c of it.children) { if (c.cls === 'SpawnLocation') parts.spawn = true; if (c.props.has('size') && c.props.has('CFrame') && c.cls !== 'Terrain') parts.push(c); walk(c); } };
+    const spawns = [];
+    const walk = it => { for (const c of it.children) { if (c.cls === 'SpawnLocation') spawns.push(c); if (c.props.has('size') && c.props.has('CFrame') && c.cls !== 'Terrain') parts.push(c); walk(c); } };
     walk(ws);
-    if (parts.spawn) return;
+    const teams = doc.roots.find(it => it.cls === 'Teams');
+    const autoTeams = new Set((teams ? teams.children : []).filter(t => t.cls === 'Team' && t.get('AutoAssignable') !== false).map(t => t.get('TeamColor')));
+    const works = sp => sp.get('Enabled') !== false && (sp.get('Neutral') !== false || autoTeams.has(sp.get('TeamColor')));
+    if (spawns.some(works)) return;
     const box = it => {   // world-space bounds of a part
       const s = it.props.get('size').v, cf = it.props.get('CFrame').v, h = [s[0] / 2, s[1] / 2, s[2] / 2];
       const e = [0, 1, 2].map(r => Math.abs(cf[3 + r * 3]) * h[0] + Math.abs(cf[4 + r * 3]) * h[1] + Math.abs(cf[5 + r * 3]) * h[2]);
@@ -737,7 +743,7 @@
     sp.set('Neutral', 2, true); sp.set('Duration', 3, 0);
     sp.set('size', 14, [6, 1, 6]); sp.set('CFrame', 16, [x, best.b.max[1] + 0.5, z, ...IDENT]);
     sp.parent = ws; ws.children.push(sp);
-    notes.push('this place has no spawn, so one was added on ' + best.it.name);
+    notes.push((spawns.length ? 'none of this place\'s spawns can be used (turned off or for a team nobody joins)' : 'this place has no spawn') + ', so one was added on ' + best.it.name);
   }
 
   function toEngine(doc, typemap, opts = {}) {
