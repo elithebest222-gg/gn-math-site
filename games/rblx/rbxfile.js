@@ -746,6 +746,80 @@
     notes.push((spawns.length ? 'none of this place\'s spawns can be used (turned off or for a team nobody joins)' : 'this place has no spawn') + ', so one was added on ' + best.it.name);
   }
 
+  // Scripts from 2017 on call a few things the 2016 engine doesn't have. compatSource() rewrites them
+  // into calls to small stand-ins put at the top of the script (on its first line, so error line
+  // numbers stay the same):
+  //   x:GetDescendants()               -> __gnDesc(x)           (GetChildren, all the way down)
+  //   x:GetPropertyChangedSignal("P")  -> __gnPCS(x, "P")       (Changed, for that property only)
+  //   x.Activated:...                  -> __gnAct(x):...        (a button's MouseButton1Click; a Tool's Activated)
+  //   game:BindToClose(f)              -> nothing                (there's no server shutting down)
+  //   x:FindFirstChildWhichIsA(c), x:FindFirstAncestorWhichIsA(c), x:FindFirstAncestorOfClass(c),
+  //   x:FindFirstAncestor(name)        -> the same, done by hand
+  //   ContentProvider.RequestQueueSize -> 0                     (loading screens waiting for downloads
+  //                                                              from Roblox, which never come here)
+  const COMPAT_LUA = {
+    __gnDesc: 'local function __gnDesc(o) local r = {} local function a(x) for _, c in ipairs(x:GetChildren()) do r[#r + 1] = c a(c) end end a(o) return r end ',
+    __gnPCS: 'local function __gnPCS(o, p) local b = Instance.new("BindableEvent") o.Changed:connect(function(n) if n == p then b:Fire() end end) return b.Event end ',
+    __gnAct: 'local function __gnAct(o) if o:IsA("GuiButton") then return o.MouseButton1Click end return o.Activated end ',
+    __gnBTC: 'local function __gnBTC(o, f) end ',
+    __gnFCW: 'local function __gnFCW(o, c, r) for _, x in ipairs(o:GetChildren()) do if x:IsA(c) then return x end if r then local y = __gnFCW(x, c, r) if y then return y end end end return nil end ',
+    __gnFAW: 'local function __gnFAW(o, c, exact) local p = o.Parent while p do if (exact and p.ClassName == c) or (not exact and p:IsA(c)) then return p end p = p.Parent end return nil end ',
+    __gnFA: 'local function __gnFA(o, n) local p = o.Parent while p do if p.Name == n then return p end p = p.Parent end return nil end ',
+  };
+  // the start of the expression a method is called on, scanning back from `end` (balanced () [] and strings)
+  function receiverStart(src, end) {
+    let i = end;
+    for (;;) {
+      while (i > 0 && /[\w]/.test(src[i - 1])) i--;
+      if (i > 0 && (src[i - 1] === ')' || src[i - 1] === ']')) {
+        const close = src[i - 1], open = close === ')' ? '(' : '[';
+        let depth = 0, j = i - 1;
+        for (; j >= 0; j--) {
+          const c = src[j];
+          if (c === '"' || c === "'") { const q = c; j--; while (j >= 0 && src[j] !== q) j--; continue; }
+          if (c === close) depth++;
+          else if (c === open && --depth === 0) break;
+        }
+        if (j < 0) return -1;
+        i = j;
+        continue;
+      }
+      if (i > 0 && (src[i - 1] === '.' || src[i - 1] === ':')) { i--; continue; }
+      break;
+    }
+    // a call's parentheses belong to a name before them; a bare ( ... ) is a whole expression
+    return i < end ? i : -1;
+  }
+  function compatSource(src) {
+    if (!/GetDescendants|GetPropertyChangedSignal|\.Activated\b|RequestQueueSize|BindToClose|WhichIsA|FindFirstAncestor/.test(src)) return src;
+    const used = new Set();
+    let out = src;
+    const rewrite = (re, make) => {
+      let m, guard = 0;
+      re.lastIndex = 0;
+      while ((m = re.exec(out)) && guard++ < 2000) {
+        const start = receiverStart(out, m.index);
+        if (start < 0) continue;
+        const recv = out.slice(start, m.index);
+        if (!recv || /^(end|then|do|else|return|and|or|not|local|in)$/.test(recv)) continue;
+        const rep = make(recv, m);
+        out = out.slice(0, start) + rep + out.slice(m.index + m[0].length);
+        re.lastIndex = start + rep.length;
+      }
+    };
+    rewrite(/:\s*GetDescendants\s*\(\s*\)/g, recv => { used.add('__gnDesc'); return '__gnDesc(' + recv + ')'; });
+    rewrite(/:\s*GetPropertyChangedSignal\s*\(/g, recv => { used.add('__gnPCS'); return '__gnPCS(' + recv + ', '; });
+    rewrite(/:\s*FindFirstChildWhichIsA\s*\(/g, recv => { used.add('__gnFCW'); return '__gnFCW(' + recv + ', '; });
+    rewrite(/:\s*FindFirstAncestorWhichIsA\s*\(/g, recv => { used.add('__gnFAW'); return '__gnFAW(' + recv + ', '; });
+    rewrite(/:\s*FindFirstAncestorOfClass\s*\(([^()]*)\)/g, (recv, m) => { used.add('__gnFAW'); return '__gnFAW(' + recv + ', ' + m[1] + ', true)'; });
+    rewrite(/:\s*FindFirstAncestor\s*\(/g, recv => { used.add('__gnFA'); return '__gnFA(' + recv + ', '; });
+    rewrite(/:\s*BindToClose\s*\(/g, recv => { used.add('__gnBTC'); return '__gnBTC(' + recv + ', '; });
+    rewrite(/\.Activated(?=\s*:\s*(?:[Cc]onnect|[Ww]ait)\b)/g, recv => { used.add('__gnAct'); return '__gnAct(' + recv + ')'; });
+    out = out.replace(/\.RequestQueueSize\b(?!\s*=[^=])/g, '.RequestQueueSize*0');
+    if (!used.size) return out;
+    return [...used].map(k => COMPAT_LUA[k]).join('') + out;
+  }
+
   function toEngine(doc, typemap, opts = {}) {
     const safe = !!opts.safe;
     const notes = [];
@@ -795,6 +869,10 @@
       }
       for (const [pn, p] of [...P]) {
         if (pn === 'LinkedSource' && p.t === 1 && p.v.length) { p.v = new Uint8Array(0); bump('linked scripts cleared'); }
+        if (pn === 'Source' && p.t === 1 && p.v && p.v.length) {
+          const before = str(p.v), after = compatSource(before);
+          if (after !== before) { p.v = enc.encode(after); bump('scripts given 2017+ API stand-ins'); }
+        }
         // rbxassetid://123 -> http://www.roblox.com/asset/?id=123: this engine only fetches the second
         // kind (as wb-asset/?id=123, the files uploaded with the place). In scripts too, where games
         // build them as "rbxassetid://" .. id.
@@ -852,7 +930,7 @@
     return o;
   }
 
-  const API = { T, Inst, read, write, toEngine, nearestBrick, brickRGB, PALETTE, cfMul, cfInv, lz4, lz4pack, parseXml };
+  const API = { T, Inst, read, write, toEngine, compatSource, nearestBrick, brickRGB, PALETTE, cfMul, cfInv, lz4, lz4pack, parseXml };
   if (typeof module === 'object' && module.exports) module.exports = API;
   G.RBXFile = API;
 })(typeof self !== 'undefined' ? self : this);
