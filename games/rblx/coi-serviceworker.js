@@ -66,6 +66,14 @@ async function serveAsset(url) {
     // the Catalog's faces and clothes (catalog/assets/<id>.png): avatars wear them, and uploaded
     // games that use the same classic faces and clothes get them too
     // (and the meshes of its hats and hair, catalog/assets/<id>.mesh)
+    // GN-BLOX's own stand-ins for missing images (game-assets/<id>.png, ids from 9100000001; the
+    // place converter points missing images at them, rbxfile.js standIns)
+    if (id && id.length === 10 && id.startsWith("91")) {
+      try {
+        const r = await fetch(new URL("game-assets/" + id + ".png", self.registration.scope));
+        if (r.ok) return new Response(await r.arrayBuffer(), { status: 200, headers: addHeaders({ "Content-Type": "image/png", "Cache-Control": "max-age=86400" }) });
+      } catch (err) {}
+    }
     if (id) {
       for (const [ext, type] of [["png", "image/png"], ["mesh", "application/octet-stream"]]) {
         try {

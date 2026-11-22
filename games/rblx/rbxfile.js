@@ -121,6 +121,8 @@
   const str = v => typeof v === 'string' ? v : v instanceof Uint8Array ? utf8.decode(v) : String(v);
   const bytes = v => v instanceof Uint8Array ? v : enc.encode(v == null ? '' : String(v));
   const IDENT = [1, 0, 0, 0, 1, 0, 0, 0, 1];
+  // the engine's content files (rbxasset://...) that places point at (sounds, textures, fonts, sky, particles)
+  const CONTENT_PATHS = ["textures", "textures/Cursors", "textures", "textures", "textures", "textures/ui", "textures/ui", "textures/ui", "textures/ui", "textures/ui", "textures/ui", "textures/ui/Settings", "textures/ui/Settings", "textures/ui/Settings", "textures/ui/Settings", "textures/ui/Settings", "textures/ui/Settings", "textures/ui", "textures/ui", "fonts/Arial.font", "fonts/ArialBold.font", "fonts/CompositExtraSlot0.mesh", "fonts/CompositExtraSlot1.mesh", "fonts/CompositExtraSlot2.mesh", "fonts/CompositExtraSlot3.mesh", "fonts/CompositExtraSlot4.mesh", "fonts/CompositFullAtlasBaseTexture.mesh", "fonts/CompositFullAtlasOverlayTexture.mesh", "fonts/CompositLeftArmBase.mesh", "fonts/CompositLeftLegBase.mesh", "fonts/CompositPantsTemplate.mesh", "fonts/CompositRightArmBase.mesh", "fonts/CompositRightLegBase.mesh", "fonts/CompositShirtTemplate.mesh", "fonts/CompositTShirt.mesh", "fonts/CompositTorsoBase.mesh", "fonts/LoadingScript.lua", "fonts/Rocket.rbxm", "fonts/SlingshotPellet.rbxm", "fonts/SourceSans.font", "fonts/SourceSansBold.font", "fonts/SourceSansItalic.font", "fonts/SourceSansLight.font", "fonts/SourceSansPro-Bold.ttf", "fonts/SourceSansPro-It.ttf", "fonts/SourceSansPro-Light.ttf", "fonts/SourceSansPro-Regular.ttf", "fonts/arial.ttf", "fonts/arialbd.ttf", "fonts/character.rbxm", "fonts/character3.rbxm", "fonts/characterCameraScript.rbxmx", "fonts/characterControlScript.rbxmx", "fonts/characterR15.rbxm", "fonts/comics.fnt", "fonts/diogenes.fnt", "fonts/fonts.dds", "fonts/gamecontrollerdb.txt", "fonts/head.mesh", "fonts/headA.mesh", "fonts/headB.mesh", "fonts/headC.mesh", "fonts/headD.mesh", "fonts/headE.mesh", "fonts/headF.mesh", "fonts/headG.mesh", "fonts/headH.mesh", "fonts/headI.mesh", "fonts/headJ.mesh", "fonts/headK.mesh", "fonts/headL.mesh", "fonts/headM.mesh", "fonts/headN.mesh", "fonts/headO.mesh", "fonts/headP.mesh", "fonts/humanoidAnimate.rbxm", "fonts/humanoidAnimateLocal.rbxm", "fonts/humanoidAnimateLocalKeyframe.rbxm", "fonts/humanoidAnimateLocalKeyframe2.rbxm", "fonts/humanoidAnimateR15.rbxm", "fonts/humanoidExtra.rbxm", "fonts/humanoidSound.rbxm", "fonts/humanoidSound2.rbxm", "fonts/humanoidSoundNew.rbxm", "fonts/humanoidSoundNewLocal.rbxmx", "fonts/humanoidStatic.rbxm", "fonts/leftarm.mesh", "fonts/leftleg.mesh", "fonts/rightarm.mesh", "fonts/rightleg.mesh", "fonts/safechat.xml", "fonts/torso.mesh", "particles/explosion.particle", "particles/fire.particle", "particles/forceFieldBeam.particle", "particles/forceFieldRadial.particle", "particles/smoke.particle", "particles/sparkles.particle", "sky/lensflare.jpg", "sky/moon-alpha.jpg", "sky/moon.jpg", "sky/null_plainsky512_bk.jpg", "sky/null_plainsky512_dn.jpg", "sky/null_plainsky512_ft.jpg", "sky/null_plainsky512_lf.jpg", "sky/null_plainsky512_rt.jpg", "sky/null_plainsky512_up.jpg", "sky/skyspheremap.jpg", "sky/sun-rays.jpg", "sky/sun.jpg", "sounds/Kerplunk.mp3", "sounds/Kid saying Ouch.mp3", "sounds/Rubber band sling shot.mp3", "sounds/Rubber band.mp3", "sounds/SWITCH3.mp3", "sounds/action_falling.mp3", "sounds/action_footsteps_plastic.mp3", "sounds/action_get_up.mp3", "sounds/action_jump.mp3", "sounds/action_jump_land.mp3", "sounds/action_swim.mp3", "sounds/bass.mp3", "sounds/bfsl-minifigfoots1.mp3", "sounds/bfsl-minifigfoots2.mp3", "sounds/button.mp3", "sounds/clickfast.mp3", "sounds/collide.mp3", "sounds/electronicpingshort.mp3", "sounds/flashbulb.mp3", "sounds/grass.mp3", "sounds/grass2.mp3", "sounds/grass3.mp3", "sounds/grassstone.mp3", "sounds/grassstone2.mp3", "sounds/grassstone3.mp3", "sounds/hit.mp3", "sounds/ice.mp3", "sounds/ice2.mp3", "sounds/ice3.mp3", "sounds/icegrass.mp3", "sounds/icegrass2.mp3", "sounds/icegrass3.mp3", "sounds/icemetal.mp3", "sounds/icemetal2.mp3", "sounds/icemetal3.mp3", "sounds/icestone.mp3", "sounds/icestone2.mp3", "sounds/icestone3.mp3", "sounds/impact_bodyfall.mp3", "sounds/impact_explosion_01.mp3", "sounds/impact_explosion_02.mp3", "sounds/impact_explosion_03.mp3", "sounds/impact_water.mp3", "sounds/metal.mp3", "sounds/metal2.mp3", "sounds/metal3.mp3", "sounds/metalgrass.mp3", "sounds/metalgrass2.mp3", "sounds/metalgrass3.mp3", "sounds/metalstone.mp3", "sounds/metalstone2.mp3", "sounds/metalstone3.mp3", "sounds/plasticgrass.mp3", "sounds/plasticgrass2.mp3", "sounds/plasticgrass3.mp3", "sounds/plasticice.mp3", "sounds/plasticice2.mp3", "sounds/plasticice3.mp3", "sounds/plasticmetal.mp3", "sounds/plasticmetal2.mp3", "sounds/plasticmetal3.mp3", "sounds/plasticplastic.mp3", "sounds/plasticplastic2.mp3", "sounds/plasticplastic3.mp3", "sounds/plasticstone.mp3", "sounds/plasticstone2.mp3", "sounds/plasticstone3.mp3", "sounds/snap.mp3", "sounds/splat.mp3", "sounds/stone.mp3", "sounds/stone2.mp3", "sounds/stone3.mp3", "sounds/switch.mp3", "sounds/swoosh.mp3", "sounds/swordlunge.mp3", "sounds/swordslash.mp3", "sounds/unsheath.mp3", "sounds/uuhhh.mp3", "sounds/victory.mp3", "sounds/woodgrass.mp3", "sounds/woodgrass2.mp3", "sounds/woodgrass3.mp3", "sounds/woodice.mp3", "sounds/woodice2.mp3", "sounds/woodice3.mp3", "sounds/woodmetal.mp3", "sounds/woodmetal2.mp3", "sounds/woodmetal3.mp3", "sounds/woodplastic.mp3", "sounds/woodplastic2.mp3", "sounds/woodplastic3.mp3", "sounds/woodstone.mp3", "sounds/woodstone2.mp3", "sounds/woodstone3.mp3", "sounds/woodwood.mp3", "sounds/woodwood2.mp3", "sounds/woodwood3.mp3", "textures/AnchorCursor.png", "textures/ArrowCursor.png", "textures/ArrowCursorDecalDrag.png", "textures/ArrowFarCursor.png", "textures/BWGradient.png", "textures/BackgroundImage.png", "textures/Blank.png", "textures/Clone.png", "textures/CloneCursor.png", "textures/CloneDownCursor.png", "textures/CloneOverCursor.png", "textures/Cursors/Gamepad/Pointer.png", "textures/Cursors/Gamepad/Pointer@2x.png", "textures/Cursors/Gamepad/PointerOver.png", "textures/Cursors/Gamepad/PointerOver@2x.png", "textures/DialogHelp.png", "textures/DialogQuest.png", "textures/DialogShop.png", "textures/DragCursor.png", "textures/DropperCursor.png", "textures/Exit.png", "textures/Exit_dn.png", "textures/Exit_ovr.png", "textures/FillCursor.png", "textures/FlagCursor.png", "textures/FlatCursor.png", "textures/GrabCursor.png", "textures/GrabRotateCursor.png", "textures/Grass_Texture.jpg", "textures/GunCursor.png", "textures/GunWaitCursor.png", "textures/HammerCursor.png", "textures/HammerDownCursor.png", "textures/HammerOverCursor.png", "textures/HingeCursor.png", "textures/LockCursor.png", "textures/MotorCursor.png", "textures/MouseLockedCursor.png", "textures/ResizeCursor.png", "textures/Roblox-loading-glow.png", "textures/Roblox-loading-glow@2x.png", "textures/Roblox-loading.png", "textures/Roblox-loading@2x.png", "textures/Roblox.bmp", "textures/RustGradient.png", "textures/Smoke.png", "textures/SpawnCursor.png", "textures/SpawnLocation.png", "textures/SurfacesDefault.png", "textures/UnAnchorCursor.png", "textures/UnlockCursor.png", "textures/WeldCursor.png", "textures/WhiteCircle.png", "textures/advClosed-hand-no-weld.png", "textures/advClosed-hand-weld.png", "textures/advClosed-hand.png", "textures/advCursor-default.png", "textures/advCursor-openedHand.png", "textures/advCursor-white.png", "textures/advancedMove.png", "textures/advancedMoveResize.png", "textures/advancedMove_joint.png", "textures/advancedMove_keysOnly.png", "textures/advancedMove_noJoint.png", "textures/blackBkg_round.png", "textures/blackBkg_square.png", "textures/chatBubble_botBlue_bkg.png", "textures/chatBubble_botBlue_notify_bkg.png", "textures/chatBubble_botBlue_tail.png", "textures/chatBubble_botBlue_tailRight.png", "textures/chatBubble_botGreen_bkg.png", "textures/chatBubble_botGreen_notify_bkg.png", "textures/chatBubble_botGreen_tail.png", "textures/chatBubble_botGreen_tailRight.png", "textures/chatBubble_botRed_bkg.png", "textures/chatBubble_botRed_notify_bkg.png", "textures/chatBubble_botRed_tail.png", "textures/chatBubble_botRed_tailRight.png", "textures/chatBubble_bot_notifyGray_dotDotDot.png", "textures/chatBubble_bot_notify_bang.png", "textures/chatBubble_bot_notify_dotDotDot.png", "textures/chatBubble_bot_notify_money.png", "textures/chatBubble_bot_notify_question.png", "textures/chatBubble_white_bkg.png", "textures/chatBubble_white_notify_bkg.png", "textures/chatBubble_white_tail.png", "textures/dirt.jpg", "textures/explosion.png", "textures/face.png", "textures/fire_0.png", "textures/glow.png", "textures/gradient.png", "textures/loading/cancelButton.png", "textures/loading/darkLoadingTexture.png", "textures/loading/loadingCircle.png", "textures/loading/loadingTexture.png", "textures/loading/loadingvignette.png", "textures/loading/robloxlogo.png", "textures/lua.png", "textures/particles/common_alpha.dds", "textures/particles/explosion01_core_alpha.png", "textures/particles/explosion01_core_main.dds", "textures/particles/explosion01_implosion_color.png", "textures/particles/explosion01_implosion_main.dds", "textures/particles/explosion01_shockwave_main.dds", "textures/particles/explosion01_smoke_alpha.dds", "textures/particles/explosion01_smoke_color_new.dds", "textures/particles/explosion01_smoke_main.dds", "textures/particles/explosion_alpha.dds", "textures/particles/explosion_color.dds", "textures/particles/fire_alpha.dds", "textures/particles/fire_color.dds", "textures/particles/fire_main.dds", "textures/particles/fire_sparks_color.dds", "textures/particles/fire_sparks_main.dds", "textures/particles/forcefield_alpha.dds", "textures/particles/forcefield_glow_alpha.dds", "textures/particles/forcefield_glow_color.dds", "textures/particles/forcefield_glow_main.dds", "textures/particles/forcefield_vortex_color.dds", "textures/particles/forcefield_vortex_main.dds", "textures/particles/legacy_fire_alpha_color.dds", "textures/particles/smoke_color.dds", "textures/particles/smoke_main.dds", "textures/particles/sparkles_color.dds", "textures/particles/sparkles_main.dds", "textures/roblox-logo.png", "textures/rotationArrow.png", "textures/script.png", "textures/shadowmask.png", "textures/spark.png", "textures/sparkle.png", "textures/transformFiveDegrees.png", "textures/transformNinetyDegrees.png", "textures/transformOneDegree.png", "textures/transformTwentyTwoDegrees.png", "textures/ui/Backpack/Backpack.png", "textures/ui/Backpack/Backpack@2x.png", "textures/ui/Backpack/Backpack_Down.png", "textures/ui/Backpack/Backpack_Down@2x.png", "textures/ui/Backpack_Close.png", "textures/ui/Backpack_Close@2x.png", "textures/ui/Backpack_Open.png", "textures/ui/Backpack_Open@2x.png", "textures/ui/ButtonLeft.png", "textures/ui/ButtonLeftDown.png", "textures/ui/ButtonRight.png", "textures/ui/ButtonRightDown.png", "textures/ui/Chat/Chat.png", "textures/ui/Chat/Chat@2x.png", "textures/ui/Chat/ChatDown.png", "textures/ui/Chat/ChatDown@2x.png", "textures/ui/Chat/MessageCounter.png", "textures/ui/Chat/MessageCounter@2x.png", "textures/ui/Chat/ToggleChat.png", "textures/ui/Chat/ToggleChat@2x.png", "textures/ui/Chat/ToggleChatDown.png", "textures/ui/Chat/ToggleChatDown@2x.png", "textures/ui/CloneButton.png", "textures/ui/CloneButton_dn.png", "textures/ui/CloseButton.png", "textures/ui/CloseButton_dn.png", "textures/ui/Concrete.png", "textures/ui/CorrodedMetal.png", "textures/ui/DPadSheet.png", "textures/ui/DeleteButton.png", "textures/ui/DeleteButton_dn.png", "textures/ui/DiamondPlate.png", "textures/ui/ErrorIcon.png", "textures/ui/ErrorIconSmall.png", "textures/ui/Foil.png", "textures/ui/Gear.png", "textures/ui/Gear_dn.png", "textures/ui/Glue.png", "textures/ui/Grass.png", "textures/ui/GroupMoveButton.png", "textures/ui/GroupMoveButton_dn.png", "textures/ui/Health-BKG-Center.png", "textures/ui/Health-BKG-Center@2x.png", "textures/ui/Health-BKG-Left-Cap.png", "textures/ui/Health-BKG-Left-Cap@2x.png", "textures/ui/Health-BKG-Right-Cap.png", "textures/ui/Health-BKG-Right-Cap@2x.png", "textures/ui/Hinge.png", "textures/ui/Ice.png", "textures/ui/Inlets.png", "textures/ui/InsertButton.png", "textures/ui/InsertButton_dn.png", "textures/ui/LoadingBKG.png", "textures/ui/MaterialButton.png", "textures/ui/MaterialButton_dn.png", "textures/ui/MaterialMenu.png", "textures/ui/Menu/Hamburger.png", "textures/ui/Menu/Hamburger@2x.png", "textures/ui/Menu/HamburgerDown.png", "textures/ui/Menu/HamburgerDown@2x.png", "textures/ui/Modal.png", "textures/ui/Motor.png", "textures/ui/PaintButton.png", "textures/ui/PaintButton_dn.png", "textures/ui/PartMoveButton.png", "textures/ui/PartMoveButton_dn.png", "textures/ui/Plastic.png", "textures/ui/PlayerList/BlockedIcon.png", "textures/ui/PlayerList/CharacterImageBackground.png", "textures/ui/PlayerList/TileShadowMissingTop.png", "textures/ui/PlayerListFriendRequestReceivedIcon.png", "textures/ui/PlayerListFriendRequestSentIcon.png", "textures/ui/PlayerlistFriendIcon.png", "textures/ui/PropertyButton.png", "textures/ui/PropertyButton_dn.png", "textures/ui/RecordDown.png", "textures/ui/RecordStop.png", "textures/ui/ResetIcon.png", "textures/ui/RobuxIcon.png", "textures/ui/ScaleButton.png", "textures/ui/ScaleButton_dn.png", "textures/ui/Scroll/scroll-bottom.png", "textures/ui/Scroll/scroll-bottom@2x.png", "textures/ui/Scroll/scroll-middle.png", "textures/ui/Scroll/scroll-middle@2x.png", "textures/ui/Scroll/scroll-top.png", "textures/ui/Scroll/scroll-top@2x.png", "textures/ui/SearchIcon.png", "textures/ui/SelectionBox.png", "textures/ui/SelectionBox@2x.png", "textures/ui/Settings/DropDown/DropDown.png", "textures/ui/Settings/DropDown/DropDown@2x.png", "textures/ui/Settings/Help/AButtonDark.png", "textures/ui/Settings/Help/AButtonDark@2x.png", "textures/ui/Settings/Help/AButtonLight.png", "textures/ui/Settings/Help/AButtonLight@2x.png", "textures/ui/Settings/Help/AButtonLightSmall.png", "textures/ui/Settings/Help/BButtonDark.png", "textures/ui/Settings/Help/BButtonDark@2x.png", "textures/ui/Settings/Help/BButtonLight.png", "textures/ui/Settings/Help/BButtonLight@2x.png", "textures/ui/Settings/Help/EscapeIcon.png", "textures/ui/Settings/Help/GenericController.png", "textures/ui/Settings/Help/GenericController@2x.png", "textures/ui/Settings/Help/LeaveIcon.png", "textures/ui/Settings/Help/ResetIcon.png", "textures/ui/Settings/Help/RotateCameraGesture.png", "textures/ui/Settings/Help/UseToolGesture.png", "textures/ui/Settings/Help/XButtonDark.png", "textures/ui/Settings/Help/XButtonDark@2x.png", "textures/ui/Settings/Help/XButtonLight.png", "textures/ui/Settings/Help/XButtonLight@2x.png", "textures/ui/Settings/Help/XboxController.png", "textures/ui/Settings/Help/YButtonDark.png", "textures/ui/Settings/Help/YButtonDark@2x.png", "textures/ui/Settings/Help/YButtonLight.png", "textures/ui/Settings/Help/YButtonLight@2x.png", "textures/ui/Settings/Help/ZoomGesture.png", "textures/ui/Settings/MenuBarAssets/MenuBackground.png", "textures/ui/Settings/MenuBarAssets/MenuButton.png", "textures/ui/Settings/MenuBarAssets/MenuButton@2x.png", "textures/ui/Settings/MenuBarAssets/MenuButtonSelected.png", "textures/ui/Settings/MenuBarAssets/MenuButtonSelected@2x.png", "textures/ui/Settings/MenuBarAssets/MenuSelection.png", "textures/ui/Settings/MenuBarAssets/MenuSelection@2x.png", "textures/ui/Settings/MenuBarIcons/GameSettingsTab.png", "textures/ui/Settings/MenuBarIcons/GameSettingsTab@2x.png", "textures/ui/Settings/MenuBarIcons/HelpTab.png", "textures/ui/Settings/MenuBarIcons/HelpTab@2x.png", "textures/ui/Settings/MenuBarIcons/HomeTab.png", "textures/ui/Settings/MenuBarIcons/HomeTab@2x.png", "textures/ui/Settings/MenuBarIcons/PlayersTabIcon.png", "textures/ui/Settings/MenuBarIcons/PlayersTabIcon@2x.png", "textures/ui/Settings/MenuBarIcons/RecordTab.png", "textures/ui/Settings/MenuBarIcons/RecordTab@2x.png", "textures/ui/Settings/MenuBarIcons/ReportAbuseTab.png", "textures/ui/Settings/MenuBarIcons/ReportAbuseTab@2x.png", "textures/ui/Settings/Radial/Alert.png", "textures/ui/Settings/Radial/Alert@2x.png", "textures/ui/Settings/Radial/Backpack.png", "textures/ui/Settings/Radial/Backpack@2x.png", "textures/ui/Settings/Radial/Bottom.png", "textures/ui/Settings/Radial/BottomLeft.png", "textures/ui/Settings/Radial/BottomLeftSelected.png", "textures/ui/Settings/Radial/BottomRight.png", "textures/ui/Settings/Radial/BottomRightSelected.png", "textures/ui/Settings/Radial/BottomSelected.png", "textures/ui/Settings/Radial/Chat.png", "textures/ui/Settings/Radial/Chat@2x.png", "textures/ui/Settings/Radial/EmptyBottom.png", "textures/ui/Settings/Radial/EmptyBottomLeft.png", "textures/ui/Settings/Radial/EmptyBottomRight.png", "textures/ui/Settings/Radial/EmptyTop.png", "textures/ui/Settings/Radial/EmptyTopLeft.png", "textures/ui/Settings/Radial/EmptyTopRight.png", "textures/ui/Settings/Radial/Leave.png", "textures/ui/Settings/Radial/Leave@2x.png", "textures/ui/Settings/Radial/Menu.png", "textures/ui/Settings/Radial/Menu@2x.png", "textures/ui/Settings/Radial/PlayerList.png", "textures/ui/Settings/Radial/PlayerList@2x.png", "textures/ui/Settings/Radial/RadialLabel.png", "textures/ui/Settings/Radial/RadialLabel@2x.png", "textures/ui/Settings/Radial/Top.png", "textures/ui/Settings/Radial/TopLeft.png", "textures/ui/Settings/Radial/TopLeftSelected.png", "textures/ui/Settings/Radial/TopRight.png", "textures/ui/Settings/Radial/TopRightSelected.png", "textures/ui/Settings/Radial/TopSelected.png", "textures/ui/Settings/Slider/BarLeft.png", "textures/ui/Settings/Slider/BarLeft@2x.png", "textures/ui/Settings/Slider/BarRight.png", "textures/ui/Settings/Slider/BarRight@2x.png", "textures/ui/Settings/Slider/Left.png", "textures/ui/Settings/Slider/Left@2x.png", "textures/ui/Settings/Slider/Right.png", "textures/ui/Settings/Slider/Right@2x.png", "textures/ui/Settings/Slider/SelectedBarLeft.png", "textures/ui/Settings/Slider/SelectedBarLeft@2x.png", "textures/ui/Settings/Slider/SelectedBarRight.png", "textures/ui/Settings/Slider/SelectedBarRight@2x.png", "textures/ui/SettingsButton.png", "textures/ui/SettingsButton_dn.png", "textures/ui/SettingsButton_ds.png", "textures/ui/SettingsButton_ovr.png", "textures/ui/SingleButton.png", "textures/ui/SingleButtonDown.png", "textures/ui/Slate.png", "textures/ui/Slider-BKG-Center.png", "textures/ui/Slider-BKG-Center@2x.png", "textures/ui/Slider-BKG-Left-Cap.png", "textures/ui/Slider-BKG-Left-Cap@2x.png", "textures/ui/Slider-BKG-Right-Cap.png", "textures/ui/Slider-BKG-Right-Cap@2x.png", "textures/ui/Slider-Fill-Center.png", "textures/ui/Slider-Fill-Center@2x.png", "textures/ui/Slider-Fill-Left-Cap.png", "textures/ui/Slider-Fill-Left-Cap@2x.png", "textures/ui/Slider-Fill-Right-Cap.png", "textures/ui/Slider-Fill-Right-Cap@2x.png", "textures/ui/Slider.png", "textures/ui/Slider_dn.png", "textures/ui/Slider_sel.png", "textures/ui/Smooth.png", "textures/ui/StampToolButton.png", "textures/ui/StampToolButton_dn.png", "textures/ui/Studs.png", "textures/ui/SurfaceButton.png", "textures/ui/SurfaceButton_dn.png", "textures/ui/SurfaceMenu.png", "textures/ui/TinyBcIcon.png", "textures/ui/TinyObcIcon.png", "textures/ui/TinyTbcIcon.png", "textures/ui/TixIcon.png", "textures/ui/ToggleFullScreen_ds.png", "textures/ui/ToolButton.png", "textures/ui/ToolButton_dn.png", "textures/ui/ToolButton_ds.png", "textures/ui/TopBar/dropshadow.png", "textures/ui/TopBar/dropshadow@2x.png", "textures/ui/TouchControlsSheet.png", "textures/ui/Universal.png", "textures/ui/Vehicle/SpeedBar.png", "textures/ui/Vehicle/SpeedBar@2x.png", "textures/ui/Vehicle/SpeedBarBKG.png", "textures/ui/Vehicle/SpeedBarBKG@2x.png", "textures/ui/Vehicle/SpeedBarEmpty.png", "textures/ui/Vehicle/SpeedBarEmpty@2x.png", "textures/ui/Weld.png", "textures/ui/Wood.png", "textures/ui/btn_grey.png", "textures/ui/btn_greyTransp.png", "textures/ui/btn_newBlue.png", "textures/ui/btn_newBlue@2x.png", "textures/ui/btn_newBlueGlow.png", "textures/ui/btn_newBlueGlow@2x.png", "textures/ui/btn_newGrey.png", "textures/ui/btn_newGrey@2x.png", "textures/ui/btn_newGreyGlow.png", "textures/ui/btn_newGreyGlow@2x.png", "textures/ui/btn_newWhite.png", "textures/ui/btn_newWhite@2x.png", "textures/ui/btn_newWhiteGlow.png", "textures/ui/btn_newWhiteGlow@2x.png", "textures/ui/btn_red.png", "textures/ui/btn_redGlow.png", "textures/ui/btn_white.png", "textures/ui/chatBubble_blue_notify_bkg.png", "textures/ui/chatBubble_green_notify_bkg.png", "textures/ui/chatBubble_red_notify_bkg.png", "textures/ui/chatBubble_white_notify_bkg.png", "textures/ui/chat_teamButton.png", "textures/ui/chat_teamButton@2x.png", "textures/ui/dialog_blue.png", "textures/ui/dialog_blue@2x.png", "textures/ui/dialog_ellipses.png", "textures/ui/dialog_green.png", "textures/ui/dialog_green@2x.png", "textures/ui/dialog_purpose_help.png", "textures/ui/dialog_purpose_quest.png", "textures/ui/dialog_purpose_shop.png", "textures/ui/dialog_red.png", "textures/ui/dialog_red@2x.png", "textures/ui/dialog_tail.png", "textures/ui/dialog_tail@2x.png", "textures/ui/dialog_white.png", "textures/ui/dialog_white@2x.png", "textures/ui/dropdown_arrow.png", "textures/ui/dropdown_arrow@2x.png", "textures/ui/expandPlayerList.png", "textures/ui/expandPlayerList@2x.png", "textures/ui/homeButton.png", "textures/ui/homeButton@2x.png", "textures/ui/icon_BC-16.png", "textures/ui/icon_OBC-16.png", "textures/ui/icon_TBC-16.png", "textures/ui/icon_admin-16.png", "textures/ui/icon_follower-16.png", "textures/ui/icon_following-16.png", "textures/ui/icon_friendrequestrecieved-16.png", "textures/ui/icon_friendrequestsent_16.png", "textures/ui/icon_friends_16.png", "textures/ui/icon_mutualfollowing-16.png", "textures/ui/icon_placeowner.png", "textures/ui/mouseLock_off.png", "textures/ui/mouseLock_off@2x.png", "textures/ui/mouseLock_on.png", "textures/ui/mouseLock_on@2x.png", "textures/ui/newBkg_square.png", "textures/ui/newBkg_square@2x.png", "textures/ui/scroll-bottom.png", "textures/ui/scroll-bottom@2x.png", "textures/ui/scroll-middle.png", "textures/ui/scroll-middle@2x.png", "textures/ui/scroll-top.png", "textures/ui/scroll-top@2x.png", "textures/ui/scrollbar.png", "textures/ui/scrollbuttonDown.png", "textures/ui/scrollbuttonDown_dn.png", "textures/ui/scrollbuttonDown_ds.png", "textures/ui/scrollbuttonDown_ovr.png", "textures/ui/scrollbuttonUp.png", "textures/ui/scrollbuttonUp_dn.png", "textures/ui/scrollbuttonUp_ds.png", "textures/ui/scrollbuttonUp_ovr.png", "textures/ui/slider_new_tab.png", "textures/ui/slider_new_tab@2x.png", "textures/water_Subsurface.dds", "textures/water_Wave.dds", "textures/wrench.png"];
 
   // ---------------------------------------------------------------- compression
   function lz4(src, outLen) {
@@ -824,6 +826,233 @@
     return [...used].map(k => COMPAT_LUA[k]).join('') + out;
   }
 
+  // ---------------------------------------------------------------- stand-ins for missing assets
+  // An uploaded place only names its images, meshes and sounds; the ones Roblox hosts can't be
+  // downloaded here, and some rbxasset:// files it names aren't in this engine's content (or are,
+  // with other capitals: Windows didn't mind, the browser's file system does). standIns() fills in:
+  //   rbxasset:// paths  -> the right capitals; .wav sounds -> the engine's .mp3 of the same name
+  //   Tools              -> GN-BLOX gear built from parts inside the handle (sword, gun, rocket,
+  //                         slingshot, trowel, bomb, ball, coil, skateboard, trophy, potion) and an icon
+  //   ImageLabel / ImageButton -> a GN-BLOX icon picked from its name (shop, coins, wins...), or a
+  //                         button background
+  //   faces, particles, skyboxes, sounds -> GN-BLOX stand-ins / the engine's own sounds
+  //   MeshPart (2017)    -> a Part (the engine has no MeshPart), so characters made of them show up
+  // GN-BLOX's stand-in images are game-assets/<id>.png (tools/build_standins.py), ids from 9100000001.
+  const CONTENT = new Map(CONTENT_PATHS.map(p => [p.toLowerCase(), p]));
+  const STANDIN_BASE = 9100000000;
+  const STANDIN = {};
+  ['sword', 'gun', 'rocket', 'slingshot', 'trowel', 'bomb', 'ball', 'coil', 'skateboard', 'trophy',
+    'potion', 'tool', 'cart', 'coin', 'star', 'gear', 'speaker', 'close', 'arrow', 'brick',
+    'palette', 'person', 'play', 'lock', 'check', 'panel', 'sparkle', 'face', 'evilface', 'sky_bk',
+    'sky_dn', 'sky_ft', 'sky_lf', 'sky_rt', 'sky_up', 'menu', 'shield', 'heart', 'clock', 'info',
+    'question', 'dash', 'gift', 'panel_light'].forEach((n, i) => { STANDIN[n] = STANDIN_BASE + i + 1; });
+  const standinUrl = name => 'http://www.roblox.com/asset/?id=' + STANDIN[name];
+  // which icon a name asks for (first match wins)
+  const ICON_WORDS = [
+    [/shop|store|buy|cart|purchase/, 'cart'], [/coin|cash|money|robux|point|credit|gem/, 'coin'], [/win|trophy|victor|rank|leader/, 'trophy'],
+    [/level|xp|star|rating|rare/, 'star'], [/setting|option|gear|config/, 'gear'], [/music|sound|mute|audio|volume/, 'speaker'],
+    [/close|exit|cancel|^x$/, 'close'], [/teleport|\btp|travel|next|arrow|back|go\b/, 'arrow'], [/block|build|brick|material|wood|stone/, 'brick'],
+    [/colou?r|paint/, 'palette'], [/profile|player|avatar|user|character|skin/, 'person'], [/play|start/, 'play'], [/lock/, 'lock'],
+    [/check|done|\bok\b|yes|select|equip/, 'check'], [/menu|list/, 'menu'], [/shield|armou?r|defen/, 'shield'], [/health|heart|life|\bhp\b/, 'heart'],
+    [/time|timer|clock/, 'clock'], [/info|help|about|guide/, 'info'], [/gift|reward|daily|code|bonus/, 'gift'], [/dash|speed|boost|energy/, 'dash'],
+    [/sword|blade|katana|weapon/, 'sword'], [/gun|rifle|pistol|sniper|blaster/, 'gun'], [/question|\?/, 'question'],
+  ];
+  const TOOL_WORDS = [
+    [/sword|blade|katana|sabre|saber|dagger|knife|scythe|axe/, 'sword'], [/rocket|launcher|bazooka|rpg/, 'rocket'],
+    [/sling/, 'slingshot'], [/trowel|build|hammer|wall/, 'trowel'], [/bomb|grenade|dynamite|explosive/, 'bomb'],
+    [/superball|ball/, 'ball'], [/coil|spring/, 'coil'], [/skate|board/, 'skateboard'], [/trophy|cup|award/, 'trophy'],
+    [/potion|drink|cola|soda|juice|bottle|heal/, 'potion'],
+    [/gun|rifle|pistol|sniper|blaster|smg|sten|tommy|uzi|shotgun|revolver|paintball|laser|plasma|minigun/, 'gun'],
+  ];
+  // the engine's own sounds, for sounds named like these
+  const SOUND_WORDS = [
+    [/lunge/, 'sounds/swordlunge.mp3'], [/slash|swing|sword/, 'sounds/swordslash.mp3'], [/unsheath|equip|draw/, 'sounds/unsheath.mp3'],
+    [/sling/, 'sounds/Rubber band sling shot.mp3'], [/explo|boom|blast|^exp$|kaboom/, 'sounds/impact_explosion_01.mp3'],
+    [/click|tick|beep|timer/, 'sounds/clickfast.mp3'], [/splat/, 'sounds/splat.mp3'], [/splash|water|drown/, 'sounds/impact_water.mp3'],
+    [/swoosh|whoosh|woosh|throw|launch|rocket|dash/, 'sounds/swoosh.mp3'], [/coil|spring|boing|bounce|rubber/, 'sounds/Rubber band.mp3'],
+    [/ping|coin|buy|purchase|collect|pickup|reward|cash|money/, 'sounds/electronicpingshort.mp3'], [/victory|win/, 'sounds/victory.mp3'],
+    [/switch|button|press|open|door|lever/, 'sounds/switch.mp3'], [/jump/, 'sounds/action_jump.mp3'], [/fall/, 'sounds/action_falling.mp3'],
+    [/hit|hurt|damage|ouch|oof|punch/, 'sounds/hit.mp3'], [/shot|shoot|fire|gun|bang|pistol|rifle|snap/, 'sounds/snap.mp3'],
+    [/death|die|scream|uh/, 'sounds/uuhhh.mp3'], [/step|walk|run/, 'sounds/action_footsteps_plastic.mp3'],
+  ];
+  // GN-BLOX gear, in the handle's box: each piece is [size W,T,L, centre W,T,L (fractions; L = +0.5
+  // is the end the hand holds), BrickColor, material, shape (1 block, 0 ball), reflectance]
+  const GEAR_PIECES = {
+    sword: [[0.22, 0.5, 0.2, 0, 0, 0.4, 192, 512, 1], [1, 0.62, 0.06, 0, 0, 0.27, 24, 1088, 1, 0.2], [0.5, 0.22, 0.72, 0, 0, -0.12, 1002, 1088, 1, 0.35], [0.3, 0.3, 0.08, 0, 0, 0.5, 24, 1088, 0]],
+    gun: [[0.7, 0.7, 0.42, 0, 0, 0.05, 26, 272, 1], [0.4, 0.4, 0.5, 0, 0.05, -0.28, 199, 1088, 1, 0.2], [0.6, 0.55, 0.22, 0, -0.05, 0.38, 192, 512, 1], [0.3, 0.25, 0.12, 0, 0.42, -0.05, 199, 1088, 1]],
+    rocket: [[0.8, 0.8, 0.95, 0, 0, 0, 28, 272, 1], [0.95, 0.95, 0.1, 0, 0, -0.47, 21, 272, 1], [0.3, 0.35, 0.18, 0, 0.55, 0.05, 26, 272, 1], [0.35, 0.5, 0.15, 0, -0.55, 0.18, 26, 272, 1]],
+    slingshot: [[0.18, 0.5, 0.5, 0, 0, 0.25, 192, 512, 1], [0.16, 0.45, 0.48, -0.32, 0, -0.22, 192, 512, 1], [0.16, 0.45, 0.48, 0.32, 0, -0.22, 192, 512, 1], [0.8, 0.12, 0.05, 0, 0, -0.42, 21, 272, 1]],
+    trowel: [[0.25, 0.4, 0.38, 0, 0, 0.31, 192, 512, 1], [0.12, 0.12, 0.12, 0, 0, 0.06, 199, 1088, 1], [0.95, 0.15, 0.5, 0, 0, -0.22, 194, 1088, 1, 0.25]],
+    bomb: [[0.9, 0.9, 0.9, 0, 0, 0, 26, 272, 0], [0.2, 0.2, 0.2, 0, 0, 0.48, 199, 1088, 1], [0.08, 0.08, 0.15, 0, 0, 0.6, 24, 288, 1]],
+    ball: [[0.9, 0.9, 0.9, 0, 0, 0, 23, 288, 0]],
+    coil: [[0.5, 0.5, 0.15, 0, 0, 0.42, 26, 272, 1], [0.9, 0.9, 0.08, 0, 0, 0.25, 21, 288, 1], [0.9, 0.9, 0.08, 0, 0, 0.08, 21, 288, 1], [0.9, 0.9, 0.08, 0, 0, -0.09, 21, 288, 1], [0.9, 0.9, 0.08, 0, 0, -0.26, 21, 288, 1], [0.9, 0.9, 0.08, 0, 0, -0.43, 21, 288, 1]],
+    skateboard: [[0.9, 0.35, 0.95, 0, 0.2, 0, 106, 512, 1], [0.12, 0.3, 0.1, -0.35, -0.3, 0.3, 26, 272, 0], [0.12, 0.3, 0.1, 0.35, -0.3, 0.3, 26, 272, 0], [0.12, 0.3, 0.1, -0.35, -0.3, -0.3, 26, 272, 0], [0.12, 0.3, 0.1, 0.35, -0.3, -0.3, 26, 272, 0]],
+    trophy: [[0.9, 0.9, 0.1, 0, 0, 0.45, 192, 512, 1], [0.6, 0.6, 0.1, 0, 0, 0.35, 24, 1088, 1, 0.3], [0.2, 0.2, 0.3, 0, 0, 0.15, 24, 1088, 1, 0.3], [0.8, 0.8, 0.4, 0, 0, -0.25, 24, 1088, 0, 0.3]],
+    potion: [[0.8, 0.8, 0.7, 0, 0, 0.12, 1032, 288, 0], [0.3, 0.3, 0.3, 0, 0, -0.33, 1, 272, 1], [0.35, 0.35, 0.1, 0, 0, -0.48, 192, 512, 1]],
+  };
+  function standIns(doc, bump, opts) {
+    const have = opts.have || new Set();
+    const all = [];
+    const add = it => { all.push(it); it.children.forEach(add); };
+    doc.roots.forEach(add);
+    const assetId = s => { const m = /roblox\.com\/+asset\/*\?[^"'\s]*?\bid=(\d+)|rbxassetid:\/\/(\d+)/i.exec(s); return m ? (m[1] || m[2]) : null; };
+    // a content link this engine can show: an rbxasset:// file it has (capitals fixed), an asset that
+    // was uploaded, or a GN-BLOX stand-in. Returns the fixed link, or null when it would be missing.
+    const resolve = s => {
+      s = str(s || '').trim();
+      if (!s) return '';
+      const ra = /^rbxasset:\/\/(.+)$/i.exec(s);
+      if (ra) {
+        const path = ra[1].replace(/\\/g, '/').replace(/\/+/g, '/');
+        let hit = CONTENT.get(path.toLowerCase());
+        if (!hit && /\.wav$/i.test(path)) hit = CONTENT.get(path.toLowerCase().replace(/\.wav$/, '.mp3'));
+        return hit ? 'rbxasset://' + hit : null;
+      }
+      const id = assetId(s);
+      if (id) return (have.has(id) || +id > STANDIN_BASE) ? s : null;
+      return s;   // something else (http to another site...): leave it
+    };
+    const setContent = (it, pn, v) => { const p = it.props.get(pn); it.props.set(pn, { t: p ? p.t : 1, v: enc.encode(v) }); };
+    const lower = it => (it ? it.name : '').toLowerCase();
+    const pick = (table, text) => { for (const [re, v] of table) if (re.test(text)) return v; return null; };
+    const nightSky = (() => {
+      const L = all.find(i => i.cls === 'Lighting');
+      let h = parseFloat(str(L && L.get('TimeOfDay') || '14'));
+      if (!Number.isFinite(h)) h = 14;
+      return h < 6 || h >= 18.5;
+    })();
+
+    for (const it of all) {
+      // content properties: rbxasset capitals and .wav -> .mp3
+      for (const [pn, p] of it.props) {
+        if (p.t !== 1 || !p.v || p.v.length < 12 || p.v.length > 300 || pn === 'Source' || pn === 'Name') continue;
+        const s = str(p.v);
+        if (!/^\s*rbxasset:\/\//i.test(s)) continue;
+        const r = resolve(s);
+        if (r && r !== s.trim()) { p.v = enc.encode(r); bump('rbxasset:// links fixed'); }
+      }
+      // sound files named in scripts: "rbxasset://sounds\\swordslash.wav" -> the .mp3 the engine has
+      if (/Script$/.test(it.cls)) {
+        const p = it.props.get('Source');
+        if (p && p.v && /rbxasset:\/\//i.test(str(p.v))) {
+          const before = str(p.v);
+          const after = before.replace(/rbxasset:\/\/([A-Za-z0-9_\-\/\\ .]+?\.(?:wav|mp3|ogg|png|jpg|mesh))/gi, (m0, path) => {
+            const r = resolve('rbxasset://' + path.replace(/\\\\/g, '/'));
+            return r || m0;
+          });
+          if (after !== before) { p.v = enc.encode(after); bump('scripts with sound / texture paths fixed'); }
+        }
+      }
+      if (it.cls === 'MeshPart') {
+        it.cls = 'Part';
+        if (!it.props.has('size') && it.props.has('Size')) { it.props.set('size', it.props.get('Size')); it.props.delete('Size'); }
+        if (!it.props.has('size') && it.props.has('InitialSize')) it.props.set('size', it.props.get('InitialSize'));
+        it.set('formFactorRaw', 18, 3);
+        it.set('shape', 18, 1);
+        bump('MeshParts turned into Parts');
+      }
+      if ((it.cls === 'ImageLabel' || it.cls === 'ImageButton') && it.props.has('Image')) {
+        const r = resolve(it.get('Image'));
+        if (r === null) {
+          const text = lower(it) + ' ' + lower(it.parent);
+          // a big image is a background or a picture, not an icon: only backgrounds get a panel
+          const [w, h] = guiSize(it);
+          const big = w > 220 || h > 220;
+          const icon = big ? (/bg|background|panel|frame/.test(text) ? 'panel' : null)
+            : pick(ICON_WORDS, text) || (it.cls === 'ImageButton' || /bg|background|button|frame|panel|bar/.test(text) ? 'panel' : null);
+          if (icon) { setContent(it, 'Image', standinUrl(icon)); bump('UI images given GN-BLOX icons'); }
+        }
+      }
+      if (it.cls === 'Decal' && /face/i.test(it.name)) {
+        const r = resolve(it.get('Texture'));
+        if (r === null) {
+          let m = it.parent && it.parent.parent;
+          const evil = /evil|zombie|ghost|monster|mob|enemy|boss/i.test((m ? m.name : '') + ' ' + (m && m.parent ? m.parent.name : ''));
+          setContent(it, 'Texture', standinUrl(evil ? 'evilface' : 'face'));
+          bump('faces given GN-BLOX faces');
+        }
+      }
+      if (it.cls === 'ParticleEmitter' && resolve(it.get('Texture')) === null) { setContent(it, 'Texture', standinUrl('sparkle')); bump('particles given a GN-BLOX sparkle'); }
+      if (it.cls === 'Sky' && !nightSky) {
+        const faces = ['Bk', 'Dn', 'Ft', 'Lf', 'Rt', 'Up'];
+        if (faces.every(f => resolve(it.get('Skybox' + f)) === null)) {
+          for (const f of faces) setContent(it, 'Skybox' + f, standinUrl('sky_' + f.toLowerCase()));
+          bump('skies given the GN-BLOX sky');
+        }
+      }
+      if (it.cls === 'Sound' && resolve(it.get('SoundId')) === null && !it.get('Looped') && !/music|theme|song|ambien|lobby|intro/i.test(it.name)) {
+        const snd = pick(SOUND_WORDS, (lower(it) + ' ' + lower(it.parent)));
+        if (snd && CONTENT.has(snd.toLowerCase())) { setContent(it, 'SoundId', 'rbxasset://' + CONTENT.get(snd.toLowerCase())); bump('sounds given the engine\'s own sounds'); }
+      }
+      if ((it.cls === 'Tool' || it.cls === 'HopperBin')) gearStandIn(it, resolve, bump);
+    }
+  }
+  // about how big a GUI object is on a 1000 x 600 screen (UDim2 sizes are [xScale, xOffset, yScale, yOffset])
+  function guiSize(it) {
+    const sz = it.get('Size');
+    if (!Array.isArray(sz) || sz.length < 4) return [100, 100];
+    let pw = 1000, ph = 600;
+    const p = it.parent;
+    if (p && /^(Frame|ImageLabel|ImageButton|TextButton|TextLabel|ScrollingFrame|TextBox|BillboardGui|SurfaceGui)$/.test(p.cls)) {
+      if (p.cls === 'BillboardGui') { const s2 = p.get('Size'); pw = Array.isArray(s2) ? s2[1] || 200 : 200; ph = Array.isArray(s2) ? s2[3] || 200 : 200; }
+      else if (p.cls === 'SurfaceGui') { pw = 800; ph = 600; }
+      else [pw, ph] = guiSize(p);
+    }
+    return [Math.abs(sz[0] * pw + sz[1]), Math.abs(sz[2] * ph + sz[3])];
+  }
+  function gearStandIn(tool, resolve, bump) {
+    const handle = tool.children.find(c => c.name === 'Handle' && c.cls !== 'Model');
+    const mesh = handle && handle.children.find(c => c.cls === 'SpecialMesh' || c.cls === 'FileMesh');
+    const meshPath = mesh ? str(mesh.get('MeshId') || '') : '';
+    const kind = pick2(TOOL_WORDS, tool.name.toLowerCase() + ' ' + meshPath.toLowerCase());
+    // the icon in the backpack
+    if (tool.props.has('TextureId') ? resolve(tool.get('TextureId')) === null || !str(tool.get('TextureId')).trim() : true) {
+      tool.props.set('TextureId', { t: 1, v: enc.encode(standinUrl(kind || 'tool')) });
+      bump('tools given GN-BLOX icons');
+    }
+    if (!handle || !kind || !GEAR_PIECES[kind]) return;
+    const meshType = mesh ? Number(mesh.get('MeshType')) : -1;
+    // only when the handle's own mesh can't be shown (a FileMesh whose file is missing), or it has none
+    if (mesh && !(meshType === 5 && resolve(meshPath) === null)) return;
+    if (!mesh && Number(handle.get('Transparency') || 0) >= 1) return;
+    const size = handle.get('size') || handle.get('Size');
+    const cf = handle.get('CFrame');
+    if (!size || !cf) return;
+    const grip = tool.get('Grip') || [0, 0, 0];
+    const axes = [0, 1, 2].sort((a, b) => size[b] - size[a]);
+    const equal = Math.abs(size[0] - size[1]) < 0.01 && Math.abs(size[1] - size[2]) < 0.01;
+    const L = equal ? 1 : axes[0];
+    const rest = [0, 1, 2].filter(a => a !== L).sort((a, b) => size[b] - size[a]);
+    const W = rest[0], T = rest[1];
+    const dir = grip[L] < -0.01 ? -1 : 1;
+    if (mesh) mesh.props.set('MeshId', { t: 1, v: new Uint8Array(0) });
+    handle.set('Transparency', 4, 1);
+    GEAR_PIECES[kind].forEach((pc, i) => {
+      const [fw, ft, fl, cw, ct, cl, color, mat, shape, refl] = pc;
+      const sz = [0, 0, 0], off = [0, 0, 0];
+      sz[W] = Math.max(0.05, fw * size[W]); sz[T] = Math.max(0.05, ft * size[T]); sz[L] = Math.max(0.05, fl * size[L]);
+      off[W] = cw * size[W]; off[T] = ct * size[T]; off[L] = cl * size[L] * dir;
+      if (shape === 0) { const d = Math.min(sz[0], sz[1], sz[2]) || 0.2; sz[0] = sz[1] = sz[2] = Math.max(d, Math.max(...sz) * 0.9); }
+      const p = new Inst('Part');
+      p.set('Name', 1, enc.encode('GNGear' + (i + 1)));
+      p.set('Anchored', 2, false); p.set('CanCollide', 2, false); p.set('Locked', 2, true);
+      p.set('BrickColor', 11, color); p.set('Material', 18, mat || 256); p.set('Reflectance', 4, refl || 0);
+      p.set('formFactorRaw', 18, 3); p.set('shape', 18, shape == null ? 1 : shape);
+      p.set('TopSurface', 18, 0); p.set('BottomSurface', 18, 0);
+      p.set('size', 14, sz);
+      const c0 = [off[0], off[1], off[2], ...IDENT];
+      p.set('CFrame', 16, cfMul(cf, c0));
+      const w = new Inst('Weld');
+      w.set('Name', 1, enc.encode('GNGearWeld'));
+      w.set('Part0', 19, handle); w.set('Part1', 19, p);
+      w.set('C0', 16, c0); w.set('C1', 16, [0, 0, 0, ...IDENT]);
+      w.parent = p; p.children.push(w);
+      p.parent = tool; tool.children.push(p);
+    });
+    bump('tools given GN-BLOX gear');
+  }
+  function pick2(table, text) { for (const [re, v] of table) if (re.test(text)) return v; return null; }
+
   function toEngine(doc, typemap, opts = {}) {
     const safe = !!opts.safe;
     const notes = [];
@@ -832,6 +1061,7 @@
     fixSnapshots(doc, notes);
     wrapModel(doc, notes);
     ensureSpawn(doc, notes);
+    standIns(doc, bump, opts);
 
     // property name -> type, where every class in the typemap agrees
     const nameType = {};

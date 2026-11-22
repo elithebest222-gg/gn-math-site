@@ -85,7 +85,7 @@
     try { Object.defineProperty(navigator, 'hardwareConcurrency', { get: () => 32 }); } catch (e) {}
 
     (async function () {
-      const VERSION = '52';                       // bump when rblx.js / rblx.wasm change
+      const VERSION = '53';                       // bump when rblx.js / rblx.wasm change
       const CHUNKS = 12, CHUNK_SIZE = 25165824, DATA_SIZE = 289418733;
       const $ = id => document.getElementById(id);
       const canvas = $('canvas'), loading = $('loading');
@@ -495,7 +495,8 @@
           const typemap = await (await fetch('tools/typemap.json?v=' + VERSION)).json();
           const t0 = performance.now();
           const doc = RBXFile.read(bytes);
-          const notes = RBXFile.toEngine(doc, typemap, { safe: params.has('safe') });
+          const have = await uploadedAssetIds();
+          const notes = RBXFile.toEngine(doc, typemap, { safe: params.has('safe'), have });
           const out = RBXFile.write(doc);
           console.log('GN-BLOX: converted the place (' + doc.format + ', ' + doc.insts.length + ' objects, ' +
             Math.round(performance.now() - t0) + ' ms' + (params.has('safe') ? ', safe mode' : '') + ')' + (notes.length ? ': ' + notes.join('; ') : ''));
@@ -574,6 +575,25 @@
           '  acc = ' + lua(W.ACCESSORIES || {}) + ',\n' +
           '  gear = ' + lua(gear) + ',\n' +
           '}';
+      }
+
+      // the asset ids uploaded with the place (IndexedDB asset:<id>): the converter gives
+      // GN-BLOX stand-ins only to what's still missing
+      function uploadedAssetIds() {
+        return new Promise(resolve => {
+          try {
+            const req = indexedDB.open('webblox', 1);
+            req.onupgradeneeded = () => req.result.createObjectStore('files');
+            req.onerror = () => resolve(new Set());
+            req.onsuccess = () => {
+              try {
+                const keys = req.result.transaction('files').objectStore('files').getAllKeys(IDBKeyRange.bound('asset:', 'asset:\uffff'));
+                keys.onsuccess = () => resolve(new Set((keys.result || []).map(k => String(k).slice(6))));
+                keys.onerror = () => resolve(new Set());
+              } catch (e) { resolve(new Set()); }
+            };
+          } catch (e) { resolve(new Set()); }
+        });
       }
 
       function readUpload() {

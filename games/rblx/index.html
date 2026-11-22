@@ -161,69 +161,24 @@
     const GAMES = [
       { id: 'nds', title: 'Natural Disaster Survival', by: 'GN-BLOX', genre: 'Adventure',
         desc: 'Survive natural disasters on a randomly chosen island. Each round brings a new map and a new disaster: floods, tsunamis, tornadoes, volcanoes, meteor showers and more.\n\nEveryone in a server gets the same map and the same disaster at the same time. How many can you survive?' },
-      { id: 'undead', map: 'undead-nights.rbxl', title: 'Undead Nights', by: 'GN-BLOX', genre: 'Horror',
-        desc: 'Night falls on a walled town and the zombies come through the gates. Hold them off wave after wave with your pistol and sword.\n\nEvery zombie you take down drops cash. Spend it at the gun shop in the square: a shotgun, a rifle, a rocket launcher and a minigun, plus damage and fire-rate upgrades. How many nights can you survive?' },
-      { id: 'peaks', map: 'brick-battle-peaks.rbxl', title: 'Brick Battle Peaks', by: 'GN-BLOX', genre: 'Fighting',
-        desc: 'Four castle towers on a floating island: red, blue, green and yellow. Grab your sword, rocket launcher, slingshot, superball and time bombs and battle the bots from the other towers.\n\nOther players are fair game too. Climb the stairs and fight from the top!' },
-      { id: 'prison', map: 'cellblock-breakout.rbxl', title: 'Cellblock Breakout', by: 'GN-BLOX', genre: 'Adventure',
-        desc: 'You wake up behind bars. Find something to dig with, break through the cracked wall, sneak past the guards for a keycard, cross the yard and climb over the wall to freedom.\n\nIf a guard catches you, it\'s back to your cell. How many times can you break out?' },
-      { id: 'tide', map: 'rising-tide.rbxl', title: 'Rising Tide', by: 'GN-BLOX', genre: 'Adventure',
-        desc: 'The water is rising! Each round floods a different map: the Sunken Temple, the Old Shipyard and the Waterworks. Press the buttons to open the hatches and climb to the exit before the water gets you.\n\nEvery escape earns coins.' },
-      { id: 'burger', map: 'burger-tycoon.rbxl', title: 'Burger Tycoon', by: 'GN-BLOX', genre: 'Town and City',
-        desc: 'Build the biggest burger joint in town! Buy grills, toasters and shake machines, send the food down the conveyor and cash it in. Upgrade it with sauce stations and golden wrappers, then build walls, a roof and a giant burger statue.\n\nYour restaurant is saved, so come back and keep building.' },
-      { id: 'mine', map: 'crystal-mine-tycoon.rbxl', title: 'Crystal Mine Tycoon', by: 'GN-BLOX', genre: 'Town and City',
-        desc: 'Dig for glowing crystals! Buy pickaxe rigs, crushers, drills and laser cutters, polish and enchant the crystals for more money, and build your mine up to the giant drill.\n\nYour mine is saved, so come back and keep digging.' },
-      { id: 'arena', map: 'sword-clash-arena.rbxl', title: 'Sword Clash Arena', by: 'GN-BLOX', genre: 'Fighting',
-        desc: 'One sword, one ring over the lava. Beat the Rookie, then the Squire, the Knight, the Duelist and on up to the Legend. Each challenger is faster and hits harder.\n\nHow long a win streak can you get?' },
-      { id: 'obby', map: 'rainbow-obby.rbxl', title: 'Rainbow Obby', by: 'GN-BLOX', genre: 'Adventure',
-        desc: '30 stages of obby fun! Jump across stepping stones, dodge spinning lava bars, ride moving platforms, bounce on trampolines, climb trusses and run across a belt that pushes you back.\n\nCheckpoints save your stage, so you only go back to the last one you reached. Reach the golden trophy to win!' },
-      { id: 'mega-obby', map: 'mega-obby.rbxl', title: 'Mega Obby', by: 'GN-BLOX', genre: 'Adventure',
-        desc: 'SIXTY stages! The longest obby on GN-BLOX, with every kind of jump, spinner, vanishing tile and trampoline mixed up. Checkpoints save your stage.' },
-      { id: 'lava', map: 'floor-is-lava.rbxl', title: 'The Floor is Lava', by: 'GN-BLOX', genre: 'Funny',
-        desc: 'THE FLOOR IS LAVA! Every minute the lava rises out of the floor of a giant living room. Climb the couches, shelves, bunk beds and the tower before it gets you.\n\nEveryone who survives the round gets a win. Everyone in a server faces the same lava at the same time.' },
-      { id: 'neon-obby', map: 'neon-night-obby.rbxl', title: 'Neon Night Obby', by: 'GN-BLOX', genre: 'Adventure',
-        desc: 'An obby that glows in the dark: 30 stages of neon platforms under the stars.' },
-      { id: 'pizza', map: 'pizza-shift.rbxl', title: 'Pizza Shift', by: 'GN-BLOX', genre: 'Town and City',
-        desc: 'Work a shift at the busiest pizza place in town! Take the order at the register, grab some dough, add the right topping, bake it, box it and hand it to the customer.\n\nFast service gets bigger tips. How much money can you make?' },
-      { id: 'ice-obby', map: 'ice-cave-obby.rbxl', title: 'Ice Cave Obby', by: 'GN-BLOX', genre: 'Adventure',
-        desc: '30 stages made of ice. It\'s slippery! Take it slow on the jumps.' },
-      { id: 'tower', map: 'sky-tower.rbxl', title: 'Sky Tower', by: 'GN-BLOX', genre: 'Adventure',
-        desc: 'A tower in the clouds, ten floors high. Jump from platform to platform as they spiral up around it. The higher you go, the smaller they get, and some of them vanish or move.\n\nEvery floor has a checkpoint. Make it to the roof to win!' },
-      { id: 'volcano-obby', map: 'volcano-obby.rbxl', title: 'Volcano Obby', by: 'GN-BLOX', genre: 'Adventure',
-        desc: '30 stages of rock and fire over a sea of lava. Don\'t look down!' },
-      { id: 'candy-obby', map: 'candy-land-obby.rbxl', title: 'Candy Land Obby', by: 'GN-BLOX', genre: 'Adventure',
-        desc: 'A sweet 30-stage obby in candy colors. Easy to start, tricky to finish!' },
       { id: 'doomspire', map: 'doomspire-brickbattle.rbxl', title: 'Doomspire Brickbattle', by: 'ROBLOX', genre: 'Fighting',
         desc: 'The classic brickbattle: four towers, four teams. Grab your sword, slingshot, rocket launcher, trowel, time bombs and superball and knock out the other teams\' spawns to win.\n\nAn uncopylocked classic place, added as-is.' },
       { id: 'flood-escape', map: 'flood-escape.rbxl', title: 'Flood Escape', by: 'Crazyblox', genre: 'Adventure',
         desc: 'Head through one of the doorways in the lobby and escape the map before the flood rises. Easy, Medium and Hard rooms.\n\nVersion 1.6.5, an uncopylocked classic place, added as-is.' },
       { id: 'build-survive', map: 'build-to-survive.rbxl', title: 'Build to Survive', by: 'CovertCode', genre: 'Building',
         desc: 'Build a base before the monsters attack, then survive the round. Earn cash and levels to unlock more blocks.\n\nAn uncopylocked classic place, added as-is.' },
-      { id: 'mm2', map: 'murder-mystery-2.rbxl', title: 'Murder Mystery 2', by: 'Nikilis', genre: 'Horror',
-        desc: 'One murderer, one sheriff, everyone else innocent. Hang out in the lobby and pick a map.\n\nNote: a round only starts with 2 or more players in the same game, and on GN-BLOX each player runs their own copy of it, so rounds don\'t start here yet. You can explore the lobby.\n\nAn uncopylocked classic place, added as-is.' },
       { id: 'sword-dark', map: 'sword-fight-in-the-dark.rbxl', title: 'Sword Fight in the Dark', by: 'Shedletsky', genre: 'Fighting',
-        desc: 'A sword fight on platforms floating in the dark. Watch your step!\n\nAn uncopylocked classic place, added as-is.' },
-      { id: 'speeding-wall', map: 'Be crushed by speeding wall.rbxl', title: 'Be Crushed by a Speeding Wall', genre: 'Comedy',
-        desc: 'Stand in front of the wall. Wait for it. Try to survive, or just accept your fate.' },
-      { id: 'speedrun', map: 'speed-run.rbxl', title: 'Speed Run', by: 'GN-BLOX', genre: 'Sports',
-        desc: 'How fast can you go? Cross the line and race over speed pads, gaps, trampolines, stepping stones and a balance beam to the finish.\n\nYour best time goes on the leaderboard. Fall off and you start again!' }
+        desc: 'A sword fight on platforms floating in the dark. Watch your step!\n\nAn uncopylocked classic place, added as-is.' }
     ];
-    const RECENT = ['undead', 'peaks', 'prison', 'tide', 'burger', 'nds'];
-    const FAVS = ['nds', 'arena', 'mega-obby', 'mine', 'lava', 'pizza'];
+    const RECENT = ['nds', 'doomspire', 'flood-escape', 'build-survive', 'sword-dark'];
+    const FAVS = ['nds', 'flood-escape', 'doomspire', 'sword-dark', 'build-survive'];
     const NEWS = [
-      ['12 new games!', 'Fight off zombies in Undead Nights, battle on Brick Battle Peaks, break out of Cellblock Breakout, outrun the flood in Rising Tide, build Burger Tycoon and Crystal Mine Tycoon, duel in Sword Clash Arena and try five new obbies.', 'Nov 22, 2026'],
+      ['Classic games', 'Doomspire Brickbattle, Flood Escape, Build to Survive and Sword Fight in the Dark are here, with GN-BLOX\'s own icons, sounds and gear models filling in for the files that are missing.', 'Nov 22, 2026'],
       ['Combat gear', 'The Sword, Slingshot, Rocket Launcher, Time Bomb, Superball and Paintball Gun are in the Catalog, and they work on other players too.', 'Nov 22, 2026'],
-      ['Real player counts', 'The number on each game is now how many people are really playing it right now. Popular shows the busiest games first.', 'Nov 22, 2026'],
-      ['Faster games, real physics', 'Games run much smoother on sharp screens (pick Fast, Normal or Sharp graphics in a game), things fall at full speed instead of slow motion, and games load from your device after the first time.', 'Nov 21, 2026'],
-      ['Now open: Pizza Shift', 'Take orders, bake pizzas and earn tips in our new restaurant game. Plus: Be Crushed by a Speeding Wall is back, and you can make a GN-BLOX account to keep your stuff.', 'Nov 21, 2026'],
-      ['New games: obbies and more!', 'Try the Rainbow Obby, climb the Sky Tower, survive The Floor is Lava and race the clock in Speed Run.', 'Nov 21, 2026'],
-      ['New in the Catalog', '14 new hats and the first gear: Speed Coil, Gravity Coil, Fusion Coil and the Red Balloon. Check out your new 3D avatar on your Profile!', 'Nov 21, 2026'],
-      ['Leaderboards are back', 'Cash, KOs, points and every other leaderboard stat works again, and you can see the other players in your server on it, under your own name.', 'Nov 21, 2026'],
-      ['Disasters for everyone', 'In Natural Disaster Survival everyone in a server now gets the same map and the same disaster at the same time. How many can you survive?', 'Nov 21, 2026'],
+      ['Real player counts', 'The number on each game is how many people are really playing it right now. Popular shows the busiest games first.', 'Nov 22, 2026'],
+      ['Disasters for everyone', 'In Natural Disaster Survival everyone in a server gets the same map and the same disaster at the same time. How many can you survive?', 'Nov 21, 2026'],
       ['Play together', 'Open a game\'s Servers tab to join the public server or make a private one with chat for you and your friends.', 'Nov 21, 2026'],
-      ['The Catalog is open', 'Spend your ROBUX on hats, shirts, pants and body colors. Whatever you wear shows up in every game.', 'Nov 21, 2026'],
-      ['Characters walk again', 'Walking, jumping, climbing, sitting, holding tools and /e emotes are all animated now.', 'Nov 21, 2026'],
-      ['Every game loads in seconds', 'Classic places are now stored in the fast binary format, so even the biggest maps open almost instantly.', 'Nov 20, 2026']
+      ['The Catalog is open', 'Spend your ROBUX on hats, shirts, pants, faces and gear. Whatever you wear shows up in every game.', 'Nov 21, 2026']
     ];
     const byId = Object.fromEntries(GAMES.map(g => [g.id, g]));
     const esc = WB.esc;
