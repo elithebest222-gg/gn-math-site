@@ -149,15 +149,24 @@ def kill(pl, parent, pos, size, r=(0, 0, 0)):
 
 # ------------------------------------------------------------------------------------------
 # Rainbow Obby: stages along +X, each starting on a checkpoint pad.
-def rainbow_obby():
-    pl = Place('rainbow-obby')
-    pl.lighting(ambient=(0.55, 0.55, 0.6))
-    rng = random.Random(7)
+def rainbow_obby(file='rainbow-obby', title='the Rainbow Obby', palette=RAINBOW, seed=7, count=30, mat=None,
+                 light=None, ground=37, order=None, stat='Stage'):
+    """An obby along +X (also used, with other colors, materials and orders, for the themed obbies)."""
+    pl = Place(file)
+    pl.lighting(**(light or {'ambient': (0.55, 0.55, 0.6)}))
+    rng = random.Random(seed)
+    base_part = pl.part
+
+    def part(pos, size, color, name='Part', parent=None, **k):
+        if mat and 'mat' not in k and name not in ('KillBrick', 'Vanish', 'Truss', 'Hub'):
+            k['mat'] = mat
+        return base_part(pos, size, color, name, parent, **k)
+    pl.part = part
     # start island
     start = pl.model('Start')
-    pl.part((-30, -1, 0), (50, 2, 50), 37, 'Ground', start, mat='grass')
+    pl.part((-30, -1, 0), (50, 2, 50), ground, 'Ground', start, mat='grass')
     x, y = 0.0, 0.0
-    color = lambda i: RAINBOW[i % len(RAINBOW)]
+    color = lambda i: palette[i % len(palette)]
 
     def stage_steps(m, c):            # stepping stones
         nonlocal x, y
@@ -266,8 +275,8 @@ def rainbow_obby():
 
     stages = [stage_steps, stage_beam, stage_lava_run, stage_zigzag, stage_truss, stage_vanish, stage_spinner,
               stage_bounce, stage_balls, stage_conveyor, stage_stairs, stage_mover, stage_speed, stage_pillars]
-    order = [0, 1, 3, 2, 10, 5, 6, 4, 8, 9, 7, 11, 12, 13, 0, 5, 6, 2, 1, 9, 3, 4, 11, 8, 13, 12, 10, 7, 6]
-    for i in range(30):
+    order = order or [0, 1, 3, 2, 10, 5, 6, 4, 8, 9, 7, 11, 12, 13, 0, 5, 6, 2, 1, 9, 3, 4, 11, 8, 13, 12, 10, 7, 6]
+    for i in range(count):
         m = pl.model('Stage%d' % (i + 1))
         checkpoint(pl, m, (x + 5, y, 0), i + 1, color(i))
         x += 10
@@ -284,7 +293,7 @@ def rainbow_obby():
     for i in range(n):
         w = (x1 - x0) / n
         pl.part((x0 + w * (i + 0.5), -14, 0), (w, 2, 240), KILL, 'KillBrick', mat='smooth', surface=SMOOTH)
-    pl.script('ObbyScript', kit('{ stat = "Stage", winText = "You beat the Rainbow Obby!", title = "the Rainbow Obby" }'))
+    pl.script('ObbyScript', kit('{ stat = "%s", winText = "You beat %s!", title = "%s" }' % (stat, title, title)))
     pl.save()
 
 
@@ -568,9 +577,380 @@ def pizza_shift():
     pl.save()
 
 
+def game_script(*names):
+    """games/net.lua + common.lua + the named files (e.g. 'npc', 'zombies'), in that order."""
+    parts = [open(os.path.join(HERE, 'games', n + '.lua')).read() for n in ('common',) + names]
+    return with_net('\n'.join(parts))
+
+
+def walls(pl, parent, x0, x1, z0, z1, h, color, mat='brick', gaps=(), y0=0, t=2):
+    """A walled rectangle; gaps: (side, center, width) with side in 'n','s','e','w' (n = +z)."""
+    def run(side, a0, a1, fixed):
+        cuts = sorted([(c - w / 2, c + w / 2) for sd, c, w in gaps if sd == side])
+        segs, a = [], a0
+        for c0, c1 in cuts:
+            segs.append((a, c0)); a = c1
+        segs.append((a, a1))
+        for b0, b1 in segs:
+            if b1 - b0 < 0.1:
+                continue
+            mid, ln = (b0 + b1) / 2, b1 - b0
+            if side in 'ns':
+                pl.part((mid, y0 + h / 2, fixed), (ln, h, t), color, 'Wall', parent, mat=mat, surface=SMOOTH)
+            else:
+                pl.part((fixed, y0 + h / 2, mid), (t, h, ln), color, 'Wall', parent, mat=mat, surface=SMOOTH)
+    run('n', x0, x1, z1); run('s', x0, x1, z0); run('e', z0, z1, x1); run('w', z0, z1, x0)
+
+
+# ------------------------------------------------------------------------------------------
+# Undead Nights: a small walled town at dusk; zombies come in through the gates.
+def undead_nights():
+    pl = Place('undead-nights')
+    pl.lighting(time='18:20:00', ambient=(0.42, 0.36, 0.4), fog_end=500, fog=(0.35, 0.3, 0.35))
+    rng = random.Random(21)
+    town = pl.model('Town')
+    pl.part((0, -1, 0), (260, 2, 260), 28, 'Ground', town, mat='grass', surface=SMOOTH)
+    pl.part((0, 0.05, 0), (40, 0.2, 40), 1002, 'Square', town, mat='cobblestone', surface=SMOOTH)
+    for ax in (0, 90):
+        pl.part((0, 0.05, 0), (200, 0.15, 10), 194, 'Road', town, mat='concrete', surface=SMOOTH, r=(0, ax, 0))
+    walls(pl, town, -100, 100, -100, 100, 12, 1002, mat='cobblestone', gaps=[('n', 0, 14), ('s', 0, 14), ('e', 0, 14), ('w', 0, 14)])
+    for (x, z) in ((0, 112), (0, -112), (112, 0), (-112, 0)):
+        pl.part((x, 1, z), (4, 2, 4), 26, 'ZombieSpawn', town, transparency=1, collide=False)
+    # houses
+    for (x, z) in ((-50, -50), (50, -50), (-50, 50), (50, 50), (-55, 0), (55, 0), (0, 55), (0, -55)):
+        c = rng.choice([1001, 5, 18, 125, 1030, 101])
+        w, d = rng.choice([(20, 16), (16, 20), (18, 18)])
+        h = pl.model('House')
+        pl.part((x, 6, z), (w, 12, d), c, 'Walls', h, mat='brick', surface=SMOOTH)
+        pl.part((x, 12.6, z), (w + 2, 1.2, d + 2), 192, 'Roof', h, mat='wood', surface=SMOOTH)
+        pl.part((x, 3.5, z - d / 2 - 0.1), (4, 7, 0.4), 192, 'Door', h, mat='wood', surface=SMOOTH)
+    # barricades and crates to fight from
+    for i in range(14):
+        x, z = rng.uniform(-80, 80), rng.uniform(-80, 80)
+        if abs(x) < 22 and abs(z) < 22:
+            continue
+        pl.part((x, 1.5, z), (rng.choice([6, 8, 10]), 3, 2), 192, 'Barricade', town, mat='planks', r=(0, rng.uniform(0, 180), 0), surface=SMOOTH)
+    for (x, z) in ((10, 10), (-12, 8), (8, -12)):
+        pl.part((x, 2, z), (4, 4, 4), 192, 'Crate', town, mat='planks', surface=SMOOTH)
+    # a watchtower in the square
+    pl.part((-14, 6, -14), (6, 12, 6), 192, 'Tower', town, mat='wood', surface=SMOOTH)
+    pl.part((-14, 12.5, -14), (10, 1, 10), 192, 'TowerTop', town, mat='planks', surface=SMOOTH)
+    pl.part((-10.6, 6, -14), (1, 12, 3), 194, 'Truss', town, cls='TrussPart', mat='metal')
+    for (x, z) in ((-30, 20), (30, -20), (20, 30), (-20, -30)):
+        pl.part((x, 6, z), (0.6, 12, 0.6), 26, 'LampPost', town, mat='metal', shape='cyl', r=(0, 0, 90), surface=SMOOTH)
+        pl.part((x, 12.4, z), (1.6, 1.6, 1.6), 24, 'Lamp', town, mat='neon', shape='ball', surface=SMOOTH)
+    pl.part((0, 0.3, 0), (8, 0.4, 8), 1002, 'Spawn', cls='SpawnLocation', mat='smooth', surface=SMOOTH)
+    pl.script('ZombieScript', game_script('npc', 'zombies'))
+    pl.save()
+
+
+# ------------------------------------------------------------------------------------------
+# Brick Battle Peaks: four colored castle towers on a floating island, bridges between them.
+def brick_battle_peaks():
+    pl = Place('brick-battle-peaks')
+    pl.lighting(ambient=(0.55, 0.55, 0.62), fog_end=1500, fog=(0.7, 0.8, 0.95))
+    isle = pl.model('Island')
+    pl.part((0, -2, 0), (180, 4, 180), 37, 'Ground', isle, mat='grass', surface=SMOOTH)
+    pl.part((0, -10, 0), (150, 12, 150), 1030, 'Rock', isle, mat='slate', surface=SMOOTH)
+    pl.part((0, -200, 0), (2000, 2, 2000), KILL, 'KillBrick', mat='smooth', transparency=1)
+    for (name, color, x, z) in (('Red', 21, -55, -55), ('Blue', 23, 55, -55), ('Green', 37, -55, 55), ('Yellow', 24, 55, 55)):
+        t = pl.model('Tower_' + name)
+        pl.value(t, 'IntValue', 'Color', color)
+        H = 46
+        pl.part((x, H / 2, z), (22, H, 22), color, 'Keep', t, surface=SMOOTH)
+        pl.part((x, H + 0.5, z), (28, 1, 28), color, 'Top', t)
+        for dx, dz in ((-13, 0), (13, 0), (0, -13), (0, 13)):
+            w = (2, 3, 28) if dx else (28, 3, 2)
+            pl.part((x + dx, H + 2.5, z + dz), w, color, 'Battlement', t)
+        # stairs spiralling up the outside
+        for i in range(23):
+            a = math.radians(i * 32)
+            pl.part((x + math.cos(a) * 14.5, 1 + i * 2, z + math.sin(a) * 14.5), (6, 1, 6), color, 'Stair', t, r=(0, -i * 32, 0))
+        pl.part((x, H + 1.2, z), (6, 0.4, 6), color, 'Spawn', t, cls='SpawnLocation', mat='smooth', surface=SMOOTH)
+        pl.part((x + (12 if x < 0 else -12), 1, z), (3, 2, 3), color, 'BotSpawn', t, transparency=1, collide=False)
+    # cover in the middle
+    mid = pl.model('Middle')
+    pl.part((0, 3, 0), (14, 6, 14), 1002, 'Rocks', mid, mat='slate', surface=SMOOTH)
+    for (x, z) in ((-25, 0), (25, 0), (0, -25), (0, 25)):
+        pl.part((x, 2, z), (8, 4, 2), 192, 'Wall', mid, mat='planks', r=(0, 45 if x else -45, 0), surface=SMOOTH)
+    pl.script('BattleScript', game_script('npc', 'towers'))
+    pl.save()
+
+
+# ------------------------------------------------------------------------------------------
+# Sword Clash Arena: a round stone ring over lava, challengers come in through a gate.
+def sword_clash_arena():
+    pl = Place('sword-clash-arena')
+    pl.lighting(time='20:00:00', ambient=(0.5, 0.4, 0.38), fog_end=600, fog=(0.3, 0.12, 0.08))
+    a = pl.model('Arena')
+    pl.part((0, -6, 0), (400, 2, 400), LAVA, 'Lava', a, mat='neon', surface=SMOOTH)
+    pl.part((0, -1, 0), (2, 70, 70), 1002, 'Ring', a, mat='cobblestone', shape='cyl', r=(0, 0, 90), surface=SMOOTH)
+    pl.part((0, 0.05, 0), (0.2, 20, 20), 21, 'Center', a, mat='smooth', shape='cyl', r=(0, 0, 90), surface=SMOOTH)
+    for i in range(16):
+        ang = math.radians(i * 22.5)
+        pl.part((math.cos(ang) * 37, 6, math.sin(ang) * 37), (3, 14, 3), 1002, 'Pillar', a, mat='marble', surface=SMOOTH)
+        pl.part((math.cos(ang) * 37, 13.6, math.sin(ang) * 37), (2.4, 2.4, 2.4), 1004, 'Torch', a, mat='neon', shape='ball', surface=SMOOTH)
+    pl.part((0, 0.5, -30), (8, 1, 6), 26, 'Gate', a, mat='metal', surface=SMOOTH)
+    pl.part((0, 0.5, 28), (8, 0.4, 8), 23, 'Spawn', cls='SpawnLocation', mat='smooth', surface=SMOOTH)
+    pl.script('ArenaScript', game_script('npc', 'arena'))
+    pl.save()
+
+
+# ------------------------------------------------------------------------------------------
+# Cellblock Breakout: cells, a tunnel, the guard room, the yard and the wall.
+def cellblock_breakout():
+    pl = Place('cellblock-breakout')
+    pl.lighting(ambient=(0.5, 0.5, 0.52))
+    m = pl.model('Prison')
+    pl.part((20, -1, -20), (240, 2, 240), 37, 'Ground', m, mat='grass', surface=SMOOTH)
+    # cell block: x -40..40, z -20..20; cells along the north side (z 10..20)
+    pl.part((0, 0.05, 0), (80, 0.2, 40), 1002, 'Floor', m, mat='concrete', surface=SMOOTH)
+    walls(pl, m, -40, 40, -20, 20, 12, 1001, mat='concrete', gaps=[('n', -6, 5)])
+    for i in range(6):
+        cx = -30 + i * 12
+        pl.part((cx - 6, 6, 15), (1, 12, 10), 1001, 'CellWall', m, mat='concrete', surface=SMOOTH)
+        for b in range(9):
+            pl.part((cx - 4.5 + b * 1.1, 6, 10), (0.3, 12, 0.3), 199, 'Bars', m, mat='metal', surface=SMOOTH)
+        pl.part((cx, 6, 10), (12, 0.5, 0.5), 199, 'BarTop', m, mat='metal', surface=SMOOTH)
+        pl.part((cx + 3.5, 1, 17), (4, 2, 6), 21 if i != 2 else 106, 'Bed', m, mat='fabric', surface=SMOOTH)
+    pl.part((36 - 6, 6, 15), (1, 12, 10), 1001, 'CellWall', m, mat='concrete', surface=SMOOTH)
+    # my cell is the third one (x -12..0... centred at -6)
+    cx = -30 + 2 * 12
+    pl.part((cx - 2, 0.3, 14), (4, 0.4, 4), 106, 'CellSpawn', m, cls='SpawnLocation', mat='smooth', surface=SMOOTH)
+    pl.part((cx + 3.5, 2.3, 18), (0.4, 0.4, 1.6), 199, 'Spoon', m, mat='metal', collide=False)
+    pl.part((cx, 3.5, 20), (5, 7, 2.4), 1001, 'LooseWall', m, mat='concrete', surface=SMOOTH)
+    pl.part((cx + 1, 4, 18.9), (1.5, 2.5, 0.1), 26, 'Crack', m, mat='smooth', collide=False, surface=SMOOTH)
+    # tunnel behind the cells: z 21..27, from the loose wall east to the guard room
+    pl.part((cx + 24, 0.05, 24), (52, 0.2, 6), 192, 'TunnelFloor', m, mat='slate', surface=SMOOTH)
+    pl.part((cx + 24, 5, 27.5), (52, 10, 1), 1030, 'TunnelWall', m, mat='slate', surface=SMOOTH)
+    pl.part((cx + 24, 10.5, 24), (52, 1, 8), 1030, 'TunnelRoof', m, mat='slate', surface=SMOOTH)
+    pl.part((43, 5, 20.5), (6, 10, 1), 1030, 'TunnelWall', m, mat='slate', surface=SMOOTH)
+    pl.part((cx - 2.5, 5, 24), (1, 10, 6), 1030, 'TunnelEnd', m, mat='slate', surface=SMOOTH)
+    # guard room: x 46..76, z -10..27
+    walls(pl, m, 46, 76, -10, 27, 12, 23, mat='concrete', gaps=[('w', 24, 6), ('s', 61, 6)])
+    pl.part((61, 0.05, 8.5), (30, 0.2, 37), 194, 'GuardFloor', m, mat='concrete', surface=SMOOTH)
+    pl.part((70, 1.75, 0), (6, 3.5, 3), 192, 'Desk', m, mat='wood', surface=SMOOTH)
+    pl.part((70, 3.6, 0), (1, 0.15, 0.7), 24, 'Keycard', m, mat='neon', collide=False)
+    for (x, z) in ((52, 20), (68, 20)):
+        pl.part((x, 3, z), (3, 6, 6), 199, 'Locker', m, mat='metal', surface=SMOOTH)
+    pl.part((61, 5, -10), (6, 10, 1), 1004, 'SecurityDoor', m, mat='metal', surface=SMOOTH)
+    for i, (x, z) in enumerate(((52, 15), (70, 15), (70, -5), (52, -5))):
+        pl.part((x, 1, z), (1, 1, 1), 23, 'GuardPostA%d' % (i + 1), m, transparency=1, collide=False)
+    # corridor patrol inside the cell block
+    for i, (x, z) in enumerate(((-34, 0), (34, 0))):
+        pl.part((x, 1, z), (1, 1, 1), 23, 'GuardPostC%d' % (i + 1), m, transparency=1, collide=False)
+    pl.part((0, 1, -2), (1, 1, 1), 23, 'CorridorMark', m, transparency=1, collide=False)
+    # yard: x 30..96, z -70..-10 with the outer wall at z -70
+    walls(pl, m, 30, 96, -70, -10, 16, 1002, mat='brick', gaps=[('n', 61, 8)])
+    for i, (x, z) in enumerate(((40, -20), (88, -20), (88, -60), (40, -60))):
+        pl.part((x, 1, z), (1, 1, 1), 23, 'GuardPostB%d' % (i + 1), m, transparency=1, collide=False)
+    pl.part((50, 0.6, -40), (20, 1.2, 12), 1003, 'Court', m, mat='concrete', surface=SMOOTH)
+    pl.part((44, 5, -40), (0.5, 10, 0.5), 199, 'Hoop', m, mat='metal', surface=SMOOTH)
+    pl.part((90, 8, -16), (6, 16, 6), 1002, 'WatchTower', m, mat='brick', surface=SMOOTH)
+    # the way over: crates stacked by the wall in a corner
+    for (x, z, h) in ((88, -56, 4), (84, -62, 8), (90, -64, 12), (86, -67, 16)):
+        pl.part((x, h / 2, z), (5, h, 5), 192, 'Crate', m, mat='planks', surface=SMOOTH)
+    pl.part((61, 0.2, -100), (80, 0.4, 40), 37, 'Freedom', m, mat='grass', surface=SMOOTH)
+    pl.part((61, 6, -120), (20, 0.5, 6), 24, 'Sign', m, mat='smooth', surface=SMOOTH)
+    pl.script('PrisonScript', game_script('npc', 'prison'))
+    pl.save()
+
+
+# ------------------------------------------------------------------------------------------
+# Tycoons: a plot with a conveyor into a collector; buttons buy droppers, upgraders and the building.
+def tycoon(file, name, theme):
+    pl = Place(file)
+    pl.lighting(ambient=(0.55, 0.55, 0.58))
+    t = pl.model('Tycoon')
+    items = pl.model('Items', t)
+    buttons = pl.model('Buttons', t)
+    floor_c, wall_c, accent = theme['floor'], theme['wall'], theme['accent']
+    pl.part((0, -1, 0), (300, 2, 300), 37, 'Grass', mat='grass', surface=SMOOTH)
+    pl.part((0, 0.1, 0), (70, 0.2, 60), floor_c, 'Plot', t, mat=theme.get('floor_mat', 'concrete'), surface=SMOOTH)
+    # conveyor along +x into the collector
+    pl.part((-4, 1, 0), (44, 1, 5), 26, 'Conveyor', t, mat='metal', surface=SMOOTH, velocity=(9, 0, 0))
+    pl.part((-4, 1.6, 2.8), (44, 1.2, 0.6), 199, 'Rail', t, mat='metal', surface=SMOOTH)
+    pl.part((-4, 1.6, -2.8), (44, 1.2, 0.6), 199, 'Rail', t, mat='metal', surface=SMOOTH)
+    pl.part((20.5, 1.5, 0), (5, 2, 6), accent, 'Collector', t, mat='neon', surface=SMOOTH)
+    pl.part((0, 0.4, -22), (6, 0.4, 6), accent, 'Spawn', t, cls='SpawnLocation', mat='smooth', surface=SMOOTH)
+    # what you can buy: (key, label, price, needs, builder)
+    def dropper(x, worth, rate, color):
+        def build(pl_, m):
+            d = pl.part((x, 9.5, 0), (3, 3, 3), color, 'Dropper', m, mat='metal', surface=SMOOTH)
+            pl.value(d, 'IntValue', 'Worth', worth)
+            pl.value(d, 'NumberValue', 'Rate', rate)
+            pl.part((x, 11.6, 0), (2, 1.2, 2), accent, 'Hopper', m, mat='neon', surface=SMOOTH)
+            for dz in (-3, 3):
+                pl.part((x, 5.5, dz), (1, 11, 1), 199, 'Leg', m, mat='metal', surface=SMOOTH)
+            pl.part((x, 11, 0), (1, 1, 7), 199, 'Beam', m, mat='metal', surface=SMOOTH)
+        return build
+    def upgrader(x, mult):
+        def build(pl_, m):
+            u = pl.part((x, 3, 0), (1, 3.5, 5), accent, 'Upgrader', m, mat='neon', transparency=0.4, collide=False, surface=SMOOTH)
+            pl.value(u, 'NumberValue', 'Mult', mult)
+            for dz in (-3, 3):
+                pl.part((x, 3, dz), (1.6, 5, 1), wall_c, 'Frame', m, mat='metal', surface=SMOOTH)
+            pl.part((x, 5.8, 0), (1.6, 1, 7), wall_c, 'Frame', m, mat='metal', surface=SMOOTH)
+        return build
+    def wall(side):
+        def build(pl_, m):
+            if side == 'back':
+                pl.part((0, 7, 30), (70, 14, 2), wall_c, 'Wall', m, mat=theme.get('wall_mat', 'brick'), surface=SMOOTH)
+            elif side == 'left':
+                pl.part((-35, 7, 0), (2, 14, 60), wall_c, 'Wall', m, mat=theme.get('wall_mat', 'brick'), surface=SMOOTH)
+            else:
+                pl.part((35, 7, 0), (2, 14, 60), wall_c, 'Wall', m, mat=theme.get('wall_mat', 'brick'), surface=SMOOTH)
+        return build
+    def roof(pl_, m):
+        pl.part((0, 14.5, 0), (72, 1, 62), wall_c, 'Roof', m, mat='slate', surface=SMOOTH)
+    def sign(pl_, m):
+        pl.part((0, 20, 30), (40, 8, 1), accent, 'Sign', m, mat='neon', surface=SMOOTH)
+    extras = theme['extras']
+    shop = [
+        ('dropper1', theme['d'][0], 0, '', dropper(-22, 2, 1.5, theme['dc'][0])),
+        ('dropper2', theme['d'][1], 25, 'dropper1', dropper(-16, 4, 1.5, theme['dc'][1])),
+        ('wall_back', 'Back Wall', 60, 'dropper1', wall('back')),
+        ('dropper3', theme['d'][2], 150, 'dropper2', dropper(-10, 10, 1.4, theme['dc'][2])),
+        ('upgrader1', theme['u'][0], 300, 'dropper3', upgrader(6, 2)),
+        ('wall_left', 'Left Wall', 350, 'wall_back', wall('left')),
+        ('dropper4', theme['d'][3], 800, 'upgrader1', dropper(-4, 25, 1.3, theme['dc'][3])),
+        ('wall_right', 'Right Wall', 900, 'wall_left', wall('right')),
+        ('dropper5', theme['d'][4], 2500, 'dropper4', dropper(2, 60, 1.2, theme['dc'][4])),
+        ('upgrader2', theme['u'][1], 5000, 'dropper5', upgrader(12, 3)),
+        ('roof', 'Roof', 8000, 'wall_right', roof),
+        ('extra1', extras[0][0], 12000, 'upgrader2', extras[0][1]),
+        ('sign', 'Big Sign', 20000, 'roof', sign),
+        ('extra2', extras[1][0], 40000, 'extra1', extras[1][1]),
+    ]
+    for i, (key, label, price, needs, build) in enumerate(shop):
+        m = pl.model(key, items)
+        build(pl, m)
+        row, col = divmod(i, 7)
+        b = pl.part((-27 + col * 9, 0.45, -10 - row * 7), (4, 0.5, 4), 37 if price == 0 else 1020, 'Button', buttons, mat='neon', surface=SMOOTH)
+        pl.value(b, 'StringValue', 'Item', key)
+        pl.value(b, 'IntValue', 'Price', price)
+        pl.value(b, 'StringValue', 'Needs', needs)
+        pl.value(b, 'StringValue', 'Label', label)
+    table = '{ name = "%s", money = "Cash", block = { %d, "%s", %s } }' % (name, theme['block'][0], theme['block'][1], theme['block'][2])
+    pl.script('TycoonScript', game_script() + '\nTYCOON = ' + table + '\n' + open(os.path.join(HERE, 'games', 'tycoon.lua')).read())
+    pl.save()
+
+
+def burger_tycoon():
+    def tables(pl, m):
+        for (x, z) in ((-24, 18), (-14, 18), (24, -20), (24, 18)):
+            pl.part((x, 3, z), (0.4, 5, 5), 1001, 'Table', m, shape='cyl', r=(0, 0, 90), surface=SMOOTH)
+            for dx in (-3.5, 3.5):
+                pl.part((x + dx, 1.3, z), (2, 0.5, 2), 21, 'Chair', m, cls='Seat', mat='smooth', surface=SMOOTH)
+    def mascot(pl, m):
+        pl.part((26, 6, 22), (4, 12, 4), 24, 'Statue', m, mat='foil', surface=SMOOTH)
+        pl.part((26, 13.5, 22), (6, 3, 6), 192, 'BurgerTop', m, shape='ball', surface=SMOOTH)
+    tycoon('burger-tycoon', 'Burger Tycoon', {
+        'floor': 1001, 'floor_mat': 'marble', 'wall': 21, 'wall_mat': 'brick', 'accent': 24, 'block': (192, 'SmoothPlastic', 1.2),
+        'd': ['Patty Grill', 'Bun Toaster', 'Cheese Melter', 'Fry Cooker', 'Shake Machine'],
+        'dc': [199, 192, 24, 1004, 1032], 'u': ['Sauce Station', 'Golden Wrapper'],
+        'extras': [('Dining Tables', tables), ('Burger Statue', mascot)]})
+
+
+def crystal_mine_tycoon():
+    def carts(pl, m):
+        for i, x in enumerate((-26, -18, -10)):
+            pl.part((x, 1.5, 20), (4, 2.5, 3), 199, 'Cart', m, mat='metal', surface=SMOOTH)
+            pl.part((x, 3, 20), (3, 1, 2), (1032, 1031, 23)[i], 'Gems', m, mat='neon', surface=SMOOTH)
+        pl.part((-18, 0.3, 20), (30, 0.2, 1), 192, 'Track', m, mat='wood', surface=SMOOTH)
+    def drill(pl, m):
+        pl.part((26, 8, 20), (6, 16, 6), 199, 'Drill', m, mat='diamond', surface=SMOOTH)
+        pl.part((26, 17, 20), (4, 4, 4), 1032, 'Core', m, mat='neon', shape='ball', surface=SMOOTH)
+    tycoon('crystal-mine-tycoon', 'Crystal Mine Tycoon', {
+        'floor': 1030, 'floor_mat': 'slate', 'wall': 1002, 'wall_mat': 'slate', 'accent': 1032, 'block': (1032, 'Neon', 1),
+        'd': ['Pickaxe Rig', 'Stone Crusher', 'Gem Drill', 'Laser Cutter', 'Mega Excavator'],
+        'dc': [194, 1002, 23, 21, 26], 'u': ['Polisher', 'Crystal Enchanter'],
+        'extras': [('Mine Carts', carts), ('Giant Drill', drill)]})
+
+
+# ------------------------------------------------------------------------------------------
+# Themed obbies (the Rainbow Obby's stages in other colors, materials and orders)
+def shuffled_order(seed, n):
+    r = random.Random(seed)
+    out, last = [], None
+    while len(out) < n:
+        k = r.randrange(14)
+        if k != last:
+            out.append(k)
+            last = k
+    return out
+
+
+def themed_obbies():
+    rainbow_obby('mega-obby', 'the Mega Obby', RAINBOW, seed=31, count=60, order=shuffled_order(31, 60))
+    rainbow_obby('ice-cave-obby', 'the Ice Cave Obby', [1, 1019, 1013, 23, 102, 11, 1024], seed=41, count=30, mat='ice',
+                 light={'ambient': (0.55, 0.62, 0.7), 'fog_end': 700, 'fog': (0.72, 0.85, 0.95)}, ground=1, order=shuffled_order(41, 30))
+    rainbow_obby('neon-night-obby', 'the Neon Night Obby', [1032, 1031, 1020, 1009, 1010, 1004, 1019], seed=51, count=30, mat='neon',
+                 light={'time': '00:00:00', 'ambient': (0.3, 0.3, 0.4), 'fog_end': 900, 'fog': (0.05, 0.05, 0.12)}, ground=26, order=shuffled_order(51, 30))
+    rainbow_obby('candy-land-obby', 'Candy Land Obby', [1016, 1024, 1025, 1026, 1027, 1028, 1029], seed=61, count=30, mat='smooth',
+                 light={'ambient': (0.62, 0.55, 0.6)}, ground=1016, order=shuffled_order(61, 30))
+    rainbow_obby('volcano-obby', 'the Volcano Obby', [1004, 21, 105, 199, 26, 1014], seed=71, count=30, mat='slate',
+                 light={'time': '17:40:00', 'ambient': (0.6, 0.42, 0.36), 'fog_end': 800, 'fog': (0.45, 0.2, 0.12)}, ground=26,
+                 order=shuffled_order(71, 30))
+
+
+# ------------------------------------------------------------------------------------------
+# Rising Tide: a lobby and three flooding maps of three floors each; buttons open hatches upward.
+def rising_tide():
+    pl = Place('rising-tide')
+    pl.lighting(ambient=(0.52, 0.55, 0.6))
+    lobby = pl.model('Lobby')
+    pl.part((0, -1, -120), (60, 2, 60), 1, 'LobbyFloor', lobby, mat='marble', surface=SMOOTH)
+    pl.part((0, 0.3, -120), (8, 0.4, 8), 23, 'Spawn', lobby, cls='SpawnLocation', mat='smooth', surface=SMOOTH)
+    walls(pl, lobby, -30, 30, -150, -90, 8, 1002, mat='marble')
+    themes = [('Sunken Temple', 1030, 'slate', 24), ('Old Shipyard', 192, 'planks', 21), ('Waterworks', 199, 'metal', 1019)]
+    for k, (title, color, mat, button_color) in enumerate(themes):
+        cx = k * 120
+        m = pl.model('Map_' + title.replace(' ', ''))
+        pl.value(m, 'StringValue', 'Title', title)
+        W, D, FH = 50, 30, 20
+        walls(pl, m, cx - W / 2, cx + W / 2, -D / 2, D / 2, FH * 3 + 6, color, mat=mat)
+        pl.part((cx, -1, 0), (W, 2, D), color, 'Floor', m, mat=mat, surface=SMOOTH)
+        pl.part((cx - 18, 0.3, 0), (6, 0.4, 6), 37, 'Start', m, mat='smooth', surface=SMOOTH)
+        for f in range(3):
+            y = f * FH
+            hole_x = cx + (18 if f % 2 == 0 else -18)
+            # the ceiling of this floor, with a hatch over a hole at one end
+            if f < 2:
+                yy = y + FH
+                left, right = cx - W / 2, cx + W / 2
+                h0, h1 = hole_x - 4, hole_x + 4
+                pl.part(((left + h0) / 2, yy, 0), (h0 - left, 1, D), color, 'Ceiling', m, mat=mat, surface=SMOOTH)
+                pl.part(((h1 + right) / 2, yy, 0), (right - h1, 1, D), color, 'Ceiling', m, mat=mat, surface=SMOOTH)
+                gate = pl.part((hole_x, yy, 0), (8, 1, D), 1001, 'Gate%d' % (f + 1), m, mat='metal', surface=SMOOTH)
+                # the button is at the far end from the hole
+                b = pl.part((cx - (hole_x - cx) * 0.9, y + 0.5, 10), (3, 1, 3), 21, 'Button', m, mat='neon', surface=SMOOTH)
+                pl.value(b, 'StringValue', 'Opens', 'Gate%d' % (f + 1))
+                # steps up to the hatch
+                for i in range(6):
+                    pl.part((hole_x + (-1 if hole_x > cx else 1) * (14 - i * 2.6), y + 2 + i * 3.1, -6 + (i % 2) * 6), (4, 1, 4), button_color, 'Step', m)
+            # obstacles on the floor: crates to hop over
+            for i in range(3):
+                pl.part((cx - 10 + i * 10, y + 1.5, -8 + (i % 2) * 16), (4, 3, 4), 192, 'Crate', m, mat='planks', surface=SMOOTH)
+        top_y = FH * 2
+        pl.part((cx + 18, top_y + 0.8, 0), (6, 0.6, 6), 24, 'Exit', m, mat='neon', surface=SMOOTH)
+        w = pl.part((cx, -6, 0), (W - 2, 8, D - 2), 1019, 'Water', m, mat='smooth', transparency=0.35, collide=False, surface=SMOOTH)
+        pl.value(w, 'NumberValue', 'Top', top_y + 6)
+    pl.script('TideScript', game_script('tide'))
+    pl.save()
+
+
 if __name__ == '__main__':
     rainbow_obby()
     sky_tower()
     floor_is_lava()
     speed_run()
     pizza_shift()
+    undead_nights()
+    brick_battle_peaks()
+    sword_clash_arena()
+    cellblock_breakout()
+    burger_tycoon()
+    crystal_mine_tycoon()
+    themed_obbies()
+    rising_tide()

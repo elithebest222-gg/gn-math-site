@@ -63,6 +63,14 @@ do
 			f.ChildRemoved:connect(fn)
 		end)
 	end
+	-- Catalog gear for everyone playing: NET.giveGear("sword") or NET.giveGear("sword,slingshot")
+	-- (sword, slingshot, rocketlauncher, timebomb, superball, paintballgun; kept after respawning)
+	function NET.giveGear(ids)
+		spawn(function()
+			local s = wb("GiveGear", true)
+			if s then s:Fire(ids) end
+		end)
+	end
 	function NET.myId()
 		local v = wb("MyId")
 		return v and v.Value ~= "" and v.Value or "solo"

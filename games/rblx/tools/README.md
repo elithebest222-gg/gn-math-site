@@ -2,7 +2,10 @@
 
 ## GN-BLOX's own games
 
-`build_games.py` builds Rainbow Obby, Sky Tower, The Floor is Lava, Speed Run and Pizza Shift into `../places/`.
+`build_games.py` builds GN-BLOX's own games into `../places/`: Rainbow Obby, Sky Tower, The Floor is Lava,
+Speed Run, Pizza Shift, Undead Nights, Brick Battle Peaks, Sword Clash Arena, Cellblock Breakout, Burger
+Tycoon, Crystal Mine Tycoon, Rising Tide, and the Mega, Ice Cave, Neon Night, Candy Land and Volcano obbies
+(the Rainbow Obby's stage builder with other colors, materials, lighting and stage orders).
 The levels are generated from code (Roblox XML, then `xml2bin.py`), and their behavior comes from the
 Lua in `games/`:
 
@@ -12,6 +15,17 @@ Lua in `games/`:
 - `lava.lua` runs The Floor is Lava's rounds on the multiplayer room's shared clock.
 - `pizza.lua` runs Pizza Shift: customers, the register, dough/topping/oven/box stations (ClickDetectors
   on parts in the `Kitchen` model), the pizza you carry, and Money/Pizzas leaderstats.
+- `common.lua` (helpers: leaderstats, messages, the top bar, sounds) and `npc.lua` (blocky NPCs that
+  walk to the nearest player and hit them, or `hit` does something else, e.g. arrest; they can patrol
+  points; combat gear hurts them) are under the newer games:
+  - `zombies.lua`: Undead Nights' waves (more, tougher zombies; gear unlocks with `NET.giveGear`).
+  - `towers.lua`: Brick Battle Peaks (the whole combat kit; bots from the other towers).
+  - `arena.lua`: Sword Clash Arena (challengers one at a time; win streaks).
+  - `prison.lua`: Cellblock Breakout (spoon → loose wall → keycard → security door → over the yard wall;
+    guards patrol `GuardPost<group><n>` points and send you back to your cell).
+  - `tycoon.lua`: the tycoons (`Items` you buy with `Buttons`; `Dropper` / `Upgrader` parts, `Conveyor`,
+    `Collector`; money and what you own are saved with DataStores on the device).
+  - `tide.lua`: Rising Tide's rounds (water rises; `Button`s open `Gate`s; reach the `Exit`).
 - `net.lua` goes above each of them: `NET.send` / `NET.on`, `NET.set` / `NET.get` / `NET.watch` and
   `NET.toast` (see "Game scripts in multiplayer" below). The obbies tell everyone when someone reaches
   every fifth stage or wins, Speed Run shares the server's record time, The Floor is Lava lists everyone
@@ -23,6 +37,10 @@ python3 build_games.py
 ```
 
 Then add an entry to `GAMES` in `../index.html`, with `../thumbs/<id>.jpg` (300×300) and `<id>-wide.jpg` (640×360).
+
+The home page's "Playing" numbers are real: `liveCounts()` in `../index.html` asks every game's public
+servers how many players they have (one PeerJS connection for all of them, `countRooms` in `../p2p.js`,
+or the multiplayer server's `/rooms`), every minute, and Popular lists the busiest games first.
 
 ## Adding a game
 
@@ -273,6 +291,17 @@ Catalog hats and gear are built from plain parts listed in `../site.js` (`HATS`,
 draws them on the website in 3D (`../avatar3d.js`, three.js) and builds them in games
 (`../scripts/WebBloxPlayers.lua`, which gets it from `../play.html`), so they always match. Gear becomes a
 Tool in your Backpack that changes your speed and/or gravity while you hold it.
+
+Combat gear (`combat` in a `GEAR` entry: the Sword, Slingshot, Rocket Launcher, Time Bomb, Superball and
+Paintball Gun) works in every game. Shots fly in steps along rays (so they look the same in every
+player's copy), explosions hurt humanoids by distance and don't break the map, and hits on a game's own
+NPCs tag them with `creator` like classic gear does. Each player runs their own copy of the game, so
+another player is only a stand-in in yours: the attacker's copy works out the hits, damage to a stand-in
+is sent to that player as a `gn.hit` game message and their copy takes it, and what the attack looks
+like is sent to everyone as `gn.fx`. Damage to a stand-in only counts while you're attacking (you used a
+tool in the last few seconds, or the humanoid carries your `creator` tag), so a game's own gear hits
+other players too, but a stand-in brushing a kill brick in your copy doesn't. The gear a player holds is
+the 19th field of their state, and their stand-in holds it.
 
 ## Animations
 
