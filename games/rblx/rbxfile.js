@@ -789,6 +789,16 @@
       }
       for (const [pn, p] of [...P]) {
         if (pn === 'LinkedSource' && p.t === 1 && p.v.length) { p.v = new Uint8Array(0); bump('linked scripts cleared'); }
+        // rbxassetid://123 -> http://www.roblox.com/asset/?id=123: this engine only fetches the second
+        // kind (as wb-asset/?id=123, the files uploaded with the place). In scripts too, where games
+        // build them as "rbxassetid://" .. id.
+        if (p.t === 1 && p.v && p.v.length > 12) {
+          const text = str(p.v);
+          if (/rbxassetid:\/\//i.test(text) && (pn === 'Source' || /^\s*rbxassetid:\/\//i.test(text))) {
+            p.v = enc.encode(text.replace(/rbxassetid:\/\//gi, 'http://www.roblox.com/asset/?id='));
+            bump(pn === 'Source' ? 'scripts using rbxassetid:// links' : 'rbxassetid:// links');
+          }
+        }
         if (it.cls === 'Lighting' && pn === 'FogEnd' && Number(p.v) <= 0) p.v = 100000;
         let want = expected(it.cls, pn);
         if (safe && !want && pn !== 'Name') { P.delete(pn); continue; }

@@ -36,6 +36,39 @@ function addHeaders(headers) {
   return h;
 }
 
+let assetDb = null;
+function openAssets() {
+  if (!assetDb) assetDb = new Promise((resolve) => {
+    try {
+      const req = indexedDB.open("webblox", 1);
+      req.onupgradeneeded = () => req.result.createObjectStore("files");
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => { assetDb = null; resolve(null); };
+    } catch (err) { assetDb = null; resolve(null); }
+  });
+  return assetDb;
+}
+const assetChan = new BroadcastChannel("gnblox-assets");
+async function serveAsset(url) {
+  const id = (new URL(url).searchParams.get("id") || "").replace(/[^0-9]/g, "");
+  let rec = null;
+  if (id) {
+    const db = await openAssets();
+    if (db) rec = await new Promise((resolve) => {
+      try {
+        const get = db.transaction("files").objectStore("files").get("asset:" + id);
+        get.onsuccess = () => resolve(get.result || null);
+        get.onerror = () => resolve(null);
+      } catch (err) { resolve(null); }
+    });
+  }
+  if (!rec || !rec.bytes) {
+    try { assetChan.postMessage({ missing: id }); } catch (err) {}
+    return new Response("", { status: 404, headers: addHeaders({ "Content-Type": "text/plain", "Cache-Control": "no-store" }) });
+  }
+  return new Response(rec.bytes, { status: 200, headers: addHeaders({ "Content-Type": rec.type || "application/octet-stream", "Cache-Control": "no-store" }) });
+}
+
 self.addEventListener("fetch", (e) => {
   const url = e.request.url;
   if (!url.startsWith(self.location.origin)) return;
@@ -59,6 +92,14 @@ self.addEventListener("fetch", (e) => {
         mpChan.postMessage({ id, url });
       })
     );
+    return;
+  }
+
+  // The game's images, meshes and sounds (rblx.js sends rbxassetid://N and .../asset/?id=N here as
+  // wb-asset/?id=N): the ones uploaded with the place (assets.js keeps them in IndexedDB as asset:N).
+  // A missing one is a 404, and the page hears about it (it tells the player what's missing).
+  if (url.includes("/wb-asset/")) {
+    e.respondWith(serveAsset(url));
     return;
   }
 

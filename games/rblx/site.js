@@ -278,7 +278,7 @@
     </aside>
     <div class="scrim" onclick="document.body.classList.remove('nav-open')"></div>
     <div class="confirm launch" id="launch"><div class="box"><div class="spinner"></div><h3>GN-BLOX is now loading.</h3><p>Get ready to play!</p></div></div>
-    <input type="file" id="rbxl" accept=".rbxl,.rbxlx,.rbxm,.rbxmx" hidden />`;
+    <input type="file" id="rbxl" accept=".rbxl,.rbxlx,.rbxm,.rbxmx,.zip,.mesh,.obj,image/*,audio/*,.ogg,.mp3,.wav" multiple hidden />`;
     document.body.insertAdjacentHTML('afterbegin', html);
     document.getElementById('who').textContent = WB.displayName();
     WB.updateRobux();
@@ -410,10 +410,30 @@
   };
 
   // Uploaded places go through IndexedDB: sessionStorage can't hold files bigger than a few MB.
+  // The place can come with its images, meshes and sounds: pick them together, or a .zip of them
+  // all, each named with its asset id (assets.js; the game gets them from the service worker).
   WB.pickPlace = function () { document.body.classList.remove('nav-open'); document.getElementById('rbxl').click(); };
+  const loadScript = src => new Promise((resolve, reject) => { const s = document.createElement('script'); s.src = src; s.onload = resolve; s.onerror = reject; document.head.appendChild(s); });
   async function uploadPlace(e) {
-    const f = e.target.files[0]; if (!f) return;
-    const buf = await f.arrayBuffer();
+    const files = [...e.target.files];
+    e.target.value = '';
+    if (!files.length) return;
+    let place = null, assets = [], skipped = [];
+    const onlyPlace = files.length === 1 && /\.(rbxl|rbxlx|rbxm|rbxmx)$/i.test(files[0].name);
+    try {
+      if (onlyPlace) place = { name: files[0].name, bytes: new Uint8Array(await files[0].arrayBuffer()) };
+      else {
+        if (!window.GNAssets) await loadScript('assets.js');
+        ({ place, assets, skipped } = await GNAssets.sort(files));
+      }
+    } catch (err) {
+      alert('Could not read those files: ' + (err.message || err));
+      return;
+    }
+    if (!place) {
+      alert('Pick the place file (.rbxl or .rbxlx) too, together with its images, meshes and sounds (or put them all in a .zip).');
+      return;
+    }
     try {
       await new Promise((resolve, reject) => {
         const req = indexedDB.open('webblox', 1);
@@ -421,15 +441,24 @@
         req.onerror = () => reject(req.error);
         req.onsuccess = () => {
           const tx = req.result.transaction('files', 'readwrite');
-          tx.objectStore('files').put(buf, 'upload');
+          const st = tx.objectStore('files');
+          st.put(place.bytes.buffer.slice(place.bytes.byteOffset, place.bytes.byteOffset + place.bytes.byteLength), 'upload');
+          // a new game: the last one's assets go
+          st.delete(IDBKeyRange.bound('asset:', 'asset:\uffff'));
           tx.oncomplete = resolve; tx.onerror = () => reject(tx.error);
         };
       });
+      if (assets.length) await GNAssets.store(assets);
     } catch (err) {
       alert('Could not open that file in this browser (storage is blocked or full).');
       return;
     }
-    WB.launch('play.html?custom=1&title=' + encodeURIComponent(f.name.replace(/\.rbx[lm]x?$/i, '')));
+    if (skipped.length) {
+      const list = skipped.slice(0, 12).join('\n') + (skipped.length > 12 ? '\n...and ' + (skipped.length - 12) + ' more' : '');
+      alert((assets.length ? assets.length + ' asset' + (assets.length === 1 ? '' : 's') + ' added. ' : '') + 'These files were left out:\n\n' + list +
+        '\n\nAsset files need the asset id in their name, like 123456.png, and have to be an image, a mesh (.mesh or .obj) or a sound.');
+    }
+    WB.launch('play.html?custom=1&title=' + encodeURIComponent(place.name.replace(/\.rbx[lm]x?$/i, '')));
   }
 
   window.WB = WB;
