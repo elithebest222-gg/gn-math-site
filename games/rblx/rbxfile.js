@@ -955,7 +955,11 @@
         const r = resolve(it.get('Image'));
         if (r === null) {
           const text = lower(it) + ' ' + lower(it.parent);
-          const icon = pick(ICON_WORDS, text) || (it.cls === 'ImageButton' || /bg|background|button|frame|panel|bar/.test(text) ? 'panel' : null);
+          // a big image is a background or a picture, not an icon: only backgrounds get a panel
+          const [w, h] = guiSize(it);
+          const big = w > 220 || h > 220;
+          const icon = big ? (/bg|background|panel|frame/.test(text) ? 'panel' : null)
+            : pick(ICON_WORDS, text) || (it.cls === 'ImageButton' || /bg|background|button|frame|panel|bar/.test(text) ? 'panel' : null);
           if (icon) { setContent(it, 'Image', standinUrl(icon)); bump('UI images given GN-BLOX icons'); }
         }
       }
@@ -982,6 +986,19 @@
       }
       if ((it.cls === 'Tool' || it.cls === 'HopperBin')) gearStandIn(it, resolve, bump);
     }
+  }
+  // about how big a GUI object is on a 1000 x 600 screen (UDim2 sizes are [xScale, xOffset, yScale, yOffset])
+  function guiSize(it) {
+    const sz = it.get('Size');
+    if (!Array.isArray(sz) || sz.length < 4) return [100, 100];
+    let pw = 1000, ph = 600;
+    const p = it.parent;
+    if (p && /^(Frame|ImageLabel|ImageButton|TextButton|TextLabel|ScrollingFrame|TextBox|BillboardGui|SurfaceGui)$/.test(p.cls)) {
+      if (p.cls === 'BillboardGui') { const s2 = p.get('Size'); pw = Array.isArray(s2) ? s2[1] || 200 : 200; ph = Array.isArray(s2) ? s2[3] || 200 : 200; }
+      else if (p.cls === 'SurfaceGui') { pw = 800; ph = 600; }
+      else [pw, ph] = guiSize(p);
+    }
+    return [Math.abs(sz[0] * pw + sz[1]), Math.abs(sz[2] * ph + sz[3])];
   }
   function gearStandIn(tool, resolve, bump) {
     const handle = tool.children.find(c => c.name === 'Handle' && c.cls !== 'Model');

@@ -71,6 +71,16 @@ That also rewrites the few 2017+ script calls the 2016 engine doesn't have (`com
 and `BindToClose` become small stand-ins at the top of the script, and loading screens that wait for
 `ContentProvider.RequestQueueSize` (downloads from Roblox, which never come) see 0.
 
+Missing assets get GN-BLOX stand-ins (`standIns` in `../rbxfile.js`): images Roblox hosts can't be
+downloaded here, so tools get GN-BLOX gear built from parts inside their handle (sword, gun, rocket
+launcher, slingshot, trowel, bomb, ball, coil, skateboard, trophy, potion) and an icon, small UI images
+get an icon picked from their name (shop, coins, wins, settings, music, close...) and buttons a
+background, faces / particles / daytime skies get GN-BLOX ones, and sounds get the engine's own sounds by
+name. rbxasset:// paths get the engine's capitals (`Textures/` -> `textures/`), `.wav` sounds the `.mp3`
+of the same name, and MeshParts (which the engine doesn't have) become Parts. The stand-in images are
+drawn by `build_standins.py` into `../game-assets/<id>.png` (ids from 9100000001), which the service
+worker serves. Anything uploaded with the place is used instead.
+
 Games that need two or more real players in one server (Murder Mystery 2, for example) won't start a
 round here: each player runs their own copy of the game, and the others are only stand-ins in it.
 
