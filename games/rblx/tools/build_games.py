@@ -807,15 +807,15 @@ def tycoon(file, name, theme):
         pl.part((0, 20, 30), (40, 8, 1), accent, 'Sign', m, mat='neon', surface=SMOOTH)
     extras = theme['extras']
     shop = [
-        ('dropper1', theme['d'][0], 0, '', dropper(-22, 1, 2, theme['dc'][0])),
-        ('dropper2', theme['d'][1], 25, 'dropper1', dropper(-16, 2, 1.8, theme['dc'][1])),
+        ('dropper1', theme['d'][0], 0, '', dropper(-22, 2, 1.5, theme['dc'][0])),
+        ('dropper2', theme['d'][1], 25, 'dropper1', dropper(-16, 4, 1.5, theme['dc'][1])),
         ('wall_back', 'Back Wall', 60, 'dropper1', wall('back')),
-        ('dropper3', theme['d'][2], 150, 'dropper2', dropper(-10, 5, 1.6, theme['dc'][2])),
+        ('dropper3', theme['d'][2], 150, 'dropper2', dropper(-10, 10, 1.4, theme['dc'][2])),
         ('upgrader1', theme['u'][0], 300, 'dropper3', upgrader(6, 2)),
         ('wall_left', 'Left Wall', 350, 'wall_back', wall('left')),
-        ('dropper4', theme['d'][3], 800, 'upgrader1', dropper(-4, 12, 1.5, theme['dc'][3])),
+        ('dropper4', theme['d'][3], 800, 'upgrader1', dropper(-4, 25, 1.3, theme['dc'][3])),
         ('wall_right', 'Right Wall', 900, 'wall_left', wall('right')),
-        ('dropper5', theme['d'][4], 2500, 'dropper4', dropper(2, 30, 1.4, theme['dc'][4])),
+        ('dropper5', theme['d'][4], 2500, 'dropper4', dropper(2, 60, 1.2, theme['dc'][4])),
         ('upgrader2', theme['u'][1], 5000, 'dropper5', upgrader(12, 3)),
         ('roof', 'Roof', 8000, 'wall_right', roof),
         ('extra1', extras[0][0], 12000, 'upgrader2', extras[0][1]),
