@@ -9,6 +9,9 @@ const fs = require('fs');
 const path = require('path');
 global.fzstd = require(path.join(__dirname, '..', 'vendor', 'fzstd.js'));
 const R = require(path.join(__dirname, '..', 'rbxfile.js'));
+// newer games' scripts (Luau) are converted too, with the GN-BLOX library for them
+const GNLuau = require(path.join(__dirname, '..', 'luau.js'));
+const compat = fs.readFileSync(path.join(__dirname, '..', 'scripts', 'GNCompat.lua'), 'utf8');
 
 const [input, output] = process.argv.slice(2);
 if (!input || !output) {
@@ -22,7 +25,7 @@ const have = new Set();
 for (const dir of [['catalog', 'assets'], ['game-assets']]) {
   try { for (const f of fs.readdirSync(path.join(__dirname, '..', ...dir))) { const m = /^(\d+)\./.exec(f); if (m) have.add(m[1]); } } catch (e) { /* none */ }
 }
-const notes = R.toEngine(doc, typemap, { have });
+const notes = R.toEngine(doc, typemap, { have, compat, luau: GNLuau.GNLuau || GNLuau });
 const out = R.write(doc);
 fs.writeFileSync(output, out);
 console.log(path.basename(input) + ': ' + doc.format + ', ' + doc.insts.length + ' objects -> ' + out.length + ' bytes' + (notes.length ? '\n  ' + notes.join('\n  ') : ''));

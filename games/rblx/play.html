@@ -13,6 +13,7 @@
   <script src="p2p.js"></script>
   <script src="vendor/fzstd.js"></script>
   <script src="rbxfile.js"></script>
+  <script src="luau.js"></script>
   <script src="webapi.js"></script>
   <script src="touch.js"></script>
   <style>
@@ -85,7 +86,7 @@
     try { Object.defineProperty(navigator, 'hardwareConcurrency', { get: () => 32 }); } catch (e) {}
 
     (async function () {
-      const VERSION = '53';                       // bump when rblx.js / rblx.wasm change
+      const VERSION = '54';                       // bump when rblx.js / rblx.wasm change
       const CHUNKS = 12, CHUNK_SIZE = 25165824, DATA_SIZE = 289418733;
       const $ = id => document.getElementById(id);
       const canvas = $('canvas'), loading = $('loading');
@@ -492,11 +493,15 @@
       // their Zstd chunks, exact part colors, 64-bit numbers, WeldConstraints and so on converted.
       async function convertUpload(bytes) {
         try {
-          const typemap = await (await fetch('tools/typemap.json?v=' + VERSION)).json();
+          const [typemap, compat] = await Promise.all([
+            fetch('tools/typemap.json?v=' + VERSION).then(r => r.json()),
+            // newer games' scripts are converted (luau.js) and get this library (see scripts/GNCompat.lua)
+            fetch('scripts/GNCompat.lua?v=' + VERSION).then(r => r.ok ? r.text() : null).catch(() => null),
+          ]);
           const t0 = performance.now();
           const doc = RBXFile.read(bytes);
           const have = await uploadedAssetIds();
-          const notes = RBXFile.toEngine(doc, typemap, { safe: params.has('safe'), have });
+          const notes = RBXFile.toEngine(doc, typemap, { safe: params.has('safe'), have, compat });
           const out = RBXFile.write(doc);
           console.log('GN-BLOX: converted the place (' + doc.format + ', ' + doc.insts.length + ' objects, ' +
             Math.round(performance.now() - t0) + ' ms' + (params.has('safe') ? ', safe mode' : '') + ')' + (notes.length ? ': ' + notes.join('; ') : ''));

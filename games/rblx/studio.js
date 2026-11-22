@@ -1508,7 +1508,7 @@
     try {
       const bytes = new Uint8Array(await file.arrayBuffer());
       const d = R.read(bytes);
-      const notes = R.toEngine(d, TYPEMAP);
+      const notes = R.toEngine(d, TYPEMAP, { modern: false });
       loadDoc(d, file.name.replace(/\.rbx[lm]x?$/i, ''));
       log(`Opened ${file.name} (${d.insts.length} objects${d.format === 'xml' ? ', XML' : ''})`, 'info');
       for (const n of notes) log('  ' + n);
@@ -1595,7 +1595,7 @@
       if (k === 'open') { $('open-file').click(); d.remove(); return; }
       d.remove();
       if (k === 'continue') {
-        try { const dd = R.read(new Uint8Array(saved.bytes)); R.toEngine(dd, TYPEMAP); loadDoc(dd, saved.name); log('Opened ' + saved.name + ' (kept in this browser)', 'info'); }
+        try { const dd = R.read(new Uint8Array(saved.bytes)); R.toEngine(dd, TYPEMAP, { modern: false }); loadDoc(dd, saved.name); log('Opened ' + saved.name + ' (kept in this browser)', 'info'); }
         catch (err) { log('Couldn\'t restore the last place: ' + err.message, 'err'); loadDoc(newPlace('baseplate'), 'Place1'); }
       } else { loadDoc(newPlace(k), k === 'baseplate' ? 'Place1' : k === 'grass' ? 'Grass Place' : 'Classic Place'); log('New place', 'info'); autosave(); }
     });
