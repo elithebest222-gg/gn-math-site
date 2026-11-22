@@ -357,6 +357,8 @@ local function shoot(spec, origin, vel, color, real, ignoreModel)
 				table.insert(ignore, hit)
 				hit, at, normal = workspace:FindPartOnRayWithIgnoreList(Ray.new(pos, step), ignore)
 			end
+			-- (a ray that starts inside a part can report a hit at 0,0,0: then it's where the shot is)
+			if hit and (not at or (at - pos).magnitude > step.magnitude + 2) then at = pos end
 			if hit then
 				local hum = humanoidOf(hit)
 				if hum and not hitOnce[hum] then
@@ -473,7 +475,11 @@ local function useGear(spec, tool)
 		b.Shape = Enum.PartType.Ball
 		b.Size = Vector3.new(2, 2, 2)
 		b.TopSurface, b.BottomSurface = Enum.SurfaceType.Smooth, Enum.SurfaceType.Smooth
-		b.CFrame = CFrame.new(handle.Position + (char:FindFirstChild("HumanoidRootPart") and char.HumanoidRootPart.CFrame.lookVector * 2 or Vector3.new()))
+		local root = char:FindFirstChild("HumanoidRootPart")
+		b.CFrame = CFrame.new(root and (root.Position + root.CFrame.lookVector * 3 - Vector3.new(0, 1.5, 0)) or handle.Position)
+		-- (heavy and grippy, so it stays about where it's dropped)
+		pcall(function() b.CustomPhysicalProperties = PhysicalProperties.new(5, 2, 0, 100, 1) end)
+		b.Velocity = Vector3.new()
 		b.Parent = fxFolder
 		bombAt(b.Position, c, true, b)
 		sendEvent:Fire("gn.fx", "bomb|" .. spec.id .. "|" .. v3s(b.Position))
