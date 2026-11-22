@@ -17,9 +17,11 @@ if (!input || !output) {
 }
 const typemap = JSON.parse(fs.readFileSync(path.join(__dirname, 'typemap.json'), 'utf8'));
 const doc = R.read(new Uint8Array(fs.readFileSync(input)));
-// assets the site has files for (the Catalog's faces, clothes and hat meshes): not missing
+// assets the site has files for (the Catalog's faces, clothes and hat meshes; game-assets/): not missing
 const have = new Set();
-try { for (const f of fs.readdirSync(path.join(__dirname, '..', 'catalog', 'assets'))) { const m = /^(\d+)\./.exec(f); if (m) have.add(m[1]); } } catch (e) { /* none */ }
+for (const dir of [['catalog', 'assets'], ['game-assets']]) {
+  try { for (const f of fs.readdirSync(path.join(__dirname, '..', ...dir))) { const m = /^(\d+)\./.exec(f); if (m) have.add(m[1]); } } catch (e) { /* none */ }
+}
 const notes = R.toEngine(doc, typemap, { have });
 const out = R.write(doc);
 fs.writeFileSync(output, out);
