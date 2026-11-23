@@ -1,4 +1,4 @@
-name: Import WebBloxDemo to games/rblx
+name: Import ro26 to games/ro26
 
 on:
   workflow_dispatch:
@@ -7,7 +7,7 @@ permissions:
   contents: write
 
 jobs:
-  import-webblox:
+  import-ro26:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout your repository
@@ -15,18 +15,36 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Clone WebBloxDemo
-        run: |
-          git clone --depth 1 https://github.com/elithebest222-gg/WebBloxDemo/ temp-repo
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
 
-      - name: Copy Static Files to games/rblx
+      - name: Clone ro26
         run: |
-          mkdir -p games/rblx
-          rsync -av --delete \
-            --exclude='.git' \
-            --exclude='archive' \
-            --exclude='readme.md' \
-            temp-repo/ games/rblx/
+          git clone --depth 1 https://github.com/elithebest222-gg/ro26 temp-repo
+
+      - name: Install and Build ro26 (Local Engine)
+        working-directory: temp-repo
+        run: |
+          npm ci
+          npm run build -- --engine local --base /games/ro26/
+
+      - name: Copy Built Static Files to games/ro26
+        run: |
+          mkdir -p games/ro26
+          if [ -d "temp-repo/dist" ]; then
+            BUILD_DIR="temp-repo/dist"
+          elif [ -d "temp-repo/build" ]; then
+            BUILD_DIR="temp-repo/build"
+          elif [ -d "temp-repo/public" ]; then
+            BUILD_DIR="temp-repo/public"
+          else
+            echo "Could not find build output directory. Contents of temp-repo:"
+            ls -la temp-repo
+            exit 1
+          fi
+          rsync -av --delete "$BUILD_DIR/" games/ro26/
 
       - name: Clean Up Temporary Workspace
         run: |
@@ -37,11 +55,11 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          git add games/rblx/
+          git add games/ro26/
           if git diff --staged --quiet; then
             echo "No changes to commit"
           else
-            git commit -m "Imported WebBloxDemo static build into games/rblx"
+            git commit -m "Imported ro26 local build into games/ro26"
             git pull --rebase origin "${{ github.ref_name }}"
             git push origin "${{ github.ref_name }}"
           fi
